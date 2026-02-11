@@ -102,23 +102,34 @@ export async function requireParishRole(minRole: ParishRole) {
 export async function requireDioceseAdmin() {
   const clerkUserId = await requireAuth();
 
-  if (isE2ESmokeMode()) {
-    return clerkUserId;
-  }
+  const isAdmin = await isDioceseAdmin(clerkUserId);
 
-  const supabase = getSupabaseAdminClient();
-
-  const { data } = await supabase
-    .from("diocese_admins")
-    .select("clerk_user_id")
-    .eq("clerk_user_id", clerkUserId)
-    .maybeSingle();
-
-  if (!data) {
+  if (!isAdmin) {
     redirect("/app/courses");
   }
 
   return clerkUserId;
+}
+
+export async function isDioceseAdmin(clerkUserId?: string) {
+  const userId = clerkUserId ?? (await requireAuth());
+
+  if (isE2ESmokeMode()) {
+    return true;
+  }
+
+  const supabase = getSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("diocese_admins")
+    .select("clerk_user_id")
+    .eq("clerk_user_id", userId)
+    .maybeSingle();
+
+  if (error) {
+    return false;
+  }
+
+  return Boolean(data);
 }
 
 export async function getUserLabel(clerkUserId: string) {
