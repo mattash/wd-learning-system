@@ -6,8 +6,24 @@ import { getSupabaseAdminClient } from "@/lib/supabase/server";
 
 const paramsSchema = z.object({ lessonId: z.string().uuid() });
 
+const optionalDescriptorSchema = z
+  .string()
+  .trim()
+  .max(500)
+  .nullish()
+  .transform((value) => (value && value.length > 0 ? value : null));
+
+const optionalThumbnailSchema = z
+  .string()
+  .trim()
+  .max(2048)
+  .nullish()
+  .transform((value) => (value && value.length > 0 ? value : null));
+
 const updateLessonSchema = z.object({
   title: z.string().min(1),
+  descriptor: optionalDescriptorSchema,
+  thumbnailUrl: optionalThumbnailSchema,
   youtubeVideoId: z.string().min(1),
   sortOrder: z.number().int().min(0),
   passingScore: z.number().int().min(0).max(100),
@@ -23,12 +39,14 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ lessonId: str
     .from("lessons")
     .update({
       title: payload.title,
+      descriptor: payload.descriptor,
+      thumbnail_url: payload.thumbnailUrl,
       youtube_video_id: payload.youtubeVideoId,
       sort_order: payload.sortOrder,
       passing_score: payload.passingScore,
     })
     .eq("id", lessonId)
-    .select("id,module_id,title,youtube_video_id,sort_order,passing_score")
+    .select("id,module_id,title,descriptor,thumbnail_url,youtube_video_id,sort_order,passing_score")
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });

@@ -59,6 +59,8 @@ export interface DioceseLessonRow {
   id: string;
   module_id: string;
   title: string;
+  descriptor: string | null;
+  thumbnail_url: string | null;
   youtube_video_id: string;
   sort_order: number;
   passing_score: number;
@@ -69,6 +71,8 @@ export interface DioceseModuleRow {
   id: string;
   course_id: string;
   title: string;
+  descriptor: string | null;
+  thumbnail_url: string | null;
   sort_order: number;
   lessons: DioceseLessonRow[];
 }
@@ -285,7 +289,7 @@ export async function getCourseContentForAdmin(courseId: string) {
   const { data: modules, error: modulesError } = await supabase
     .from("modules")
     .select(
-      "id,course_id,title,sort_order, lessons(id,module_id,title,youtube_video_id,sort_order,passing_score, questions(id,lesson_id,prompt,options,correct_option_index,sort_order))",
+      "id,course_id,title,descriptor,thumbnail_url,sort_order, lessons(id,module_id,title,descriptor,thumbnail_url,youtube_video_id,sort_order,passing_score, questions(id,lesson_id,prompt,options,correct_option_index,sort_order))",
     )
     .eq("course_id", courseId)
     .order("sort_order", { ascending: true });
@@ -296,4 +300,25 @@ export async function getCourseContentForAdmin(courseId: string) {
     course: course as DioceseCourseRow,
     modules: ((modules ?? []) as DioceseModuleRow[]) ?? [],
   };
+}
+
+export async function getCourseLessonContentForAdmin(courseId: string, lessonId: string) {
+  const content = await getCourseContentForAdmin(courseId);
+
+  if (!content) {
+    return null;
+  }
+
+  for (const moduleRow of content.modules) {
+    const lesson = moduleRow.lessons.find((candidate) => candidate.id === lessonId);
+    if (lesson) {
+      return {
+        course: content.course,
+        module: moduleRow,
+        lesson,
+      };
+    }
+  }
+
+  return null;
 }

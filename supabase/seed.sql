@@ -14,16 +14,16 @@ insert into course_parishes (course_id, parish_id)
 values ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', '11111111-1111-1111-1111-111111111111')
 on conflict do nothing;
 
-insert into modules (id, course_id, title, sort_order)
+insert into modules (id, course_id, title, descriptor, thumbnail_url, sort_order)
 values
-  ('cccccccc-cccc-cccc-cccc-ccccccccccc1', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'Welcome Module', 1),
-  ('cccccccc-cccc-cccc-cccc-ccccccccccc2', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'Foundations', 1)
+  ('cccccccc-cccc-cccc-cccc-ccccccccccc1', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'Welcome Module', 'Introduces diocesan mission and platform basics.', '/globe.svg', 1),
+  ('cccccccc-cccc-cccc-cccc-ccccccccccc2', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'Foundations', 'Core principles and sacramental overview for learners.', '/window.svg', 1)
 on conflict (id) do nothing;
 
-insert into lessons (id, module_id, title, youtube_video_id, sort_order, passing_score)
+insert into lessons (id, module_id, title, descriptor, thumbnail_url, youtube_video_id, sort_order, passing_score)
 values
-  ('dddddddd-dddd-dddd-dddd-ddddddddddd1', 'cccccccc-cccc-cccc-cccc-ccccccccccc1', 'Welcome to the Diocese', 'dQw4w9WgXcQ', 1, 80),
-  ('dddddddd-dddd-dddd-dddd-ddddddddddd2', 'cccccccc-cccc-cccc-cccc-ccccccccccc2', 'Sacrament Basics', 'ysz5S6PUM-U', 1, 80)
+  ('dddddddd-dddd-dddd-dddd-ddddddddddd1', 'cccccccc-cccc-cccc-cccc-ccccccccccc1', 'Welcome to the Diocese', 'Orientation to diocesan learning expectations and flow.', '/next.svg', 'dQw4w9WgXcQ', 1, 80),
+  ('dddddddd-dddd-dddd-dddd-ddddddddddd2', 'cccccccc-cccc-cccc-cccc-ccccccccccc2', 'Sacrament Basics', 'Covers the essential sacramental framework for beginners.', '/file.svg', 'ysz5S6PUM-U', 1, 80)
 on conflict (id) do nothing;
 
 insert into questions (id, lesson_id, prompt, options, correct_option_index, sort_order)
