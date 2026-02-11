@@ -1,70 +1,72 @@
 import Link from "next/link";
 
-import { requireDioceseAdmin } from "@/lib/authz";
-import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { getDioceseOverview } from "@/lib/repositories/diocese-admin";
+
+const overviewCards = [
+  { key: "parishCount", label: "Parishes" },
+  { key: "userCount", label: "Users" },
+  { key: "dioceseAdminCount", label: "Diocese admins" },
+  { key: "courseCount", label: "Courses" },
+  { key: "publishedCourseCount", label: "Published courses" },
+  { key: "enrollmentCount", label: "Enrollments" },
+  { key: "progressRecordCount", label: "Progress records" },
+  { key: "completedProgressRecordCount", label: "Completed progress records" },
+] as const;
 
 export default async function DioceseAdminPage() {
-  await requireDioceseAdmin();
-  const supabase = getSupabaseAdminClient();
-  const [{ data: courseMetrics }, { data: lessonMetrics }, { data: parishes }] =
-    await Promise.all([
-      supabase.rpc("diocese_course_metrics"),
-      supabase.rpc("diocese_lesson_metrics"),
-      supabase.from("parishes").select("id,name,slug"),
-    ]);
+  const overview = await getDioceseOverview();
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Diocese Admin Dashboard</h1>
+      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {overviewCards.map((card) => (
+          <Card key={card.key}>
+            <CardHeader className="pb-2">
+              <CardDescription>{card.label}</CardDescription>
+              <CardTitle className="text-2xl">{overview[card.key].toLocaleString()}</CardTitle>
+            </CardHeader>
+          </Card>
+        ))}
+      </section>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Parishes</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ul className="space-y-1 text-sm">
-            {((parishes ?? []) as Array<{ id: string; name: string; slug: string }>).map((parish) => (
-              <li key={parish.id}>
-                {parish.name} ({parish.slug})
-              </li>
-            ))}
-          </ul>
-        </CardContent>
-      </Card>
+      <section className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Diocese management modules</CardTitle>
+            <CardDescription>Open focused tools for users, parishes, courses, and engagement.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-2 sm:grid-cols-2">
+            <Button asChild variant="secondary">
+              <Link href="/app/admin/users">Manage users</Link>
+            </Button>
+            <Button asChild variant="secondary">
+              <Link href="/app/admin/parishes">Manage parishes</Link>
+            </Button>
+            <Button asChild variant="secondary">
+              <Link href="/app/admin/courses">Manage courses</Link>
+            </Button>
+            <Button asChild variant="secondary">
+              <Link href="/app/admin/engagement">View engagement</Link>
+            </Button>
+          </CardContent>
+        </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Course Analytics</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <pre className="overflow-auto text-xs">{JSON.stringify(courseMetrics ?? [], null, 2)}</pre>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Lesson Analytics</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <pre className="overflow-auto text-xs">{JSON.stringify(lessonMetrics ?? [], null, 2)}</pre>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Admin Tool</CardTitle>
-          <CardDescription>
-            Use the dedicated membership tool to add diocese admins and parish memberships.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button asChild className="text-sm" variant="link">
-            <Link href="/app/admin/memberships">Open membership tool</Link>
-          </Button>
-        </CardContent>
-      </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Access and roles</CardTitle>
+            <CardDescription>
+              Continue using the access tool for assigning parish memberships and diocesan admins.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild>
+              <Link href="/app/admin/memberships">Open membership tool</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </section>
     </div>
   );
 }
