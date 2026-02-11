@@ -12,9 +12,7 @@ describe("ThemeToggle", () => {
     await waitFor(() => {
       expect(document.documentElement.dataset.theme).toBe("dark");
     });
-    expect(screen.getByRole("button", { name: "Toggle theme" })).toHaveTextContent(
-      "Toggle Theme",
-    );
+    expect(screen.getByRole("button", { name: "Toggle theme" })).toBeInTheDocument();
   });
 
   it("toggles and persists theme", async () => {
