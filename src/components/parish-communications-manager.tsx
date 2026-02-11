@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import type {
@@ -13,6 +13,25 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 
 type AudienceType = "all_members" | "stalled_learners" | "cohort" | "course";
+type RecipientDeliveryStatus = "not_configured" | "pending" | "sent" | "failed";
+
+interface SendDetailsResponse {
+  summary: {
+    total: number;
+    not_configured: number;
+    pending: number;
+    sent: number;
+    failed: number;
+  };
+  recipients: Array<{
+    clerk_user_id: string;
+    display_name: string | null;
+    email: string | null;
+    delivery_status: RecipientDeliveryStatus;
+    delivery_attempted_at: string | null;
+    delivery_error: string | null;
+  }>;
+}
 
 function isAudienceType(value: string | null): value is AudienceType {
   return value === "all_members" || value === "stalled_learners" || value === "cohort" || value === "course";
@@ -29,6 +48,10 @@ function formatAudienceLabel(
     return `Cohort: ${cohortNameById.get(send.audience_value ?? "") ?? send.audience_value ?? "Unknown"}`;
   }
   return `Course: ${courseTitleById.get(send.audience_value ?? "") ?? send.audience_value ?? "Unknown"}`;
+}
+
+function recipientLabel(recipient: SendDetailsResponse["recipients"][number]) {
+  return recipient.display_name ?? recipient.email ?? recipient.clerk_user_id;
 }
 
 export function ParishCommunicationsManager({
@@ -66,6 +89,9 @@ export function ParishCommunicationsManager({
   const [subject, setSubject] = useState((prefill?.subject ?? "").slice(0, 160));
   const [body, setBody] = useState((prefill?.body ?? "").slice(0, 5000));
   const [message, setMessage] = useState("");
+  const [expandedSendId, setExpandedSendId] = useState<string | null>(null);
+  const [detailsLoadingSendId, setDetailsLoadingSendId] = useState<string | null>(null);
+  const [detailsBySendId, setDetailsBySendId] = useState<Record<string, SendDetailsResponse | undefined>>({});
 
   const cohortNameById = useMemo(
     () => new Map(cohorts.map((cohort) => [cohort.id, cohort.name])),
@@ -106,6 +132,31 @@ export function ParishCommunicationsManager({
     setSubject("");
     setBody("");
     router.refresh();
+  }
+
+  async function toggleDetails(sendId: string) {
+    if (expandedSendId === sendId) {
+      setExpandedSendId(null);
+      return;
+    }
+
+    if (detailsBySendId[sendId]) {
+      setExpandedSendId(sendId);
+      return;
+    }
+
+    setDetailsLoadingSendId(sendId);
+    const response = await fetch(`/api/parish-admin/communications/${sendId}`);
+    const data = await response.json();
+    setDetailsLoadingSendId(null);
+
+    if (!response.ok) {
+      setMessage(data.error ?? "Failed to load send details.");
+      return;
+    }
+
+    setDetailsBySendId((prev) => ({ ...prev, [sendId]: data as SendDetailsResponse }));
+    setExpandedSendId(sendId);
   }
 
   return (
@@ -168,23 +219,84 @@ export function ParishCommunicationsManager({
           <tr>
             <th className="py-2 pr-4 font-medium">When</th>
             <th className="py-2 pr-4 font-medium">Audience</th>
-            <th className="py-2 pr-4 font-medium">Subject</th>
-            <th className="py-2 pr-4 font-medium">Recipients</th>
-            <th className="py-2 pr-4 font-medium">Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {sends.map((send) => (
-            <tr className="border-t" key={send.id}>
-              <td className="py-2 pr-4">{new Date(send.created_at).toLocaleString()}</td>
-              <td className="py-2 pr-4">{formatAudienceLabel(send, cohortNameById, courseTitleById)}</td>
-              <td className="py-2 pr-4">{send.subject}</td>
-              <td className="py-2 pr-4">{send.recipient_count}</td>
-              <td className="py-2 pr-4">{send.delivery_status}</td>
+              <th className="py-2 pr-4 font-medium">Subject</th>
+              <th className="py-2 pr-4 font-medium">Recipients</th>
+              <th className="py-2 pr-4 font-medium">Status</th>
+              <th className="py-2 pr-4 font-medium">Details</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {sends.map((send) => {
+              const details = detailsBySendId[send.id];
+              const isExpanded = expandedSendId === send.id;
+
+              return (
+                <Fragment key={send.id}>
+                  <tr className="border-t">
+                    <td className="py-2 pr-4">{new Date(send.created_at).toLocaleString()}</td>
+                    <td className="py-2 pr-4">{formatAudienceLabel(send, cohortNameById, courseTitleById)}</td>
+                    <td className="py-2 pr-4">{send.subject}</td>
+                    <td className="py-2 pr-4">{send.recipient_count}</td>
+                    <td className="py-2 pr-4">{send.delivery_status}</td>
+                    <td className="py-2 pr-4">
+                      <Button
+                        onClick={() => toggleDetails(send.id)}
+                        size="sm"
+                        type="button"
+                        variant="outline"
+                      >
+                        {detailsLoadingSendId === send.id ? "Loading..." : isExpanded ? "Hide" : "View details"}
+                      </Button>
+                    </td>
+                  </tr>
+                  {isExpanded && details ? (
+                    <tr className="border-t bg-muted/30" key={`${send.id}-details`}>
+                      <td className="py-3" colSpan={6}>
+                        <div className="space-y-2">
+                          <div className="flex flex-wrap gap-2 text-xs">
+                            <span className="rounded border border-border px-2 py-1">Total: {details.summary.total}</span>
+                            <span className="rounded border border-border px-2 py-1">Pending: {details.summary.pending}</span>
+                            <span className="rounded border border-border px-2 py-1">Sent: {details.summary.sent}</span>
+                            <span className="rounded border border-border px-2 py-1">Failed: {details.summary.failed}</span>
+                            <span className="rounded border border-border px-2 py-1">
+                              Not configured: {details.summary.not_configured}
+                            </span>
+                          </div>
+                          <table className="w-full text-left text-xs">
+                            <thead className="text-muted-foreground">
+                              <tr>
+                                <th className="py-1 pr-2 font-medium">Recipient</th>
+                                <th className="py-1 pr-2 font-medium">Email</th>
+                                <th className="py-1 pr-2 font-medium">Status</th>
+                                <th className="py-1 pr-2 font-medium">Attempted</th>
+                                <th className="py-1 pr-2 font-medium">Error</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {details.recipients.map((recipient) => (
+                                <tr className="border-t" key={recipient.clerk_user_id}>
+                                  <td className="py-1 pr-2">{recipientLabel(recipient)}</td>
+                                  <td className="py-1 pr-2">{recipient.email ?? "—"}</td>
+                                  <td className="py-1 pr-2">{recipient.delivery_status}</td>
+                                  <td className="py-1 pr-2">
+                                    {recipient.delivery_attempted_at
+                                      ? new Date(recipient.delivery_attempted_at).toLocaleString()
+                                      : "—"}
+                                  </td>
+                                  <td className="py-1 pr-2">{recipient.delivery_error ?? "—"}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : null}
+                </Fragment>
+              );
+            })}
+          </tbody>
+        </table>
 
       {sends.length === 0 ? (
         <p className="text-sm text-muted-foreground">No communication logs yet.</p>
