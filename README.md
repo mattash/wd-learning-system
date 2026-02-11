@@ -19,7 +19,8 @@ This MVP uses **server-only Supabase access** via service role key.
 - RLS is enabled on all tables and direct anon/authenticated access is denied; only server-side service role can access DB.
 
 ## Features
-- Parish-based tenant selection after login (`/app/select-parish`).
+- First-login onboarding to complete profile and select a self-signup parish (`/app/onboarding`).
+- Parish switching/joining for self-signup parishes (`/app/select-parish`).
 - Diocese-wide + parish-scoped courses.
 - Lesson pages with YouTube IFrame API player.
 - Video progress tracking (every 10s while playing, pause/end/unload flush).
@@ -67,6 +68,11 @@ insert into diocese_admins (clerk_user_id) values ('<your_clerk_user_id>')
 on conflict (clerk_user_id) do nothing;
 ```
 3. Visit `/app/admin/memberships` to assign parish memberships/roles.
+
+## Parish self-signup controls
+- `parishes.allow_self_signup` controls whether users can join a parish during onboarding and from `/app/select-parish`.
+- New users create their own `student` parish membership during onboarding.
+- Diocese admins can still assign elevated roles (`instructor`, `parish_admin`) from `/app/admin/memberships`.
 
 ## Testing
 ```bash

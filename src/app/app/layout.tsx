@@ -16,6 +16,7 @@ export default async function AppLayout({
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
           <nav className="flex gap-4 text-sm">
             <Link href="/app/courses">Courses</Link>
+            <Link href="/app/select-parish?manage=1">Select Parish</Link>
             <Link href="/app/parish-admin">Parish Admin</Link>
             <Link href="/app/admin">Diocese Admin</Link>
           </nav>

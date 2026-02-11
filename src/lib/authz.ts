@@ -19,7 +19,28 @@ export async function requireAuth() {
   return userId;
 }
 
-export async function requireActiveParish() {
+export async function hasCompletedOnboarding(clerkUserId: string) {
+  const supabase = getSupabaseAdminClient();
+  const { data } = await supabase
+    .from("user_profiles")
+    .select("onboarding_completed_at")
+    .eq("clerk_user_id", clerkUserId)
+    .maybeSingle();
+
+  return Boolean(data?.onboarding_completed_at);
+}
+
+export async function requireOnboardingComplete(clerkUserId?: string) {
+  const userId = clerkUserId ?? (await requireAuth());
+  const completed = await hasCompletedOnboarding(userId);
+  if (!completed) {
+    redirect("/app/onboarding");
+  }
+  return userId;
+}
+
+export async function requireActiveParish(clerkUserId?: string) {
+  await requireOnboardingComplete(clerkUserId);
   const store = await cookies();
   const activeParishId = store.get("active_parish_id")?.value;
   if (!activeParishId) {
@@ -30,7 +51,7 @@ export async function requireActiveParish() {
 
 export async function requireParishRole(minRole: ParishRole) {
   const clerkUserId = await requireAuth();
-  const parishId = await requireActiveParish();
+  const parishId = await requireActiveParish(clerkUserId);
   const supabase = getSupabaseAdminClient();
 
   const { data, error } = await supabase
