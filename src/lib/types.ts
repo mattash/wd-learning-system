@@ -19,6 +19,8 @@ export interface Course {
 export interface Lesson {
   id: string;
   title: string;
+  descriptor: string | null;
+  thumbnail_url: string | null;
   youtube_video_id: string;
   passing_score: number;
   module_id: string;

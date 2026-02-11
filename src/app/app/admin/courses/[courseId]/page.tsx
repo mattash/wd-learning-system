@@ -21,7 +21,7 @@ export default async function DioceseAdminCourseContentPage({
       <CardHeader>
         <CardTitle>Course content builder: {data.course.title}</CardTitle>
         <CardDescription>
-          Create and manage modules, lessons, and quiz questions for this course.
+          Build content with module cards, lesson cards, and a dedicated lesson page for question editing.
         </CardDescription>
       </CardHeader>
       <CardContent>
