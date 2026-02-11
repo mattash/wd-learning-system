@@ -1,11 +1,16 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { YoutubePlayer } from "@/components/player/youtube-player";
 import { QuizForm } from "@/components/quiz-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireParishRole } from "@/lib/authz";
 import { isE2ESmokeMode } from "@/lib/e2e-mode";
-import { getBestScore, getLessonWithQuestions, getVideoProgress } from "@/lib/repositories/lessons";
+import {
+  getBestScore,
+  getLessonWithQuestions,
+  getVideoProgress,
+  isUserEnrolledForLesson,
+} from "@/lib/repositories/lessons";
 
 export default async function LessonPage({
   params,
@@ -14,6 +19,10 @@ export default async function LessonPage({
 }) {
   const { lessonId } = await params;
   const { parishId, clerkUserId } = await requireParishRole("student");
+  const enrolled = await isUserEnrolledForLesson({ lessonId, parishId, clerkUserId });
+  if (!enrolled) {
+    redirect("/app/courses?error=not_enrolled");
+  }
 
   const lesson = await getLessonWithQuestions(lessonId);
   if (!lesson) notFound();

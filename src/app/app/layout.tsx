@@ -4,7 +4,7 @@ import { UserButton } from "@clerk/nextjs";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { isE2ESmokeMode } from "@/lib/e2e-mode";
-import { isDioceseAdmin, requireAuth } from "@/lib/authz";
+import { hasActiveParishRole, isDioceseAdmin, requireAuth } from "@/lib/authz";
 
 export default async function AppLayout({
   children,
@@ -13,11 +13,12 @@ export default async function AppLayout({
 }) {
   const clerkUserId = await requireAuth();
   const showDioceseAdmin = await isDioceseAdmin(clerkUserId);
+  const showParishAdmin = await hasActiveParishRole("instructor", clerkUserId);
   const showUserButton = !isE2ESmokeMode() && Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
   const navItems = [
     { label: "Courses", href: "/app/courses" },
     { label: "Select Parish", href: "/app/select-parish?manage=1" },
-    { label: "Parish Admin", href: "/app/parish-admin" },
+    ...(showParishAdmin ? [{ label: "Parish Admin", href: "/app/parish-admin" }] : []),
     ...(showDioceseAdmin ? [{ label: "Diocese Admin", href: "/app/admin" }] : []),
   ];
 

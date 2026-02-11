@@ -1,18 +1,22 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireParishRole } from "@/lib/authz";
-import { getCourseTree } from "@/lib/repositories/courses";
+import { getCourseTree, isUserEnrolledInCourse } from "@/lib/repositories/courses";
 
 export default async function CourseDetailPage({
   params,
 }: {
   params: Promise<{ courseId: string }>;
 }) {
-  const { parishId } = await requireParishRole("student");
+  const { parishId, clerkUserId } = await requireParishRole("student");
   const { courseId } = await params;
+  const enrolled = await isUserEnrolledInCourse({ parishId, clerkUserId, courseId });
+  if (!enrolled) {
+    redirect("/app/courses?error=not_enrolled");
+  }
   const courseTree = await getCourseTree(courseId, parishId);
 
   if (!courseTree) {

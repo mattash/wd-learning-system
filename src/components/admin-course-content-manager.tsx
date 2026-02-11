@@ -8,6 +8,7 @@ import type { DioceseModuleRow } from "@/lib/repositories/diocese-admin";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
 interface ModuleDraft {
@@ -54,11 +55,25 @@ function buildLessonDrafts(modules: DioceseModuleRow[]) {
   ) as Record<string, LessonDraft>;
 }
 
-export function AdminCourseContentManager({ courseId, modules }: { courseId: string; modules: DioceseModuleRow[] }) {
+export function AdminCourseContentManager({
+  course,
+  modules,
+}: {
+  course: {
+    id: string;
+    title: string;
+    description: string | null;
+    scope: "DIOCESE" | "PARISH";
+    published: boolean;
+  };
+  modules: DioceseModuleRow[];
+}) {
+  const courseId = course.id;
   const router = useRouter();
   const [newModuleTitle, setNewModuleTitle] = useState("");
   const [newModuleDescriptor, setNewModuleDescriptor] = useState("");
   const [newModuleThumbnailUrl, setNewModuleThumbnailUrl] = useState("");
+  const [courseScope, setCourseScope] = useState<"DIOCESE" | "PARISH">(course.scope);
   const [message, setMessage] = useState("");
   const [moduleDrafts, setModuleDrafts] = useState<Record<string, ModuleDraft>>(() => buildModuleDrafts(modules));
   const [lessonDrafts, setLessonDrafts] = useState<Record<string, LessonDraft>>(() => buildLessonDrafts(modules));
@@ -67,6 +82,23 @@ export function AdminCourseContentManager({ courseId, modules }: { courseId: str
     setModuleDrafts(buildModuleDrafts(modules));
     setLessonDrafts(buildLessonDrafts(modules));
   }, [modules]);
+
+  async function saveCourseScope() {
+    const response = await fetch(`/api/admin/courses/${courseId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: course.title,
+        description: course.description,
+        published: course.published,
+        scope: courseScope,
+      }),
+    });
+
+    const data = await response.json();
+    setMessage(response.ok ? "Course scope updated." : data.error ?? "Failed to update course scope.");
+    if (response.ok) router.refresh();
+  }
 
   async function createModule() {
     const title = newModuleTitle.trim();
@@ -187,6 +219,24 @@ export function AdminCourseContentManager({ courseId, modules }: { courseId: str
 
   return (
     <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>Course settings</CardTitle>
+          <CardDescription>Set visibility scope for this course.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3 md:grid-cols-[220px_auto]">
+          <Select onChange={(e) => setCourseScope(e.target.value as "DIOCESE" | "PARISH")} value={courseScope}>
+            <option value="DIOCESE">DIOCESE</option>
+            <option value="PARISH">PARISH</option>
+          </Select>
+          <div>
+            <Button onClick={saveCourseScope} type="button" variant="secondary">
+              Save course settings
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>Create module</CardTitle>

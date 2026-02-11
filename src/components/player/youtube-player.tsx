@@ -12,8 +12,8 @@ interface YoutubePlayerProps {
 
 interface YouTubePlayerInstance {
   destroy: () => void;
-  getCurrentTime: () => number;
-  getDuration: () => number;
+  getCurrentTime?: () => number;
+  getDuration?: () => number;
   seekTo: (seconds: number, allowSeekAhead?: boolean) => void;
 }
 
@@ -68,8 +68,8 @@ export function YoutubePlayer({
   const flushProgress = useCallback(
     async (forcedCompleted = false) => {
       if (!playerRef.current) return;
-      const duration = Math.max(1, playerRef.current.getDuration() || 1);
-      const lastPosition = Math.floor(playerRef.current.getCurrentTime() || 0);
+      const duration = Math.max(1, playerRef.current.getDuration?.() || 1);
+      const lastPosition = Math.floor(playerRef.current.getCurrentTime?.() || 0);
       const percent = Math.min(100, Math.round((lastPosition / duration) * 100));
       await saveProgress({
         lessonId,

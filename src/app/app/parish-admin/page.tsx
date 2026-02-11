@@ -82,7 +82,7 @@ export default async function ParishAdminPage({
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Stalled learners (7+ days)</CardDescription>
+            <CardDescription>Stalled learners (31+ days)</CardDescription>
             <CardTitle className="text-2xl">{overview.stalledLearnerCount.toLocaleString()}</CardTitle>
           </CardHeader>
         </Card>

@@ -50,7 +50,7 @@ async function completeOnboarding(formData: FormData) {
       secure: process.env.NODE_ENV === "production",
       path: "/",
     });
-    redirect("/app/courses");
+    redirect("/app");
   }
 
   const supabase = getSupabaseAdminClient();
@@ -110,7 +110,7 @@ async function completeOnboarding(formData: FormData) {
     path: "/",
   });
 
-  redirect("/app/courses");
+  redirect("/app");
 }
 
 export default async function OnboardingPage({
@@ -121,7 +121,7 @@ export default async function OnboardingPage({
   const userId = await requireAuth();
 
   if (await hasCompletedOnboarding(userId)) {
-    redirect("/app/courses");
+    redirect("/app");
   }
 
   let profile: { display_name: string | null } | null = null;

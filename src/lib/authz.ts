@@ -13,6 +13,17 @@ const roleRank: Record<ParishRole, number> = {
   parish_admin: 3,
 };
 
+function parseParishRole(value: string | undefined): ParishRole | null {
+  if (value === "parish_admin" || value === "instructor" || value === "student") {
+    return value;
+  }
+  return null;
+}
+
+function hasRoleAtLeast(role: ParishRole, minRole: ParishRole) {
+  return roleRank[role] >= roleRank[minRole];
+}
+
 export async function requireAuth() {
   if (isE2ESmokeMode()) {
     return E2E_USER_ID;
@@ -66,13 +77,9 @@ export async function requireParishRole(minRole: ParishRole) {
 
   if (isE2ESmokeMode()) {
     const store = await cookies();
-    const roleCookie = store.get("e2e_role")?.value;
-    const role: ParishRole =
-      roleCookie === "parish_admin" || roleCookie === "instructor" || roleCookie === "student"
-        ? roleCookie
-        : E2E_DEFAULT_ROLE;
+    const role = parseParishRole(store.get("e2e_role")?.value) ?? E2E_DEFAULT_ROLE;
 
-    if (roleRank[role] < roleRank[minRole]) {
+    if (!hasRoleAtLeast(role, minRole)) {
       redirect("/app/courses");
     }
 
@@ -92,11 +99,48 @@ export async function requireParishRole(minRole: ParishRole) {
     redirect("/app/select-parish");
   }
 
-  if (roleRank[data.role as ParishRole] < roleRank[minRole]) {
+  const role = data.role as ParishRole;
+  if (!hasRoleAtLeast(role, minRole)) {
     redirect("/app/courses");
   }
 
-  return { clerkUserId, parishId, role: data.role as ParishRole };
+  return { clerkUserId, parishId, role };
+}
+
+export async function getActiveParishRole(clerkUserId?: string): Promise<ParishRole | null> {
+  const userId = clerkUserId ?? (await requireAuth());
+  const store = await cookies();
+
+  if (isE2ESmokeMode()) {
+    return parseParishRole(store.get("e2e_role")?.value) ?? E2E_DEFAULT_ROLE;
+  }
+
+  const activeParishId = store.get("active_parish_id")?.value;
+  if (!activeParishId) {
+    return null;
+  }
+
+  const supabase = getSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("parish_memberships")
+    .select("role")
+    .eq("parish_id", activeParishId)
+    .eq("clerk_user_id", userId)
+    .maybeSingle();
+
+  if (error || !data) {
+    return null;
+  }
+
+  return data.role as ParishRole;
+}
+
+export async function hasActiveParishRole(minRole: ParishRole, clerkUserId?: string) {
+  const role = await getActiveParishRole(clerkUserId);
+  if (!role) {
+    return false;
+  }
+  return hasRoleAtLeast(role, minRole);
 }
 
 export async function requireDioceseAdmin() {

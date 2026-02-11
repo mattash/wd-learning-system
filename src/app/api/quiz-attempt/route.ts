@@ -4,6 +4,7 @@ import { E2E_LESSON, E2E_QUESTIONS } from "@/lib/e2e-fixtures";
 import { requireAuth, requireParishRole } from "@/lib/authz";
 import { isE2ESmokeMode } from "@/lib/e2e-mode";
 import { gradeQuiz } from "@/lib/grading";
+import { isUserEnrolledForLesson } from "@/lib/repositories/lessons";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import { quizSubmissionSchema } from "@/lib/validation/quiz";
 
@@ -14,6 +15,15 @@ export async function POST(req: Request) {
 
   if (payload.parishId !== parishId) {
     return NextResponse.json({ error: "Invalid parish context" }, { status: 403 });
+  }
+
+  const enrolled = await isUserEnrolledForLesson({
+    lessonId: payload.lessonId,
+    parishId,
+    clerkUserId,
+  });
+  if (!enrolled) {
+    return NextResponse.json({ error: "Enrollment required for this lesson" }, { status: 403 });
   }
 
   if (isE2ESmokeMode()) {

@@ -4,13 +4,23 @@ import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+
+type ParishRole = "parish_admin" | "instructor" | "student";
 
 interface UserMembership {
   parish_id: string;
   parish_name: string;
-  role: "parish_admin" | "instructor" | "student";
+  role: ParishRole;
 }
 
 interface UserDirectoryRow {
@@ -32,13 +42,15 @@ interface UserFilters {
   q: string;
   onboarding: "all" | "yes" | "no";
   parishId: string;
-  role: "all" | "parish_admin" | "instructor" | "student";
+  role: "all" | ParishRole;
   dioceseAdmin: "all" | "yes" | "no";
 }
 
-interface UserDraft {
+interface UserEditDraft {
   displayName: string;
   email: string;
+  isDioceseAdmin: boolean;
+  memberships: Array<{ parishId: string; role: ParishRole }>;
 }
 
 const defaultFilters: UserFilters = {
@@ -62,19 +74,12 @@ export function AdminUserDirectoryManager({
   const [filters, setFilters] = useState<UserFilters>(defaultFilters);
   const [users, setUsers] = useState<UserDirectoryRow[]>(initialUsers);
   const [parishes, setParishes] = useState<ParishFilterOption[]>(initialParishes);
-  const [drafts, setDrafts] = useState<Record<string, UserDraft>>(() =>
-    Object.fromEntries(
-      initialUsers.map((user) => [
-        user.clerk_user_id,
-        {
-          displayName: user.display_name ?? "",
-          email: user.email ?? "",
-        },
-      ]),
-    ),
-  );
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState<UserEditDraft | null>(null);
+  const [pendingParishId, setPendingParishId] = useState("");
 
   const loadUsers = useCallback(async (activeFilters: UserFilters) => {
     setLoading(true);
@@ -96,20 +101,8 @@ export function AdminUserDirectoryManager({
       return;
     }
 
-    const nextUsers = (data.users ?? []) as UserDirectoryRow[];
-    setUsers(nextUsers);
+    setUsers((data.users ?? []) as UserDirectoryRow[]);
     setParishes((data.parishes ?? []) as ParishFilterOption[]);
-    setDrafts(
-      Object.fromEntries(
-        nextUsers.map((user) => [
-          user.clerk_user_id,
-          {
-            displayName: user.display_name ?? "",
-            email: user.email ?? "",
-          },
-        ]),
-      ),
-    );
     setLoading(false);
   }, []);
 
@@ -123,6 +116,19 @@ export function AdminUserDirectoryManager({
     return count;
   }, [filters]);
 
+  const editingUser = useMemo(
+    () => users.find((user) => user.clerk_user_id === editingUserId) ?? null,
+    [editingUserId, users],
+  );
+
+  const parishNameById = useMemo(() => new Map(parishes.map((parish) => [parish.id, parish.name])), [parishes]);
+
+  const availableParishesForAdd = useMemo(() => {
+    if (!editDraft) return [];
+    const usedParishIds = new Set(editDraft.memberships.map((membership) => membership.parishId));
+    return parishes.filter((parish) => !usedParishIds.has(parish.id));
+  }, [editDraft, parishes]);
+
   async function applyFilters() {
     await loadUsers(filters);
   }
@@ -132,28 +138,155 @@ export function AdminUserDirectoryManager({
     await loadUsers(defaultFilters);
   }
 
-  async function saveProfile(userId: string) {
-    const draft = drafts[userId];
-    if (!draft) return;
+  function closeEditor() {
+    setEditingUserId(null);
+    setEditDraft(null);
+    setPendingParishId("");
+  }
 
-    const response = await fetch(`/api/admin/users/${encodeURIComponent(userId)}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        displayName: draft.displayName,
-        email: draft.email,
-      }),
+  function openEditor(user: UserDirectoryRow) {
+    setEditingUserId(user.clerk_user_id);
+    setEditDraft({
+      displayName: user.display_name ?? "",
+      email: user.email ?? "",
+      isDioceseAdmin: user.is_diocese_admin,
+      memberships: user.memberships.map((membership) => ({
+        parishId: membership.parish_id,
+        role: membership.role,
+      })),
     });
+    setPendingParishId("");
+  }
 
-    const data = await response.json();
-    if (!response.ok) {
-      setMessage(data.error ?? "Failed to update profile.");
+  function addMembership() {
+    if (!pendingParishId || !editDraft) return;
+
+    if (editDraft.memberships.some((membership) => membership.parishId === pendingParishId)) {
       return;
     }
 
-    setMessage("Profile updated.");
-    await loadUsers(filters);
-    router.refresh();
+    setEditDraft((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        memberships: [...prev.memberships, { parishId: pendingParishId, role: "student" }],
+      };
+    });
+    setPendingParishId("");
+  }
+
+  function removeMembership(parishId: string) {
+    setEditDraft((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        memberships: prev.memberships.filter((membership) => membership.parishId !== parishId),
+      };
+    });
+  }
+
+  function setMembershipRole(parishId: string, role: ParishRole) {
+    setEditDraft((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        memberships: prev.memberships.map((membership) =>
+          membership.parishId === parishId ? { ...membership, role } : membership,
+        ),
+      };
+    });
+  }
+
+  async function postAccessUpdate(payload: {
+    clerkUserId: string;
+    makeDioceseAdmin?: boolean;
+    removeDioceseAdmin?: boolean;
+    parishId?: string;
+    role?: ParishRole;
+    removeParishMembership?: boolean;
+  }) {
+    const response = await fetch("/api/admin/users/access", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error ?? "Failed to update user access.");
+    }
+  }
+
+  async function saveEditorChanges() {
+    if (!editingUser || !editDraft) return;
+
+    setSaving(true);
+    setMessage("");
+
+    try {
+      const clerkUserId = editingUser.clerk_user_id;
+      const nextDisplayName = editDraft.displayName.trim() || null;
+      const nextEmail = editDraft.email.trim() || null;
+
+      const profileChanged =
+        nextDisplayName !== (editingUser.display_name ?? null) ||
+        nextEmail !== (editingUser.email ?? null);
+
+      if (profileChanged) {
+        const profileResponse = await fetch(`/api/admin/users/${encodeURIComponent(clerkUserId)}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            displayName: nextDisplayName,
+            email: nextEmail,
+          }),
+        });
+
+        const profileData = await profileResponse.json();
+        if (!profileResponse.ok) {
+          throw new Error(profileData.error ?? "Failed to update user profile.");
+        }
+      }
+
+      if (editDraft.isDioceseAdmin !== editingUser.is_diocese_admin) {
+        await postAccessUpdate({
+          clerkUserId,
+          makeDioceseAdmin: editDraft.isDioceseAdmin,
+          removeDioceseAdmin: !editDraft.isDioceseAdmin,
+        });
+      }
+
+      const originalMemberships = new Map(editingUser.memberships.map((membership) => [membership.parish_id, membership.role]));
+      const nextMemberships = new Map(editDraft.memberships.map((membership) => [membership.parishId, membership.role]));
+
+      for (const parishId of originalMemberships.keys()) {
+        if (!nextMemberships.has(parishId)) {
+          await postAccessUpdate({
+            clerkUserId,
+            parishId,
+            removeParishMembership: true,
+          });
+        }
+      }
+
+      for (const [parishId, role] of nextMemberships.entries()) {
+        if (originalMemberships.get(parishId) !== role) {
+          await postAccessUpdate({
+            clerkUserId,
+            parishId,
+            role,
+          });
+        }
+      }
+
+      await loadUsers(filters);
+      router.refresh();
+      closeEditor();
+      setMessage("User profile and access updated.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Failed to update user.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -241,40 +374,14 @@ export function AdminUserDirectoryManager({
             <th className="py-2 pr-4 font-medium">Onboarded</th>
             <th className="py-2 pr-4 font-medium">Diocese admin</th>
             <th className="py-2 pr-4 font-medium">Parish memberships</th>
-            <th className="py-2 pr-4 font-medium">Profile</th>
+            <th className="py-2 pr-4 font-medium">Actions</th>
           </tr>
         </thead>
         <tbody>
           {users.map((user) => (
             <tr className="border-t align-top" key={user.clerk_user_id}>
-              <td className="py-2 pr-4">
-                <Input
-                  onChange={(e) =>
-                    setDrafts((prev) => ({
-                      ...prev,
-                      [user.clerk_user_id]: {
-                        ...prev[user.clerk_user_id],
-                        displayName: e.target.value,
-                      },
-                    }))
-                  }
-                  value={drafts[user.clerk_user_id]?.displayName ?? ""}
-                />
-              </td>
-              <td className="py-2 pr-4">
-                <Input
-                  onChange={(e) =>
-                    setDrafts((prev) => ({
-                      ...prev,
-                      [user.clerk_user_id]: {
-                        ...prev[user.clerk_user_id],
-                        email: e.target.value,
-                      },
-                    }))
-                  }
-                  value={drafts[user.clerk_user_id]?.email ?? ""}
-                />
-              </td>
+              <td className="py-2 pr-4">{user.display_name ?? "—"}</td>
+              <td className="py-2 pr-4">{user.email ?? "—"}</td>
               <td className="py-2 pr-4 font-mono text-xs">{user.clerk_user_id}</td>
               <td className="py-2 pr-4">{user.onboarding_completed_at ? "Yes" : "No"}</td>
               <td className="py-2 pr-4">{user.is_diocese_admin ? "Yes" : "No"}</td>
@@ -282,7 +389,7 @@ export function AdminUserDirectoryManager({
                 {user.memberships.length > 0 ? (
                   <ul className="space-y-1">
                     {user.memberships.map((membership) => (
-                      <li key={`${user.clerk_user_id}-${membership.parish_id}-${membership.role}`}>
+                      <li key={`${user.clerk_user_id}-${membership.parish_id}`}>
                         {membership.parish_name} ({membership.role})
                       </li>
                     ))}
@@ -292,14 +399,151 @@ export function AdminUserDirectoryManager({
                 )}
               </td>
               <td className="py-2 pr-4">
-                <Button onClick={() => void saveProfile(user.clerk_user_id)} size="sm" type="button">
-                  Save profile
+                <Button onClick={() => openEditor(user)} size="sm" type="button">
+                  Edit profile
                 </Button>
               </td>
             </tr>
           ))}
         </tbody>
       </table>
+
+      <Dialog
+        onOpenChange={(open) => {
+          if (!open) {
+            closeEditor();
+          }
+        }}
+        open={Boolean(editingUser && editDraft)}
+      >
+        <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
+          {editingUser && editDraft ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>Edit profile</DialogTitle>
+                <DialogDescription>
+                  Update profile details and manage parish memberships for {editingUser.clerk_user_id}.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="grid gap-1 text-sm">
+                  <span className="text-muted-foreground">Display name</span>
+                  <Input
+                    onChange={(e) =>
+                      setEditDraft((prev) =>
+                        prev
+                          ? {
+                              ...prev,
+                              displayName: e.target.value,
+                            }
+                          : prev,
+                      )
+                    }
+                    value={editDraft.displayName}
+                  />
+                </label>
+
+                <label className="grid gap-1 text-sm">
+                  <span className="text-muted-foreground">Email</span>
+                  <Input
+                    onChange={(e) =>
+                      setEditDraft((prev) =>
+                        prev
+                          ? {
+                              ...prev,
+                              email: e.target.value,
+                            }
+                          : prev,
+                      )
+                    }
+                    value={editDraft.email}
+                  />
+                </label>
+              </div>
+
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  checked={editDraft.isDioceseAdmin}
+                  className="h-4 w-4"
+                  onChange={(e) =>
+                    setEditDraft((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            isDioceseAdmin: e.target.checked,
+                          }
+                        : prev,
+                    )
+                  }
+                  type="checkbox"
+                />
+                Diocese admin access
+              </label>
+
+              <div className="space-y-3 rounded-md border border-border p-3">
+                <div>
+                  <h3 className="text-sm font-medium">Parish memberships</h3>
+                  <p className="text-xs text-muted-foreground">Set or remove each parish membership and role.</p>
+                </div>
+
+                {editDraft.memberships.length > 0 ? (
+                  <div className="space-y-2">
+                    {editDraft.memberships.map((membership) => (
+                      <div className="grid gap-2 rounded-md border border-border p-2 sm:grid-cols-[1fr_auto_auto] sm:items-center" key={membership.parishId}>
+                        <div>
+                          <p className="font-medium">{parishNameById.get(membership.parishId) ?? membership.parishId}</p>
+                          <p className="font-mono text-xs text-muted-foreground">{membership.parishId}</p>
+                        </div>
+                        <Select
+                          onChange={(e) => setMembershipRole(membership.parishId, e.target.value as ParishRole)}
+                          value={membership.role}
+                        >
+                          <option value="student">student</option>
+                          <option value="instructor">instructor</option>
+                          <option value="parish_admin">parish_admin</option>
+                        </Select>
+                        <Button onClick={() => removeMembership(membership.parishId)} type="button" variant="ghost">
+                          Remove
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No parish memberships assigned.</p>
+                )}
+
+                <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                  <Select onChange={(e) => setPendingParishId(e.target.value)} value={pendingParishId}>
+                    <option value="">Select parish to add</option>
+                    {availableParishesForAdd.map((parish) => (
+                      <option key={parish.id} value={parish.id}>
+                        {parish.name}
+                      </option>
+                    ))}
+                  </Select>
+                  <Button disabled={!pendingParishId} onClick={addMembership} type="button" variant="secondary">
+                    Add parish
+                  </Button>
+                </div>
+
+                {availableParishesForAdd.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">All parishes are already assigned to this user.</p>
+                ) : null}
+              </div>
+
+              <DialogFooter>
+                <Button onClick={closeEditor} type="button" variant="ghost">
+                  Cancel
+                </Button>
+                <Button disabled={saving} onClick={() => void saveEditorChanges()} type="button">
+                  {saving ? "Saving..." : "Save changes"}
+                </Button>
+              </DialogFooter>
+            </>
+          ) : null}
+        </DialogContent>
+      </Dialog>
 
       {message ? <p className="text-sm text-muted-foreground">{message}</p> : null}
     </div>

@@ -25,7 +25,11 @@ export default async function DioceseAdminCourseContentPage({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <AdminCourseContentManager courseId={courseId} modules={data.modules} />
+        <AdminCourseContentManager
+          key={`${data.course.id}:${data.course.updated_at}`}
+          course={data.course}
+          modules={data.modules}
+        />
       </CardContent>
     </Card>
   );

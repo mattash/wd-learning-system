@@ -11,7 +11,12 @@ vi.mock("@/lib/supabase/server", () => ({
   getSupabaseAdminClient: vi.fn(),
 }));
 
+vi.mock("@/lib/repositories/lessons", () => ({
+  isUserEnrolledForLesson: vi.fn(),
+}));
+
 import { requireAuth, requireParishRole } from "@/lib/authz";
+import { isUserEnrolledForLesson } from "@/lib/repositories/lessons";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import { POST } from "@/app/api/quiz-attempt/route";
 
@@ -24,6 +29,7 @@ describe("POST /api/quiz-attempt", () => {
       parishId: "11111111-1111-4111-8111-111111111111",
       role: "student",
     });
+    vi.mocked(isUserEnrolledForLesson).mockResolvedValue(true);
   });
 
   it("grades and stores quiz attempts", async () => {
@@ -111,5 +117,24 @@ describe("POST /api/quiz-attempt", () => {
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({ error: "Could not fetch questions" });
+  });
+
+  it("returns 403 when learner is not enrolled in the lesson course", async () => {
+    vi.mocked(isUserEnrolledForLesson).mockResolvedValue(false);
+    vi.mocked(getSupabaseAdminClient).mockReturnValue({ from: vi.fn() } as never);
+
+    const response = await POST(
+      new Request("http://localhost/api/quiz-attempt", {
+        method: "POST",
+        body: JSON.stringify({
+          lessonId: "22222222-2222-4222-8222-222222222222",
+          parishId: "11111111-1111-4111-8111-111111111111",
+          answers: [1],
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({ error: "Enrollment required for this lesson" });
   });
 });

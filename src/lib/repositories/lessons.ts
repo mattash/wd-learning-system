@@ -1,4 +1,4 @@
-import { E2E_LESSON, E2E_QUESTIONS } from "@/lib/e2e-fixtures";
+import { E2E_COURSE, E2E_LESSON, E2E_QUESTIONS } from "@/lib/e2e-fixtures";
 import { isE2ESmokeMode } from "@/lib/e2e-mode";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 
@@ -86,4 +86,58 @@ export async function getBestScore(lessonId: string, parishId: string, clerkUser
     .maybeSingle();
 
   return ((data as { score: number } | null)?.score ?? 0);
+}
+
+export async function getCourseIdForLesson(lessonId: string): Promise<string | null> {
+  if (isE2ESmokeMode()) {
+    return lessonId === E2E_LESSON.id ? E2E_COURSE.id : null;
+  }
+
+  const supabase = getSupabaseAdminClient();
+  const { data: lesson, error: lessonError } = await supabase
+    .from("lessons")
+    .select("module_id")
+    .eq("id", lessonId)
+    .maybeSingle();
+
+  if (lessonError) throw lessonError;
+  if (!lesson) return null;
+
+  const { data: moduleRow, error: moduleError } = await supabase
+    .from("modules")
+    .select("course_id")
+    .eq("id", (lesson as { module_id: string }).module_id)
+    .maybeSingle();
+
+  if (moduleError) throw moduleError;
+  return (moduleRow as { course_id: string } | null)?.course_id ?? null;
+}
+
+export async function isUserEnrolledForLesson({
+  lessonId,
+  parishId,
+  clerkUserId,
+}: {
+  lessonId: string;
+  parishId: string;
+  clerkUserId: string;
+}): Promise<boolean> {
+  const courseId = await getCourseIdForLesson(lessonId);
+  if (!courseId) return false;
+
+  if (isE2ESmokeMode()) {
+    return true;
+  }
+
+  const supabase = getSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("enrollments")
+    .select("id")
+    .eq("parish_id", parishId)
+    .eq("clerk_user_id", clerkUserId)
+    .eq("course_id", courseId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return Boolean(data);
 }

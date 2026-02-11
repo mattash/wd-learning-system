@@ -31,7 +31,7 @@ async function setActiveParish(formData: FormData) {
       redirect("/app/select-parish?error=invalid_membership");
     }
     await setActiveParishCookie(parish.id);
-    redirect("/app/courses");
+    redirect("/app");
   }
 
   const supabase = getSupabaseAdminClient();
@@ -47,7 +47,7 @@ async function setActiveParish(formData: FormData) {
   }
 
   await setActiveParishCookie(parishId);
-  redirect("/app/courses");
+  redirect("/app");
 }
 
 async function joinParish(formData: FormData) {
@@ -61,7 +61,7 @@ async function joinParish(formData: FormData) {
       redirect("/app/select-parish?manage=1&error=invalid_parish");
     }
     await setActiveParishCookie(parish.id);
-    redirect("/app/courses");
+    redirect("/app");
   }
 
   const supabase = getSupabaseAdminClient();
@@ -90,7 +90,7 @@ async function joinParish(formData: FormData) {
   }
 
   await setActiveParishCookie(parishId);
-  redirect("/app/courses");
+  redirect("/app");
 }
 
 type Parish = { id: string; name: string; slug: string };
@@ -153,8 +153,8 @@ export default async function SelectParishPage({
   );
 
   if (!manageMode && uniqueParishes.length === 1) {
-    await setActiveParishCookie(uniqueParishes[0].id);
-    redirect("/app/courses");
+    const params = new URLSearchParams({ parishId: uniqueParishes[0].id });
+    redirect(`/app/select-parish/activate?${params.toString()}`);
   }
 
   const errorText =

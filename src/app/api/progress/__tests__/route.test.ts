@@ -9,7 +9,12 @@ vi.mock("@/lib/supabase/server", () => ({
   getSupabaseAdminClient: vi.fn(),
 }));
 
+vi.mock("@/lib/repositories/lessons", () => ({
+  isUserEnrolledForLesson: vi.fn(),
+}));
+
 import { requireAuth, requireParishRole } from "@/lib/authz";
+import { isUserEnrolledForLesson } from "@/lib/repositories/lessons";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import { POST } from "@/app/api/progress/route";
 
@@ -22,6 +27,7 @@ describe("POST /api/progress", () => {
       parishId: "11111111-1111-4111-8111-111111111111",
       role: "student",
     });
+    vi.mocked(isUserEnrolledForLesson).mockResolvedValue(true);
   });
 
   it("stores progress for active parish", async () => {
@@ -79,6 +85,31 @@ describe("POST /api/progress", () => {
 
     expect(response.status).toBe(403);
     await expect(response.json()).resolves.toEqual({ error: "Invalid parish context" });
+    expect(upsert).not.toHaveBeenCalled();
+  });
+
+  it("returns 403 when learner is not enrolled in the lesson course", async () => {
+    const upsert = vi.fn(async () => ({ error: null }));
+    vi.mocked(getSupabaseAdminClient).mockReturnValue({
+      from: vi.fn(() => ({ upsert })),
+    } as never);
+    vi.mocked(isUserEnrolledForLesson).mockResolvedValue(false);
+
+    const response = await POST(
+      new Request("http://localhost/api/progress", {
+        method: "POST",
+        body: JSON.stringify({
+          lessonId: "22222222-2222-4222-8222-222222222222",
+          parishId: "11111111-1111-4111-8111-111111111111",
+          percentWatched: 10,
+          lastPositionSeconds: 30,
+          completed: false,
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({ error: "Enrollment required for this lesson" });
     expect(upsert).not.toHaveBeenCalled();
   });
 
