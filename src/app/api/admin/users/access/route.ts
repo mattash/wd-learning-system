@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { requireDioceseAdmin } from "@/lib/authz";
+import { recordAdminAuditLog } from "@/lib/audit-log";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 
 const schema = z.object({
@@ -14,7 +15,7 @@ const schema = z.object({
 });
 
 export async function POST(req: Request) {
-  await requireDioceseAdmin();
+  const actorUserId = await requireDioceseAdmin();
   const payload = schema.parse(await req.json());
   const supabase = getSupabaseAdminClient();
 
@@ -24,12 +25,32 @@ export async function POST(req: Request) {
     });
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+    await recordAdminAuditLog({
+      actorClerkUserId: actorUserId,
+      action: "user_access.diocese_admin_granted",
+      resourceType: "user_access",
+      resourceId: payload.clerkUserId,
+      details: {
+        target_user_id: payload.clerkUserId,
+      },
+    });
   }
 
   if (payload.removeDioceseAdmin) {
     const { error } = await supabase.from("diocese_admins").delete().eq("clerk_user_id", payload.clerkUserId);
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+    await recordAdminAuditLog({
+      actorClerkUserId: actorUserId,
+      action: "user_access.diocese_admin_revoked",
+      resourceType: "user_access",
+      resourceId: payload.clerkUserId,
+      details: {
+        target_user_id: payload.clerkUserId,
+      },
+    });
   }
 
   if (payload.parishId && payload.role && !payload.removeParishMembership) {
@@ -43,6 +64,18 @@ export async function POST(req: Request) {
     );
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+    await recordAdminAuditLog({
+      actorClerkUserId: actorUserId,
+      action: "user_access.parish_membership_upserted",
+      resourceType: "user_access",
+      resourceId: `${payload.parishId}:${payload.clerkUserId}`,
+      details: {
+        target_user_id: payload.clerkUserId,
+        parish_id: payload.parishId,
+        role: payload.role,
+      },
+    });
   }
 
   if (payload.parishId && payload.removeParishMembership) {
@@ -53,6 +86,17 @@ export async function POST(req: Request) {
       .eq("clerk_user_id", payload.clerkUserId);
 
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+    await recordAdminAuditLog({
+      actorClerkUserId: actorUserId,
+      action: "user_access.parish_membership_removed",
+      resourceType: "user_access",
+      resourceId: `${payload.parishId}:${payload.clerkUserId}`,
+      details: {
+        target_user_id: payload.clerkUserId,
+        parish_id: payload.parishId,
+      },
+    });
   }
 
   return NextResponse.json({ ok: true });

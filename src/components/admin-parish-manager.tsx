@@ -7,12 +7,14 @@ import type { DioceseParishRow } from "@/lib/repositories/diocese-admin";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 
 interface ParishDraft {
   id: string;
   name: string;
   slug: string;
   allowSelfSignup: boolean;
+  archivedAt: string | null;
 }
 
 export function AdminParishManager({ parishes }: { parishes: DioceseParishRow[] }) {
@@ -20,6 +22,7 @@ export function AdminParishManager({ parishes }: { parishes: DioceseParishRow[] 
   const [newName, setNewName] = useState("");
   const [newSlug, setNewSlug] = useState("");
   const [newAllowSelfSignup, setNewAllowSelfSignup] = useState(true);
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "archived">("all");
   const [drafts, setDrafts] = useState<Record<string, ParishDraft>>(
     Object.fromEntries(
       parishes.map((parish) => [
@@ -29,6 +32,7 @@ export function AdminParishManager({ parishes }: { parishes: DioceseParishRow[] 
           name: parish.name,
           slug: parish.slug,
           allowSelfSignup: parish.allow_self_signup,
+          archivedAt: parish.archived_at,
         },
       ]),
     ),
@@ -79,6 +83,33 @@ export function AdminParishManager({ parishes }: { parishes: DioceseParishRow[] 
     if (response.ok) router.refresh();
   }
 
+  async function setArchived(id: string, archive: boolean) {
+    const response = await fetch(`/api/admin/parishes/${id}/archive`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ archive }),
+    });
+    const data = await response.json();
+    setMessage(response.ok ? (archive ? "Parish archived." : "Parish restored.") : data.error ?? "Failed to update parish archive status.");
+    if (response.ok) {
+      setDrafts((prev) => ({
+        ...prev,
+        [id]: {
+          ...prev[id],
+          archivedAt: archive ? new Date().toISOString() : null,
+        },
+      }));
+      router.refresh();
+    }
+  }
+
+  const filteredParishes = parishes.filter((parish) => {
+    const archivedAt = drafts[parish.id]?.archivedAt ?? parish.archived_at;
+    if (statusFilter === "active") return !archivedAt;
+    if (statusFilter === "archived") return Boolean(archivedAt);
+    return true;
+  });
+
   return (
     <div className="space-y-4">
       <div className="grid gap-2 rounded-md border border-border p-3 md:grid-cols-4">
@@ -93,18 +124,32 @@ export function AdminParishManager({ parishes }: { parishes: DioceseParishRow[] 
         </Button>
       </div>
 
+      <div className="flex items-center gap-2">
+        <span className="text-sm text-muted-foreground">Status:</span>
+        <Select
+          onChange={(e) => setStatusFilter(e.target.value as "all" | "active" | "archived")}
+          value={statusFilter}
+        >
+          <option value="all">All</option>
+          <option value="active">Active</option>
+          <option value="archived">Archived</option>
+        </Select>
+      </div>
+
       <table className="w-full text-left text-sm">
         <thead className="text-muted-foreground">
           <tr>
             <th className="py-2 pr-4 font-medium">Parish</th>
             <th className="py-2 pr-4 font-medium">Slug</th>
             <th className="py-2 pr-4 font-medium">Self-signup</th>
+            <th className="py-2 pr-4 font-medium">Status</th>
             <th className="py-2 pr-4 font-medium">Actions</th>
           </tr>
         </thead>
         <tbody>
-          {parishes.map((parish) => {
+          {filteredParishes.map((parish) => {
             const draft = drafts[parish.id];
+            const isArchived = Boolean(draft?.archivedAt ?? parish.archived_at);
             return (
               <tr className="border-t" key={parish.id}>
                 <td className="py-2 pr-4">
@@ -137,10 +182,19 @@ export function AdminParishManager({ parishes }: { parishes: DioceseParishRow[] 
                     Enabled
                   </label>
                 </td>
+                <td className="py-2 pr-4">{isArchived ? "Archived" : "Active"}</td>
                 <td className="py-2 pr-4">
                   <div className="flex gap-2">
                     <Button onClick={() => saveParish(parish.id)} size="sm" type="button" variant="secondary">
                       Save
+                    </Button>
+                    <Button
+                      onClick={() => setArchived(parish.id, !isArchived)}
+                      size="sm"
+                      type="button"
+                      variant="outline"
+                    >
+                      {isArchived ? "Restore" : "Archive"}
                     </Button>
                     <Button onClick={() => deleteParish(parish.id)} size="sm" type="button" variant="destructive">
                       Delete

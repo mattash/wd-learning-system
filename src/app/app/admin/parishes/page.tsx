@@ -9,7 +9,7 @@ export default async function DioceseAdminParishesPage() {
     <Card>
       <CardHeader>
         <CardTitle>Parishes</CardTitle>
-        <CardDescription>Create, update, and delete parishes. Manage self-signup policy.</CardDescription>
+        <CardDescription>Create, update, archive, or delete parishes. Manage self-signup policy.</CardDescription>
       </CardHeader>
       <CardContent className="overflow-auto">
         <AdminParishManager parishes={parishes} />

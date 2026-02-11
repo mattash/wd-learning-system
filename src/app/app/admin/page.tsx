@@ -50,6 +50,9 @@ export default async function DioceseAdminPage() {
             <Button asChild variant="secondary">
               <Link href="/app/admin/engagement">View engagement</Link>
             </Button>
+            <Button asChild variant="secondary">
+              <Link href="/app/admin/audit">View audit logs</Link>
+            </Button>
           </CardContent>
         </Card>
 

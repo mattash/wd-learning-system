@@ -8,6 +8,7 @@ const routes = [
   { href: "/app/admin/parishes", label: "Parishes" },
   { href: "/app/admin/courses", label: "Courses" },
   { href: "/app/admin/engagement", label: "Engagement" },
+  { href: "/app/admin/audit", label: "Audit logs" },
   { href: "/app/admin/memberships", label: "Access tool" },
 ];
 

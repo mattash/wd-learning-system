@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { requireDioceseAdmin } from "@/lib/authz";
+import { recordAdminAuditLog } from "@/lib/audit-log";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 
 const createParishSchema = z.object({
@@ -15,7 +16,7 @@ export async function GET() {
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("parishes")
-    .select("id,name,slug,allow_self_signup,created_at")
+    .select("id,name,slug,allow_self_signup,archived_at,created_at")
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -26,7 +27,7 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  await requireDioceseAdmin();
+  const actorUserId = await requireDioceseAdmin();
   const payload = createParishSchema.parse(await req.json());
 
   const supabase = getSupabaseAdminClient();
@@ -37,12 +38,33 @@ export async function POST(req: Request) {
       slug: payload.slug,
       allow_self_signup: payload.allowSelfSignup,
     })
-    .select("id,name,slug,allow_self_signup,created_at")
+    .select("id,name,slug,allow_self_signup,archived_at,created_at")
     .single();
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
-  return NextResponse.json({ parish: data }, { status: 201 });
+  const parish = data as {
+    id: string;
+    name: string;
+    slug: string;
+    allow_self_signup: boolean;
+    archived_at: string | null;
+    created_at: string;
+  };
+
+  await recordAdminAuditLog({
+    actorClerkUserId: actorUserId,
+    action: "parish.created",
+    resourceType: "parish",
+    resourceId: parish.id,
+    details: {
+      parish_name: parish.name,
+      parish_slug: parish.slug,
+      allow_self_signup: parish.allow_self_signup,
+    },
+  });
+
+  return NextResponse.json({ parish }, { status: 201 });
 }

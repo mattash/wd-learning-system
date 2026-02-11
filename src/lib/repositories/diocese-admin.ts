@@ -24,6 +24,7 @@ export interface DioceseParishRow {
   name: string;
   slug: string;
   allow_self_signup: boolean;
+  archived_at: string | null;
   created_at: string;
 }
 
@@ -78,6 +79,22 @@ export interface DioceseEnrollmentRow {
   clerk_user_id: string;
   course_id: string;
   created_at: string;
+}
+
+export interface DioceseUserMembershipRow {
+  parish_id: string;
+  parish_name: string;
+  role: "parish_admin" | "instructor" | "student";
+}
+
+export interface DioceseUserDirectoryRow extends DioceseUserRow {
+  is_diocese_admin: boolean;
+  memberships: DioceseUserMembershipRow[];
+}
+
+export interface DioceseParishFilterRow {
+  id: string;
+  name: string;
 }
 
 async function getTableCount(table: string) {
@@ -152,11 +169,66 @@ export async function listDioceseUsers(limit = 25): Promise<DioceseUserRow[]> {
   return ((data ?? []) as DioceseUserRow[]) ?? [];
 }
 
+export async function listDioceseUserDirectory(
+  limit = 200,
+): Promise<{ users: DioceseUserDirectoryRow[]; parishes: DioceseParishFilterRow[] }> {
+  const supabase = getSupabaseAdminClient();
+  const [{ data: users, error: usersError }, { data: memberships, error: membershipsError }, { data: adminRows, error: adminsError }, { data: parishRows, error: parishesError }] = await Promise.all([
+    supabase
+      .from("user_profiles")
+      .select("clerk_user_id,email,display_name,onboarding_completed_at,created_at")
+      .order("created_at", { ascending: false })
+      .limit(limit),
+    supabase.from("parish_memberships").select("parish_id,clerk_user_id,role"),
+    supabase.from("diocese_admins").select("clerk_user_id"),
+    supabase.from("parishes").select("id,name"),
+  ]);
+
+  if (usersError) throw usersError;
+  if (membershipsError) throw membershipsError;
+  if (adminsError) throw adminsError;
+  if (parishesError) throw parishesError;
+
+  const parishes = ((parishRows ?? []) as DioceseParishFilterRow[]).sort((a, b) => a.name.localeCompare(b.name));
+  const parishNameById = new Map(parishes.map((parish) => [parish.id, parish.name]));
+  const membershipsByUser = new Map<string, DioceseUserMembershipRow[]>();
+
+  (
+    (memberships ?? []) as Array<{
+      parish_id: string;
+      clerk_user_id: string;
+      role: "parish_admin" | "instructor" | "student";
+    }>
+  ).forEach((membership) => {
+    if (!membershipsByUser.has(membership.clerk_user_id)) {
+      membershipsByUser.set(membership.clerk_user_id, []);
+    }
+
+    membershipsByUser.get(membership.clerk_user_id)?.push({
+      parish_id: membership.parish_id,
+      parish_name: parishNameById.get(membership.parish_id) ?? membership.parish_id,
+      role: membership.role,
+    });
+  });
+
+  const dioceseAdminIds = new Set(
+    ((adminRows ?? []) as Array<{ clerk_user_id: string }>).map((row) => row.clerk_user_id),
+  );
+
+  const directoryUsers = ((users ?? []) as DioceseUserRow[]).map((user) => ({
+    ...user,
+    is_diocese_admin: dioceseAdminIds.has(user.clerk_user_id),
+    memberships: membershipsByUser.get(user.clerk_user_id) ?? [],
+  }));
+
+  return { users: directoryUsers, parishes };
+}
+
 export async function listParishes(limit = 25): Promise<DioceseParishRow[]> {
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("parishes")
-    .select("id,name,slug,allow_self_signup,created_at")
+    .select("id,name,slug,allow_self_signup,archived_at,created_at")
     .order("created_at", { ascending: false })
     .limit(limit);
 
