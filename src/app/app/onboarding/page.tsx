@@ -1,3 +1,4 @@
+import { clerkClient } from "@clerk/nextjs/server";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -65,9 +66,22 @@ async function completeOnboarding(formData: FormData) {
   }
 
   const now = new Date().toISOString();
+  let primaryEmail: string | null = null;
+  try {
+    const client = await clerkClient();
+    const user = await client.users.getUser(userId);
+    primaryEmail =
+      user.emailAddresses.find((address) => address.id === user.primaryEmailAddressId)?.emailAddress ??
+      user.primaryEmailAddress?.emailAddress ??
+      null;
+  } catch {
+    primaryEmail = null;
+  }
+
   const { error: profileError } = await supabase.from("user_profiles").upsert(
     {
       clerk_user_id: userId,
+      email: primaryEmail?.toLowerCase() ?? null,
       display_name: parsed.data.displayName,
       onboarding_completed_at: now,
     },
