@@ -30,6 +30,7 @@
 - Test file names must be `*.test.ts` or `*.test.tsx`.
 - Keep tests near the code they cover under `__tests__`.
 - Coverage minimums (Vitest): statements 85, branches 70, functions 80, lines 85.
+- GitHub branch protections enforce these minimums; do not lower thresholds to pass CI. Add or improve tests when coverage regresses.
 - Before opening a PR, run: `npm run lint && npm run typecheck && npm run test:coverage && npm run test:e2e`.
 
 ## Commit & Pull Request Guidelines
