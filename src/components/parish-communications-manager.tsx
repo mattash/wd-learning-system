@@ -14,6 +14,7 @@ import { Select } from "@/components/ui/select";
 
 type AudienceType = "all_members" | "stalled_learners" | "cohort" | "course";
 type RecipientDeliveryStatus = "not_configured" | "pending" | "sent" | "failed";
+type SendDeliveryStatus = ParishAdminCommunicationSendRow["delivery_status"];
 
 interface SendDetailsResponse {
   summary: {
@@ -84,6 +85,7 @@ export function ParishCommunicationsManager({
           ? (prefill?.audienceValue ?? "")
           : ""
         : "";
+
   const [audienceType, setAudienceType] = useState<AudienceType>(initialAudienceType);
   const [audienceValue, setAudienceValue] = useState(initialAudienceValue);
   const [subject, setSubject] = useState((prefill?.subject ?? "").slice(0, 160));
@@ -92,6 +94,8 @@ export function ParishCommunicationsManager({
   const [expandedSendId, setExpandedSendId] = useState<string | null>(null);
   const [detailsLoadingSendId, setDetailsLoadingSendId] = useState<string | null>(null);
   const [detailsBySendId, setDetailsBySendId] = useState<Record<string, SendDetailsResponse | undefined>>({});
+  const [historyStatusFilter, setHistoryStatusFilter] = useState<SendDeliveryStatus | "all">("all");
+  const [historySearch, setHistorySearch] = useState("");
 
   const cohortNameById = useMemo(
     () => new Map(cohorts.map((cohort) => [cohort.id, cohort.name])),
@@ -109,6 +113,38 @@ export function ParishCommunicationsManager({
       : needsAudienceValue
         ? (audienceType === "cohort" ? cohorts[0]?.id ?? "" : courses[0]?.id ?? "")
         : "";
+
+  const sendStatusCounts = useMemo(() => {
+    return sends.reduce(
+      (acc, send) => {
+        acc[send.delivery_status] += 1;
+        return acc;
+      },
+      {
+        not_configured: 0,
+        queued: 0,
+        sent: 0,
+        failed: 0,
+      } satisfies Record<SendDeliveryStatus, number>,
+    );
+  }, [sends]);
+
+  const filteredSends = useMemo(() => {
+    const normalizedSearch = historySearch.trim().toLowerCase();
+    return sends.filter((send) => {
+      if (historyStatusFilter !== "all" && send.delivery_status !== historyStatusFilter) return false;
+      if (!normalizedSearch) return true;
+
+      const audienceLabel = formatAudienceLabel(send, cohortNameById, courseTitleById).toLowerCase();
+      return (
+        send.subject.toLowerCase().includes(normalizedSearch) ||
+        send.body.toLowerCase().includes(normalizedSearch) ||
+        audienceLabel.includes(normalizedSearch)
+      );
+    });
+  }, [cohortNameById, courseTitleById, historySearch, historyStatusFilter, sends]);
+
+  const hasHistoryFilters = historyStatusFilter !== "all" || Boolean(historySearch.trim());
 
   async function logMessage() {
     const response = await fetch("/api/parish-admin/communications", {
@@ -214,93 +250,142 @@ export function ParishCommunicationsManager({
         value={body}
       />
 
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="rounded-md border border-border bg-muted p-3">
+          <p className="text-xs text-muted-foreground">Queued</p>
+          <p className="text-xl font-semibold">{sendStatusCounts.queued}</p>
+        </div>
+        <div className="rounded-md border border-border bg-muted p-3">
+          <p className="text-xs text-muted-foreground">Sent</p>
+          <p className="text-xl font-semibold">{sendStatusCounts.sent}</p>
+        </div>
+        <div className="rounded-md border border-border bg-muted p-3">
+          <p className="text-xs text-muted-foreground">Failed</p>
+          <p className="text-xl font-semibold">{sendStatusCounts.failed}</p>
+        </div>
+        <div className="rounded-md border border-border bg-muted p-3">
+          <p className="text-xs text-muted-foreground">Not configured</p>
+          <p className="text-xl font-semibold">{sendStatusCounts.not_configured}</p>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <Select
+          onChange={(e) => setHistoryStatusFilter(e.target.value as SendDeliveryStatus | "all")}
+          value={historyStatusFilter}
+        >
+          <option value="all">All statuses</option>
+          <option value="queued">Queued</option>
+          <option value="sent">Sent</option>
+          <option value="failed">Failed</option>
+          <option value="not_configured">Not configured</option>
+        </Select>
+
+        <Input
+          onChange={(e) => setHistorySearch(e.target.value)}
+          placeholder="Search subject or audience"
+          value={historySearch}
+        />
+
+        {hasHistoryFilters ? (
+          <Button
+            onClick={() => {
+              setHistoryStatusFilter("all");
+              setHistorySearch("");
+            }}
+            type="button"
+            variant="ghost"
+          >
+            Clear filters
+          </Button>
+        ) : null}
+      </div>
+
       <table className="w-full text-left text-sm">
         <thead className="text-muted-foreground">
           <tr>
             <th className="py-2 pr-4 font-medium">When</th>
             <th className="py-2 pr-4 font-medium">Audience</th>
-              <th className="py-2 pr-4 font-medium">Subject</th>
-              <th className="py-2 pr-4 font-medium">Recipients</th>
-              <th className="py-2 pr-4 font-medium">Status</th>
-              <th className="py-2 pr-4 font-medium">Details</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sends.map((send) => {
-              const details = detailsBySendId[send.id];
-              const isExpanded = expandedSendId === send.id;
+            <th className="py-2 pr-4 font-medium">Subject</th>
+            <th className="py-2 pr-4 font-medium">Recipients</th>
+            <th className="py-2 pr-4 font-medium">Status</th>
+            <th className="py-2 pr-4 font-medium">Details</th>
+          </tr>
+        </thead>
+        <tbody>
+          {filteredSends.map((send) => {
+            const details = detailsBySendId[send.id];
+            const isExpanded = expandedSendId === send.id;
 
-              return (
-                <Fragment key={send.id}>
-                  <tr className="border-t">
-                    <td className="py-2 pr-4">{new Date(send.created_at).toLocaleString()}</td>
-                    <td className="py-2 pr-4">{formatAudienceLabel(send, cohortNameById, courseTitleById)}</td>
-                    <td className="py-2 pr-4">{send.subject}</td>
-                    <td className="py-2 pr-4">{send.recipient_count}</td>
-                    <td className="py-2 pr-4">{send.delivery_status}</td>
-                    <td className="py-2 pr-4">
-                      <Button
-                        onClick={() => toggleDetails(send.id)}
-                        size="sm"
-                        type="button"
-                        variant="outline"
-                      >
-                        {detailsLoadingSendId === send.id ? "Loading..." : isExpanded ? "Hide" : "View details"}
-                      </Button>
+            return (
+              <Fragment key={send.id}>
+                <tr className="border-t">
+                  <td className="py-2 pr-4">{new Date(send.created_at).toLocaleString()}</td>
+                  <td className="py-2 pr-4">{formatAudienceLabel(send, cohortNameById, courseTitleById)}</td>
+                  <td className="py-2 pr-4">{send.subject}</td>
+                  <td className="py-2 pr-4">{send.recipient_count}</td>
+                  <td className="py-2 pr-4">{send.delivery_status}</td>
+                  <td className="py-2 pr-4">
+                    <Button onClick={() => toggleDetails(send.id)} size="sm" type="button" variant="outline">
+                      {detailsLoadingSendId === send.id ? "Loading..." : isExpanded ? "Hide" : "View details"}
+                    </Button>
+                  </td>
+                </tr>
+                {isExpanded && details ? (
+                  <tr className="border-t bg-muted/30">
+                    <td className="py-3" colSpan={6}>
+                      <div className="space-y-2">
+                        <div className="flex flex-wrap gap-2 text-xs">
+                          <span className="rounded border border-border px-2 py-1">Total: {details.summary.total}</span>
+                          <span className="rounded border border-border px-2 py-1">Pending: {details.summary.pending}</span>
+                          <span className="rounded border border-border px-2 py-1">Sent: {details.summary.sent}</span>
+                          <span className="rounded border border-border px-2 py-1">Failed: {details.summary.failed}</span>
+                          <span className="rounded border border-border px-2 py-1">
+                            Not configured: {details.summary.not_configured}
+                          </span>
+                        </div>
+                        <table className="w-full text-left text-xs">
+                          <thead className="text-muted-foreground">
+                            <tr>
+                              <th className="py-1 pr-2 font-medium">Recipient</th>
+                              <th className="py-1 pr-2 font-medium">Email</th>
+                              <th className="py-1 pr-2 font-medium">Status</th>
+                              <th className="py-1 pr-2 font-medium">Attempted</th>
+                              <th className="py-1 pr-2 font-medium">Error</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {details.recipients.map((recipient) => (
+                              <tr className="border-t" key={recipient.clerk_user_id}>
+                                <td className="py-1 pr-2">{recipientLabel(recipient)}</td>
+                                <td className="py-1 pr-2">{recipient.email ?? "—"}</td>
+                                <td className="py-1 pr-2">{recipient.delivery_status}</td>
+                                <td className="py-1 pr-2">
+                                  {recipient.delivery_attempted_at
+                                    ? new Date(recipient.delivery_attempted_at).toLocaleString()
+                                    : "—"}
+                                </td>
+                                <td className="py-1 pr-2">{recipient.delivery_error ?? "—"}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     </td>
                   </tr>
-                  {isExpanded && details ? (
-                    <tr className="border-t bg-muted/30" key={`${send.id}-details`}>
-                      <td className="py-3" colSpan={6}>
-                        <div className="space-y-2">
-                          <div className="flex flex-wrap gap-2 text-xs">
-                            <span className="rounded border border-border px-2 py-1">Total: {details.summary.total}</span>
-                            <span className="rounded border border-border px-2 py-1">Pending: {details.summary.pending}</span>
-                            <span className="rounded border border-border px-2 py-1">Sent: {details.summary.sent}</span>
-                            <span className="rounded border border-border px-2 py-1">Failed: {details.summary.failed}</span>
-                            <span className="rounded border border-border px-2 py-1">
-                              Not configured: {details.summary.not_configured}
-                            </span>
-                          </div>
-                          <table className="w-full text-left text-xs">
-                            <thead className="text-muted-foreground">
-                              <tr>
-                                <th className="py-1 pr-2 font-medium">Recipient</th>
-                                <th className="py-1 pr-2 font-medium">Email</th>
-                                <th className="py-1 pr-2 font-medium">Status</th>
-                                <th className="py-1 pr-2 font-medium">Attempted</th>
-                                <th className="py-1 pr-2 font-medium">Error</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {details.recipients.map((recipient) => (
-                                <tr className="border-t" key={recipient.clerk_user_id}>
-                                  <td className="py-1 pr-2">{recipientLabel(recipient)}</td>
-                                  <td className="py-1 pr-2">{recipient.email ?? "—"}</td>
-                                  <td className="py-1 pr-2">{recipient.delivery_status}</td>
-                                  <td className="py-1 pr-2">
-                                    {recipient.delivery_attempted_at
-                                      ? new Date(recipient.delivery_attempted_at).toLocaleString()
-                                      : "—"}
-                                  </td>
-                                  <td className="py-1 pr-2">{recipient.delivery_error ?? "—"}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      </td>
-                    </tr>
-                  ) : null}
-                </Fragment>
-              );
-            })}
-          </tbody>
-        </table>
+                ) : null}
+              </Fragment>
+            );
+          })}
+        </tbody>
+      </table>
 
-      {sends.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No communication logs yet.</p>
+      {filteredSends.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          {sends.length === 0 ? "No communication logs yet." : "No communication logs match current filters."}
+        </p>
       ) : null}
+
       {message ? <p className="text-sm text-muted-foreground">{message}</p> : null}
     </div>
   );
