@@ -2,7 +2,9 @@ import { notFound } from "next/navigation";
 
 import { YoutubePlayer } from "@/components/player/youtube-player";
 import { QuizForm } from "@/components/quiz-form";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireParishRole } from "@/lib/authz";
+import { isE2ESmokeMode } from "@/lib/e2e-mode";
 import { getBestScore, getLessonWithQuestions, getVideoProgress } from "@/lib/repositories/lessons";
 
 export default async function LessonPage({
@@ -21,16 +23,28 @@ export default async function LessonPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">{lesson.title}</h1>
-        <p className="text-sm text-slate-600">Best score: {bestScore}%</p>
-      </div>
-      <YoutubePlayer
-        lessonId={lesson.id}
-        parishId={parishId}
-        resumeSeconds={progress?.last_position_seconds ?? 0}
-        videoId={lesson.youtube_video_id}
-      />
+      <Card>
+        <CardHeader>
+          <CardTitle>{lesson.title}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">Best score: {bestScore}%</p>
+        </CardContent>
+      </Card>
+      {isE2ESmokeMode() ? (
+        <Card>
+          <CardContent className="pt-4">
+            <p className="text-sm text-muted-foreground">Video player placeholder (e2e mode).</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <YoutubePlayer
+          lessonId={lesson.id}
+          parishId={parishId}
+          resumeSeconds={progress?.last_position_seconds ?? 0}
+          videoId={lesson.youtube_video_id}
+        />
+      )}
       <QuizForm
         lessonId={lesson.id}
         parishId={parishId}

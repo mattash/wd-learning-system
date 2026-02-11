@@ -6,6 +6,19 @@ export default defineConfig({
   plugins: [react()],
   test: {
     environment: "jsdom",
+    setupFiles: ["./src/test/setup.ts"],
+    include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "text-summary", "lcov"],
+      exclude: ["src/test/**", "**/*.d.ts"],
+      thresholds: {
+        statements: 85,
+        branches: 70,
+        functions: 80,
+        lines: 85,
+      },
+    },
   },
   resolve: {
     alias: {

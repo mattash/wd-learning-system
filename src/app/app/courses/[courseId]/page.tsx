@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireParishRole } from "@/lib/authz";
 import { getCourseTree } from "@/lib/repositories/courses";
 
@@ -26,18 +28,22 @@ export default async function CourseDetailPage({
           title: string;
           lessons: { id: string; title: string }[];
         }) => (
-          <section key={module.id} className="rounded border bg-white p-4">
-            <h2 className="font-semibold">{module.title}</h2>
-            <ul className="mt-2 list-inside list-disc space-y-1">
-              {module.lessons?.map((lesson) => (
-                <li key={lesson.id}>
-                  <Link className="text-blue-700 underline" href={`/app/lessons/${lesson.id}`}>
-                    {lesson.title}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </section>
+          <Card key={module.id}>
+            <CardHeader>
+              <CardTitle className="text-base">{module.title}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ul className="list-inside list-disc space-y-1">
+                {module.lessons?.map((lesson) => (
+                  <li key={lesson.id}>
+                    <Button asChild className="h-auto p-0 font-medium" variant="link">
+                      <Link href={`/app/lessons/${lesson.id}`}>{lesson.title}</Link>
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
         ),
       )}
     </div>

@@ -1,4 +1,4 @@
-# Western Diocese LMS (MVP)
+# Western Diocese LMS
 
 Multi-tenant Learning Management System built with Next.js + Clerk + Supabase for parish-scoped learning and analytics.
 
@@ -8,7 +8,7 @@ Multi-tenant Learning Management System built with Next.js + Clerk + Supabase fo
 - Supabase Postgres (schema/migrations)
 - React Query
 - Zod validation
-- Vitest for grading logic tests
+- Vitest + Testing Library for unit/component tests
 
 ## Multi-tenant approach
 This MVP uses **server-only Supabase access** via service role key.
@@ -77,6 +77,25 @@ on conflict (clerk_user_id) do nothing;
 ## Testing
 ```bash
 npm run test
+npm run test:coverage
+npm run test:e2e
 npm run lint
 npm run typecheck
 ```
+
+Testing conventions:
+- Place tests near the code under `__tests__`.
+- Keep pure logic tests in `src/lib/__tests__`.
+- Keep component tests in `src/components/**/__tests__`.
+- Keep e2e smoke tests in `e2e/**`.
+- Shared setup lives in `src/test/setup.ts`.
+- Coverage thresholds are enforced via Vitest config and CI.
+
+## Design system foundation
+- Tokens are centralized in `src/app/globals.css`.
+- Theme uses semantic variables (`background`, `foreground`, `card`, `muted`, `border`, `primary`, `destructive`) rather than hardcoded palette classes in feature code.
+- Active theme is set with `data-theme` on `html` and toggled from `src/components/theme-toggle.tsx`.
+- Reusable primitives start in `src/components/ui` (`Button` now supports variant + size APIs).
+- ESLint guardrail prevents hardcoded Tailwind palette classes in feature code (`design-system/no-hardcoded-tailwind-palette`).
+
+This foundation is intended for migration to shadcn/Radix primitives without replacing the token model.

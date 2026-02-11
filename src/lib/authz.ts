@@ -2,6 +2,8 @@ import { auth, clerkClient } from "@clerk/nextjs/server";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
+import { E2E_DEFAULT_ROLE, E2E_USER_ID } from "@/lib/e2e-fixtures";
+import { isE2ESmokeMode } from "@/lib/e2e-mode";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import { ParishRole } from "@/lib/types";
 
@@ -12,6 +14,10 @@ const roleRank: Record<ParishRole, number> = {
 };
 
 export async function requireAuth() {
+  if (isE2ESmokeMode()) {
+    return E2E_USER_ID;
+  }
+
   const { userId } = await auth();
   if (!userId) {
     redirect("/sign-in");
@@ -20,6 +26,11 @@ export async function requireAuth() {
 }
 
 export async function hasCompletedOnboarding(clerkUserId: string) {
+  if (isE2ESmokeMode()) {
+    const store = await cookies();
+    return store.get("e2e_onboarding_complete")?.value === "1";
+  }
+
   const supabase = getSupabaseAdminClient();
   const { data } = await supabase
     .from("user_profiles")
@@ -52,6 +63,22 @@ export async function requireActiveParish(clerkUserId?: string) {
 export async function requireParishRole(minRole: ParishRole) {
   const clerkUserId = await requireAuth();
   const parishId = await requireActiveParish(clerkUserId);
+
+  if (isE2ESmokeMode()) {
+    const store = await cookies();
+    const roleCookie = store.get("e2e_role")?.value;
+    const role: ParishRole =
+      roleCookie === "parish_admin" || roleCookie === "instructor" || roleCookie === "student"
+        ? roleCookie
+        : E2E_DEFAULT_ROLE;
+
+    if (roleRank[role] < roleRank[minRole]) {
+      redirect("/app/courses");
+    }
+
+    return { clerkUserId, parishId, role };
+  }
+
   const supabase = getSupabaseAdminClient();
 
   const { data, error } = await supabase
@@ -74,6 +101,11 @@ export async function requireParishRole(minRole: ParishRole) {
 
 export async function requireDioceseAdmin() {
   const clerkUserId = await requireAuth();
+
+  if (isE2ESmokeMode()) {
+    return clerkUserId;
+  }
+
   const supabase = getSupabaseAdminClient();
 
   const { data } = await supabase
@@ -90,6 +122,10 @@ export async function requireDioceseAdmin() {
 }
 
 export async function getUserLabel(clerkUserId: string) {
+  if (isE2ESmokeMode()) {
+    return "E2E User";
+  }
+
   const client = await clerkClient();
   const user = await client.users.getUser(clerkUserId);
   return (

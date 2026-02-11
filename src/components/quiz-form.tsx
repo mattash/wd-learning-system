@@ -3,6 +3,8 @@
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Radio } from "@/components/ui/radio";
 
 interface Question {
   id: string;
@@ -37,28 +39,31 @@ export function QuizForm({
   };
 
   return (
-    <div className="space-y-4 rounded border bg-white p-4">
-      <h2 className="text-lg font-semibold">Quiz</h2>
-      {questions.map((q) => (
-        <div className="space-y-2" key={q.id}>
-          <p className="font-medium">{q.prompt}</p>
-          {q.options.map((option, idx) => (
-            <label className="flex items-center gap-2 text-sm" key={option}>
-              <input
-                checked={answers[q.id] === idx}
-                name={q.id}
-                onChange={() => setAnswers((prev) => ({ ...prev, [q.id]: idx }))}
-                type="radio"
-              />
-              {option}
-            </label>
-          ))}
-        </div>
-      ))}
-      <Button onClick={submit} type="button">
-        Submit Quiz
-      </Button>
-      {score !== null && <p className="text-sm">Latest score: {score}%</p>}
-    </div>
+    <Card>
+      <CardHeader>
+        <CardTitle>Quiz</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {questions.map((q) => (
+          <div className="space-y-2" key={q.id}>
+            <p className="font-medium">{q.prompt}</p>
+            {q.options.map((option, idx) => (
+              <label className="flex items-center gap-2 text-sm" key={option}>
+                <Radio
+                  checked={answers[q.id] === idx}
+                  name={q.id}
+                  onChange={() => setAnswers((prev) => ({ ...prev, [q.id]: idx }))}
+                />
+                {option}
+              </label>
+            ))}
+          </div>
+        ))}
+        <Button onClick={submit} type="button">
+          Submit Quiz
+        </Button>
+        {score !== null && <p className="text-sm text-muted-foreground">Latest score: {score}%</p>}
+      </CardContent>
+    </Card>
   );
 }

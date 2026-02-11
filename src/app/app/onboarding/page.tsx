@@ -1,10 +1,15 @@
-import { auth } from "@clerk/nextjs/server";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { hasCompletedOnboarding } from "@/lib/authz";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { E2E_PARISHES } from "@/lib/e2e-fixtures";
+import { hasCompletedOnboarding, requireAuth } from "@/lib/authz";
+import { isE2ESmokeMode } from "@/lib/e2e-mode";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 
 const schema = z.object({
@@ -14,8 +19,7 @@ const schema = z.object({
 
 async function completeOnboarding(formData: FormData) {
   "use server";
-  const { userId } = await auth();
-  if (!userId) redirect("/sign-in");
+  const userId = await requireAuth();
 
   const parsed = schema.safeParse({
     displayName: String(formData.get("displayName") ?? ""),
@@ -24,6 +28,28 @@ async function completeOnboarding(formData: FormData) {
 
   if (!parsed.success) {
     redirect("/app/onboarding?error=invalid_input");
+  }
+
+  const store = await cookies();
+  if (isE2ESmokeMode()) {
+    const selectedParish = E2E_PARISHES.find((parish) => parish.id === parsed.data.parishId);
+    if (!selectedParish) {
+      redirect("/app/onboarding?error=invalid_parish");
+    }
+
+    store.set("e2e_onboarding_complete", "1", {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+    });
+    store.set("active_parish_id", selectedParish.id, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+    });
+    redirect("/app/courses");
   }
 
   const supabase = getSupabaseAdminClient();
@@ -63,7 +89,6 @@ async function completeOnboarding(formData: FormData) {
     redirect("/app/onboarding?error=membership_save_failed");
   }
 
-  const store = await cookies();
   store.set("active_parish_id", parsed.data.parishId, {
     httpOnly: true,
     sameSite: "lax",
@@ -79,18 +104,26 @@ export default async function OnboardingPage({
 }: {
   searchParams?: Promise<{ error?: string }>;
 }) {
-  const { userId } = await auth();
-  if (!userId) redirect("/sign-in");
+  const userId = await requireAuth();
 
   if (await hasCompletedOnboarding(userId)) {
     redirect("/app/courses");
   }
 
-  const supabase = getSupabaseAdminClient();
-  const [{ data: profile }, { data: parishes }] = await Promise.all([
-    supabase.from("user_profiles").select("display_name").eq("clerk_user_id", userId).maybeSingle(),
-    supabase.from("parishes").select("id,name,slug").eq("allow_self_signup", true).order("name", { ascending: true }),
-  ]);
+  let profile: { display_name: string | null } | null = null;
+  let parishes: Array<{ id: string; name: string; slug: string }> | null = null;
+
+  if (isE2ESmokeMode()) {
+    parishes = [...E2E_PARISHES];
+  } else {
+    const supabase = getSupabaseAdminClient();
+    const [{ data: dbProfile }, { data: dbParishes }] = await Promise.all([
+      supabase.from("user_profiles").select("display_name").eq("clerk_user_id", userId).maybeSingle(),
+      supabase.from("parishes").select("id,name,slug").eq("allow_self_signup", true).order("name", { ascending: true }),
+    ]);
+    profile = (dbProfile as { display_name: string | null } | null) ?? null;
+    parishes = (dbParishes as Array<{ id: string; name: string; slug: string }> | null) ?? null;
+  }
 
   const params = (await searchParams) ?? {};
   const errorText =
@@ -107,44 +140,51 @@ export default async function OnboardingPage({
   return (
     <div className="mx-auto max-w-xl space-y-4">
       <h1 className="text-2xl font-semibold">Complete your profile</h1>
-      <p className="text-sm text-slate-600">
+      <p className="text-sm text-muted-foreground">
         Pick your parish and set your display name to continue.
       </p>
-      {errorText ? <p className="text-sm text-red-700">{errorText}</p> : null}
+      {errorText ? (
+        <Alert variant="destructive">
+          <AlertDescription>{errorText}</AlertDescription>
+        </Alert>
+      ) : null}
       {(parishes ?? []).length === 0 ? (
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-muted-foreground">
           No parishes are currently open for self-signup. Contact a diocese admin.
         </p>
       ) : null}
-      <form action={completeOnboarding} className="grid gap-3 rounded border bg-white p-4">
-        <label className="grid gap-1 text-sm">
-          Display name
-          <input
-            className="rounded border p-2"
-            defaultValue={(profile?.display_name as string | null) ?? ""}
-            name="displayName"
-            placeholder="Your name"
-            required
-            type="text"
-          />
-        </label>
-        <label className="grid gap-1 text-sm">
-          Parish
-          <select className="rounded border p-2" defaultValue="" name="parishId" required>
-            <option disabled value="">
-              Select a parish
-            </option>
-            {((parishes ?? []) as Array<{ id: string; name: string; slug: string }>).map((parish) => (
-              <option key={parish.id} value={parish.id}>
-                {parish.name} ({parish.slug})
-              </option>
-            ))}
-          </select>
-        </label>
-        <Button disabled={(parishes ?? []).length === 0} type="submit">
-          Continue
-        </Button>
-      </form>
+      <Card>
+        <CardContent className="pt-4">
+          <form action={completeOnboarding} className="grid gap-3">
+            <label className="grid gap-1 text-sm">
+              Display name
+              <Input
+                defaultValue={(profile?.display_name as string | null) ?? ""}
+                name="displayName"
+                placeholder="Your name"
+                required
+                type="text"
+              />
+            </label>
+            <label className="grid gap-1 text-sm">
+              Parish
+              <Select defaultValue="" name="parishId" required>
+                <option disabled value="">
+                  Select a parish
+                </option>
+                {((parishes ?? []) as Array<{ id: string; name: string; slug: string }>).map((parish) => (
+                  <option key={parish.id} value={parish.id}>
+                    {parish.name} ({parish.slug})
+                  </option>
+                ))}
+              </Select>
+            </label>
+            <Button disabled={(parishes ?? []).length === 0} type="submit">
+              Continue
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 }

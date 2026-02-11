@@ -1,9 +1,12 @@
-import { auth } from "@clerk/nextjs/server";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { hasCompletedOnboarding } from "@/lib/authz";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { E2E_PARISHES } from "@/lib/e2e-fixtures";
+import { hasCompletedOnboarding, requireAuth } from "@/lib/authz";
+import { isE2ESmokeMode } from "@/lib/e2e-mode";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 
 function setActiveParishCookie(parishId: string) {
@@ -19,9 +22,17 @@ function setActiveParishCookie(parishId: string) {
 
 async function setActiveParish(formData: FormData) {
   "use server";
-  const { userId } = await auth();
-  if (!userId) redirect("/sign-in");
+  const userId = await requireAuth();
   const parishId = String(formData.get("parishId") ?? "");
+
+  if (isE2ESmokeMode()) {
+    const parish = E2E_PARISHES.find((item) => item.id === parishId);
+    if (!parish) {
+      redirect("/app/select-parish?error=invalid_membership");
+    }
+    await setActiveParishCookie(parish.id);
+    redirect("/app/courses");
+  }
 
   const supabase = getSupabaseAdminClient();
   const { data } = await supabase
@@ -41,9 +52,17 @@ async function setActiveParish(formData: FormData) {
 
 async function joinParish(formData: FormData) {
   "use server";
-  const { userId } = await auth();
-  if (!userId) redirect("/sign-in");
+  const userId = await requireAuth();
   const parishId = String(formData.get("parishId") ?? "");
+
+  if (isE2ESmokeMode()) {
+    const parish = E2E_PARISHES.find((item) => item.id === parishId);
+    if (!parish) {
+      redirect("/app/select-parish?manage=1&error=invalid_parish");
+    }
+    await setActiveParishCookie(parish.id);
+    redirect("/app/courses");
+  }
 
   const supabase = getSupabaseAdminClient();
   const { data: parish } = await supabase
@@ -97,8 +116,7 @@ export default async function SelectParishPage({
 }: {
   searchParams?: Promise<{ manage?: string; error?: string }>;
 }) {
-  const { userId } = await auth();
-  if (!userId) redirect("/sign-in");
+  const userId = await requireAuth();
   if (!(await hasCompletedOnboarding(userId))) {
     redirect("/app/onboarding");
   }
@@ -106,18 +124,31 @@ export default async function SelectParishPage({
   const params = (await searchParams) ?? {};
   const manageMode = params.manage === "1";
 
-  const supabase = getSupabaseAdminClient();
-  const [{ data: memberships, error: membershipError }, { data: openParishes, error: openParishesError }] =
-    await Promise.all([
+  let memberships: Array<{ parishes: Parish | Parish[] | null }> | null = null;
+  let membershipError: { message: string } | null = null;
+  let openParishes: Parish[] | null = null;
+  let openParishesError: { message: string } | null = null;
+
+  if (isE2ESmokeMode()) {
+    memberships = [{ parishes: E2E_PARISHES[0] as Parish }];
+    openParishes = [...E2E_PARISHES] as Parish[];
+  } else {
+    const supabase = getSupabaseAdminClient();
+    const [membershipResult, openParishesResult] = await Promise.all([
       supabase.from("parish_memberships").select("parishes(id,name,slug)").eq("clerk_user_id", userId),
       supabase.from("parishes").select("id,name,slug").eq("allow_self_signup", true).order("name"),
     ]);
+    memberships = (membershipResult.data as Array<{ parishes: Parish | Parish[] | null }> | null) ?? null;
+    membershipError = membershipResult.error;
+    openParishes = (openParishesResult.data as Parish[] | null) ?? null;
+    openParishesError = openParishesResult.error;
+  }
 
   const uniqueParishes = normalizeMembershipParishes(
-    (memberships ?? []) as Array<{ parishes: Parish | Parish[] | null }>,
+    memberships,
   );
   const membershipIds = new Set(uniqueParishes.map((parish) => parish.id));
-  const joinableParishes = ((openParishes ?? []) as Parish[]).filter(
+  const joinableParishes = (openParishes ?? []).filter(
     (parish) => !membershipIds.has(parish.id),
   );
 
@@ -137,20 +168,41 @@ export default async function SelectParishPage({
 
   return (
     <div className="space-y-6">
-      <div className="space-y-2">
-        <h1 className="text-2xl font-semibold">Select Parish</h1>
-        <p className="text-sm text-slate-600">Choose your active parish or join another parish.</p>
-        {errorText ? <p className="text-sm text-red-700">{errorText}</p> : null}
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Select Parish</CardTitle>
+          <CardDescription>Choose your active parish or join another parish.</CardDescription>
+        </CardHeader>
+        {errorText ? (
+          <CardContent>
+            <Alert variant="destructive">
+              <AlertDescription>{errorText}</AlertDescription>
+            </Alert>
+          </CardContent>
+        ) : null}
+      </Card>
 
       {membershipError ? (
-        <p className="text-sm text-red-700">Unable to load your parish memberships: {membershipError.message}</p>
+        <Alert variant="destructive">
+          <AlertTitle>Memberships Unavailable</AlertTitle>
+          <AlertDescription>
+            Unable to load your parish memberships: {membershipError.message}
+          </AlertDescription>
+        </Alert>
       ) : uniqueParishes.length === 0 ? (
-        <p className="text-sm text-slate-600">You are not a member of any parish yet.</p>
+        <Card>
+          <CardContent className="pt-4">
+            <p className="text-sm text-muted-foreground">
+              You are not a member of any parish yet.
+            </p>
+          </CardContent>
+        </Card>
       ) : (
-        <div className="space-y-2">
-          <h2 className="font-semibold">Your Parishes</h2>
-          <div className="grid gap-3">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Your Parishes</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-3">
             {uniqueParishes.map((parish) => (
               <form key={parish.id} action={setActiveParish}>
                 <input type="hidden" name="parishId" value={parish.id} />
@@ -159,16 +211,23 @@ export default async function SelectParishPage({
                 </Button>
               </form>
             ))}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       )}
 
       {openParishesError ? (
-        <p className="text-sm text-red-700">Unable to load open parishes: {openParishesError.message}</p>
+        <Alert variant="destructive">
+          <AlertTitle>Open Parishes Unavailable</AlertTitle>
+          <AlertDescription>
+            Unable to load open parishes: {openParishesError.message}
+          </AlertDescription>
+        </Alert>
       ) : joinableParishes.length === 0 ? null : (
-        <div className="space-y-2">
-          <h2 className="font-semibold">Join Another Parish</h2>
-          <div className="grid gap-3">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Join Another Parish</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-3">
             {joinableParishes.map((parish) => (
               <form key={parish.id} action={joinParish}>
                 <input type="hidden" name="parishId" value={parish.id} />
@@ -177,8 +236,8 @@ export default async function SelectParishPage({
                 </Button>
               </form>
             ))}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { requireAuth, requireParishRole } from "@/lib/authz";
+import { isE2ESmokeMode } from "@/lib/e2e-mode";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 
 const schema = z.object({
@@ -19,6 +20,10 @@ export async function POST(req: Request) {
 
   if (parishId !== body.parishId) {
     return NextResponse.json({ error: "Invalid parish context" }, { status: 403 });
+  }
+
+  if (isE2ESmokeMode()) {
+    return NextResponse.json({ ok: true });
   }
 
   const supabase = getSupabaseAdminClient();

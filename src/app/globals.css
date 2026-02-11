@@ -1,26 +1,84 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme inline {
+  --color-background: var(--ds-color-bg-app);
+  --color-foreground: var(--ds-color-text-default);
+  --color-card: var(--ds-color-bg-surface);
+  --color-card-foreground: var(--ds-color-text-default);
+  --color-muted: var(--ds-color-bg-muted);
+  --color-muted-foreground: var(--ds-color-text-muted);
+  --color-border: var(--ds-color-border-default);
+  --color-input: var(--ds-color-border-default);
+  --color-ring: var(--ds-color-focus-ring);
+  --color-primary: var(--ds-color-brand-primary);
+  --color-primary-foreground: var(--ds-color-brand-on-primary);
+  --color-secondary: var(--ds-color-bg-surface-raised);
+  --color-secondary-foreground: var(--ds-color-text-default);
+  --color-destructive: var(--ds-color-destructive);
+  --color-destructive-foreground: var(--ds-color-on-destructive);
+  --font-sans: var(--font-geist-sans), "Segoe UI", sans-serif;
+  --font-mono: var(--font-geist-mono), "SFMono-Regular", monospace;
+  --radius-sm: calc(var(--ds-radius-base) - 2px);
+  --radius-md: var(--ds-radius-base);
+  --radius-lg: calc(var(--ds-radius-base) + 4px);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+:root {
+  --ds-radius-base: 0.5rem;
+  --ds-motion-fast: 120ms;
+}
+
+:root,
+:root[data-theme="light"] {
+  --ds-color-bg-app: #f8fafc;
+  --ds-color-bg-surface: #ffffff;
+  --ds-color-bg-surface-raised: #f1f5f9;
+  --ds-color-bg-muted: #e2e8f0;
+  --ds-color-text-default: #0f172a;
+  --ds-color-text-muted: #475569;
+  --ds-color-border-default: #cbd5e1;
+  --ds-color-focus-ring: #0f172a;
+  --ds-color-brand-primary: #0f172a;
+  --ds-color-brand-on-primary: #f8fafc;
+  --ds-color-destructive: #b91c1c;
+  --ds-color-on-destructive: #fef2f2;
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --ds-color-bg-app: #020617;
+  --ds-color-bg-surface: #0f172a;
+  --ds-color-bg-surface-raised: #1e293b;
+  --ds-color-bg-muted: #334155;
+  --ds-color-text-default: #e2e8f0;
+  --ds-color-text-muted: #94a3b8;
+  --ds-color-border-default: #334155;
+  --ds-color-focus-ring: #cbd5e1;
+  --ds-color-brand-primary: #e2e8f0;
+  --ds-color-brand-on-primary: #0f172a;
+  --ds-color-destructive: #f87171;
+  --ds-color-on-destructive: #450a0a;
+  color-scheme: dark;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  :root:not([data-theme]) {
+    --ds-color-bg-app: #020617;
+    --ds-color-bg-surface: #0f172a;
+    --ds-color-bg-surface-raised: #1e293b;
+    --ds-color-bg-muted: #334155;
+    --ds-color-text-default: #e2e8f0;
+    --ds-color-text-muted: #94a3b8;
+    --ds-color-border-default: #334155;
+    --ds-color-focus-ring: #cbd5e1;
+    --ds-color-brand-primary: #e2e8f0;
+    --ds-color-brand-on-primary: #0f172a;
+    --ds-color-destructive: #f87171;
+    --ds-color-on-destructive: #450a0a;
+    color-scheme: dark;
   }
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  @apply bg-background text-foreground font-sans antialiased;
 }

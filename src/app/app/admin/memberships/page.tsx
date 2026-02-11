@@ -1,4 +1,5 @@
 import { AdminMembershipForm } from "@/components/admin-membership-form";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireDioceseAdmin } from "@/lib/authz";
 
 export default async function MembershipToolsPage() {
@@ -6,8 +7,14 @@ export default async function MembershipToolsPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-semibold">Membership Admin Tool</h1>
-      <p className="text-sm text-slate-600">Assign parish memberships and/or promote a user to diocese admin.</p>
+      <Card>
+        <CardHeader>
+          <CardTitle>Membership Admin Tool</CardTitle>
+          <CardDescription>
+            Assign parish memberships and/or promote a user to diocese admin.
+          </CardDescription>
+        </CardHeader>
+      </Card>
       <AdminMembershipForm />
     </div>
   );
