@@ -48,6 +48,18 @@ NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
 
 NEXT_PUBLIC_SUPABASE_URL=
 SUPABASE_SERVICE_ROLE_KEY=
+
+R2_ACCOUNT_ID=
+R2_ACCESS_KEY_ID=
+R2_SECRET_ACCESS_KEY=
+R2_BUCKET=
+# Optional; defaults to https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com
+R2_ENDPOINT=
+# Optional; recommended for serving public thumbnails (CDN/custom domain)
+R2_PUBLIC_BASE_URL=
+# Optional
+R2_REGION=auto
+UPLOAD_MAX_IMAGE_BYTES=5242880
 ```
 
 ## Local development

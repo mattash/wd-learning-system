@@ -32,6 +32,7 @@ export interface DioceseCourseRow {
   id: string;
   title: string;
   description: string | null;
+  thumbnail_url: string | null;
   scope: "DIOCESE" | "PARISH";
   published: boolean;
   created_at: string;
@@ -244,7 +245,7 @@ export async function listCourses(limit = 25): Promise<DioceseCourseRow[]> {
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("courses")
-    .select("id,title,description,scope,published,created_at,updated_at")
+    .select("id,title,description,thumbnail_url,scope,published,created_at,updated_at")
     .order("updated_at", { ascending: false })
     .limit(limit);
 
@@ -279,7 +280,7 @@ export async function getCourseContentForAdmin(courseId: string) {
   const supabase = getSupabaseAdminClient();
   const { data: course, error: courseError } = await supabase
     .from("courses")
-    .select("id,title,description,scope,published,created_at,updated_at")
+    .select("id,title,description,thumbnail_url,scope,published,created_at,updated_at")
     .eq("id", courseId)
     .maybeSingle();
 

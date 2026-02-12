@@ -4,9 +4,17 @@ import { z } from "zod";
 import { requireDioceseAdmin } from "@/lib/authz";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 
+const optionalThumbnailSchema = z
+  .string()
+  .trim()
+  .max(2048)
+  .nullish()
+  .transform((value) => (value && value.length > 0 ? value : null));
+
 const createCourseSchema = z.object({
   title: z.string().min(1),
   description: z.string().nullable().optional(),
+  thumbnailUrl: optionalThumbnailSchema,
   scope: z.enum(["DIOCESE", "PARISH"]),
   published: z.boolean().default(false),
 });
@@ -16,7 +24,7 @@ export async function GET() {
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("courses")
-    .select("id,title,description,scope,published,created_at,updated_at")
+    .select("id,title,description,thumbnail_url,scope,published,created_at,updated_at")
     .order("updated_at", { ascending: false });
 
   if (error) {
@@ -36,10 +44,11 @@ export async function POST(req: Request) {
     .insert({
       title: payload.title,
       description: payload.description ?? null,
+      thumbnail_url: payload.thumbnailUrl,
       scope: payload.scope,
       published: payload.published,
     })
-    .select("id,title,description,scope,published,created_at,updated_at")
+    .select("id,title,description,thumbnail_url,scope,published,created_at,updated_at")
     .single();
 
   if (error) {
