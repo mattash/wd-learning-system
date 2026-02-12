@@ -25,6 +25,9 @@ interface LessonDraft {
   passingScore: string;
 }
 
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const SUPPORTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"] as const;
+
 function buildModuleDrafts(modules: DioceseModuleRow[]) {
   return Object.fromEntries(
     modules.map((module) => [
@@ -75,6 +78,7 @@ export function AdminCourseContentManager({
   const [newModuleThumbnailUrl, setNewModuleThumbnailUrl] = useState("");
   const [courseScope, setCourseScope] = useState<"DIOCESE" | "PARISH">(course.scope);
   const [message, setMessage] = useState("");
+  const [uploadingTarget, setUploadingTarget] = useState<string | null>(null);
   const [moduleDrafts, setModuleDrafts] = useState<Record<string, ModuleDraft>>(() => buildModuleDrafts(modules));
   const [lessonDrafts, setLessonDrafts] = useState<Record<string, LessonDraft>>(() => buildLessonDrafts(modules));
 
@@ -82,6 +86,67 @@ export function AdminCourseContentManager({
     setModuleDrafts(buildModuleDrafts(modules));
     setLessonDrafts(buildLessonDrafts(modules));
   }, [modules]);
+
+  async function uploadThumbnailImage({
+    file,
+    kind,
+    targetId,
+    onUploaded,
+  }: {
+    file: File;
+    kind: "course" | "module" | "lesson" | "misc";
+    targetId: string;
+    onUploaded: (url: string) => void;
+  }) {
+    if (!SUPPORTED_IMAGE_TYPES.includes(file.type as (typeof SUPPORTED_IMAGE_TYPES)[number])) {
+      setMessage("Unsupported image type. Use JPG, PNG, WEBP, or GIF.");
+      return;
+    }
+
+    if (file.size > MAX_IMAGE_BYTES) {
+      setMessage("Image too large. Max upload size is 5 MB.");
+      return;
+    }
+
+    setUploadingTarget(targetId);
+
+    try {
+      const uploadRequest = await fetch("/api/admin/uploads/images", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          kind,
+          fileName: file.name,
+          contentType: file.type,
+          size: file.size,
+        }),
+      });
+      const uploadRequestData = await uploadRequest.json();
+
+      if (!uploadRequest.ok) {
+        setMessage(uploadRequestData.error ?? "Failed to start upload.");
+        return;
+      }
+
+      const uploadResponse = await fetch(uploadRequestData.uploadUrl as string, {
+        method: "PUT",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+
+      if (!uploadResponse.ok) {
+        setMessage("Image upload failed.");
+        return;
+      }
+
+      onUploaded(uploadRequestData.assetUrl as string);
+      setMessage("Thumbnail uploaded. Save to persist the new URL.");
+    } catch {
+      setMessage("Image upload failed.");
+    } finally {
+      setUploadingTarget(null);
+    }
+  }
 
   async function saveCourseScope() {
     const response = await fetch(`/api/admin/courses/${courseId}`, {
@@ -249,6 +314,23 @@ export function AdminCourseContentManager({
             placeholder="Thumbnail URL (optional)"
             value={newModuleThumbnailUrl}
           />
+          <Input
+            accept={SUPPORTED_IMAGE_TYPES.join(",")}
+            disabled={uploadingTarget === "new-module-thumbnail"}
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              event.target.value = "";
+              if (!file) return;
+
+              void uploadThumbnailImage({
+                file,
+                kind: "module",
+                targetId: "new-module-thumbnail",
+                onUploaded: (url) => setNewModuleThumbnailUrl(url),
+              });
+            }}
+            type="file"
+          />
           <Textarea
             className="md:col-span-2"
             onChange={(e) => setNewModuleDescriptor(e.target.value)}
@@ -298,6 +380,34 @@ export function AdminCourseContentManager({
                     }
                     placeholder="Thumbnail URL (optional)"
                     value={moduleDraft.thumbnailUrl}
+                  />
+                  <Input
+                    accept={SUPPORTED_IMAGE_TYPES.join(",")}
+                    disabled={uploadingTarget === `module-thumbnail:${module.id}`}
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      event.target.value = "";
+                      if (!file) return;
+
+                      void uploadThumbnailImage({
+                        file,
+                        kind: "module",
+                        targetId: `module-thumbnail:${module.id}`,
+                        onUploaded: (url) =>
+                          setModuleDrafts((prev) => ({
+                            ...prev,
+                            [module.id]: {
+                              ...(prev[module.id] ?? {
+                                title: module.title,
+                                descriptor: module.descriptor ?? "",
+                                thumbnailUrl: module.thumbnail_url ?? "",
+                              }),
+                              thumbnailUrl: url,
+                            },
+                          })),
+                      });
+                    }}
+                    type="file"
                   />
                   <Textarea
                     className="md:col-span-2"
@@ -368,6 +478,36 @@ export function AdminCourseContentManager({
                               }
                               placeholder="Thumbnail URL (optional)"
                               value={lessonDraft.thumbnailUrl}
+                            />
+                            <Input
+                              accept={SUPPORTED_IMAGE_TYPES.join(",")}
+                              disabled={uploadingTarget === `lesson-thumbnail:${lesson.id}`}
+                              onChange={(event) => {
+                                const file = event.target.files?.[0];
+                                event.target.value = "";
+                                if (!file) return;
+
+                                void uploadThumbnailImage({
+                                  file,
+                                  kind: "lesson",
+                                  targetId: `lesson-thumbnail:${lesson.id}`,
+                                  onUploaded: (url) =>
+                                    setLessonDrafts((prev) => ({
+                                      ...prev,
+                                      [lesson.id]: {
+                                        ...(prev[lesson.id] ?? {
+                                          title: lesson.title,
+                                          descriptor: lesson.descriptor ?? "",
+                                          thumbnailUrl: lesson.thumbnail_url ?? "",
+                                          youtubeVideoId: lesson.youtube_video_id,
+                                          passingScore: String(lesson.passing_score),
+                                        }),
+                                        thumbnailUrl: url,
+                                      },
+                                    })),
+                                });
+                              }}
+                              type="file"
                             />
                             <Textarea
                               className="md:col-span-2"
