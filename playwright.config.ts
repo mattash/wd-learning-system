@@ -8,7 +8,7 @@ export default defineConfig({
   reporter: [["list"]],
   outputDir: "output/playwright/test-results",
   use: {
-    baseURL: "http://127.0.0.1:3100",
+    baseURL: "http://localhost:3100",
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     video: "retain-on-failure",
@@ -17,7 +17,7 @@ export default defineConfig({
     command: process.env.CI
       ? "E2E_SMOKE_MODE=1 npm run dev -- --port 3100"
       : "E2E_SMOKE_MODE=1 npm run build && E2E_SMOKE_MODE=1 npm run start -- --port 3100",
-    url: "http://127.0.0.1:3100",
+    url: "http://localhost:3100",
     reuseExistingServer: !process.env.CI,
     timeout: 240_000,
   },

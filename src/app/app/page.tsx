@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 
-import { hasCompletedOnboarding, isDioceseAdmin, requireAuth } from "@/lib/authz";
+import { getActiveParishRole, hasCompletedOnboarding, isDioceseAdmin, requireAuth } from "@/lib/authz";
+import { E2E_PARISHES } from "@/lib/e2e-fixtures";
+import { isE2ESmokeMode } from "@/lib/e2e-mode";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 
 export default async function AppIndex() {
@@ -17,6 +19,21 @@ export default async function AppIndex() {
 
   const store = await cookies();
   const activeParishId = store.get("active_parish_id")?.value;
+
+  if (isE2ESmokeMode()) {
+    const resolvedParishId = activeParishId ?? E2E_PARISHES[0]?.id;
+    if (!resolvedParishId) {
+      redirect("/app/select-parish");
+    }
+
+    const role = await getActiveParishRole(userId);
+    if (role === "parish_admin" || role === "instructor") {
+      redirect("/app/parish-admin");
+    }
+
+    redirect("/app/courses");
+  }
+
   const supabase = getSupabaseAdminClient();
 
   const { data: memberships, error: membershipsError } = await supabase

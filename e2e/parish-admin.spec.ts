@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 
-const E2E_BASE_URL = "http://127.0.0.1:3100";
+const E2E_BASE_URL = "http://localhost:3100";
 const E2E_PARISH_ID = "11111111-1111-4111-8111-111111111111";
 
 test("parish admin participation watchlist supports filtering and csv export", async ({ context, page }, testInfo) => {

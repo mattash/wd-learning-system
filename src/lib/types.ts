@@ -1,6 +1,7 @@
 export type ParishRole = "parish_admin" | "instructor" | "student";
 
 export type CourseScope = "DIOCESE" | "PARISH";
+export type LessonContentType = "VIDEO" | "DOCUMENT";
 
 export interface Parish {
   id: string;
@@ -21,7 +22,11 @@ export interface Lesson {
   title: string;
   descriptor: string | null;
   thumbnail_url: string | null;
-  youtube_video_id: string;
+  content_type: LessonContentType;
+  youtube_video_id: string | null;
+  document_url: string | null;
+  document_page_start: number | null;
+  document_page_end: number | null;
   passing_score: number;
   module_id: string;
 }

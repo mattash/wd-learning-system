@@ -16,12 +16,12 @@ describe("gradeQuiz", () => {
 });
 
 describe("isLessonComplete", () => {
-  it("requires both video completion and passing quiz score", () => {
+  it("requires both content completion and passing quiz score", () => {
     expect(
-      isLessonComplete({ videoCompleted: true, bestScore: 80, passingScore: 80 }),
+      isLessonComplete({ contentCompleted: true, bestScore: 80, passingScore: 80 }),
     ).toBe(true);
     expect(
-      isLessonComplete({ videoCompleted: false, bestScore: 100, passingScore: 80 }),
+      isLessonComplete({ contentCompleted: false, bestScore: 100, passingScore: 80 }),
     ).toBe(false);
   });
 });

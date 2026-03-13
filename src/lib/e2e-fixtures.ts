@@ -33,7 +33,12 @@ export const E2E_MODULE = {
 export const E2E_LESSON = {
   id: "44444444-4444-4444-8444-444444444444",
   title: "Welcome Lesson",
+  descriptor: "Orientation lesson for smoke tests.",
+  content_type: "VIDEO" as const,
   youtube_video_id: "dQw4w9WgXcQ",
+  document_url: null,
+  document_page_start: null,
+  document_page_end: null,
   passing_score: 80,
   module_id: E2E_MODULE.id,
 };
