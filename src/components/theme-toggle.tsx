@@ -77,7 +77,7 @@ function subscribeToHydration() {
 }
 
 export function ThemeToggle() {
-  const theme = useSyncExternalStore(subscribeToTheme, getStoredTheme, () => "light");
+  const theme = useSyncExternalStore<Theme>(subscribeToTheme, getStoredTheme, () => "light");
   const mounted = useSyncExternalStore(subscribeToHydration, () => true, () => false);
 
   useEffect(() => {
