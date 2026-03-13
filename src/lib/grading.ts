@@ -15,9 +15,9 @@ export function gradeQuiz(
 }
 
 export function isLessonComplete(params: {
-  videoCompleted: boolean;
+  contentCompleted: boolean;
   bestScore: number;
   passingScore: number;
 }) {
-  return params.videoCompleted && params.bestScore >= params.passingScore;
+  return params.contentCompleted && params.bestScore >= params.passingScore;
 }

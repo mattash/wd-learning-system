@@ -19,16 +19,20 @@ function applyTheme(theme: Theme) {
 }
 
 export function ThemeToggle() {
-  const [theme, setTheme] = useState<Theme>(() => {
-    if (typeof window === "undefined") return "light";
-    const savedTheme = localStorage.getItem(THEME_KEY);
-    return savedTheme === "light" || savedTheme === "dark" ? savedTheme : getSystemTheme();
-  });
+  const [theme, setTheme] = useState<Theme>("light");
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    const savedTheme = localStorage.getItem(THEME_KEY);
+    setTheme(savedTheme === "light" || savedTheme === "dark" ? savedTheme : getSystemTheme());
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
     applyTheme(theme);
     localStorage.setItem(THEME_KEY, theme);
-  }, [theme]);
+  }, [mounted, theme]);
 
   const toggleTheme = () => {
     setTheme((currentTheme) => (currentTheme === "light" ? "dark" : "light"));
@@ -36,7 +40,11 @@ export function ThemeToggle() {
 
   return (
     <Button aria-label="Toggle theme" onClick={toggleTheme} size="icon" variant="outline">
-      {theme === "dark" ? <Sun aria-hidden="true" className="h-4 w-4" /> : <Moon aria-hidden="true" className="h-4 w-4" />}
+      {mounted ? (
+        theme === "dark" ? <Sun aria-hidden="true" className="h-4 w-4" /> : <Moon aria-hidden="true" className="h-4 w-4" />
+      ) : (
+        <span aria-hidden="true" className="block h-4 w-4" />
+      )}
       <span className="sr-only">Toggle theme</span>
     </Button>
   );

@@ -8,9 +8,7 @@ test("student onboarding through quiz submission", async ({ page }) => {
   ).toBeVisible();
 
   await page.getByRole("textbox", { name: "Display name" }).fill("E2E Student");
-  await page
-    .getByRole("combobox", { name: "Parish" })
-    .selectOption("11111111-1111-4111-8111-111111111111");
+  await page.locator("form").getByLabel("Parish").selectOption("11111111-1111-4111-8111-111111111111");
   await page.getByRole("button", { name: "Continue" }).click();
 
   await expect(page).toHaveURL(/\/app\/courses$/);

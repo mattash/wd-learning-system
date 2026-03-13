@@ -159,7 +159,8 @@ export async function isDioceseAdmin(clerkUserId?: string) {
   const userId = clerkUserId ?? (await requireAuth());
 
   if (isE2ESmokeMode()) {
-    return true;
+    const store = await cookies();
+    return store.get("e2e_diocese_admin")?.value === "1";
   }
 
   const supabase = getSupabaseAdminClient();

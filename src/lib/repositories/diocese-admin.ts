@@ -62,7 +62,11 @@ export interface DioceseLessonRow {
   title: string;
   descriptor: string | null;
   thumbnail_url: string | null;
-  youtube_video_id: string;
+  content_type: "VIDEO" | "DOCUMENT";
+  youtube_video_id: string | null;
+  document_url: string | null;
+  document_page_start: number | null;
+  document_page_end: number | null;
   sort_order: number;
   passing_score: number;
   questions: DioceseQuestionRow[];
@@ -290,7 +294,7 @@ export async function getCourseContentForAdmin(courseId: string) {
   const { data: modules, error: modulesError } = await supabase
     .from("modules")
     .select(
-      "id,course_id,title,descriptor,thumbnail_url,sort_order, lessons(id,module_id,title,descriptor,thumbnail_url,youtube_video_id,sort_order,passing_score, questions(id,lesson_id,prompt,options,correct_option_index,sort_order))",
+      "id,course_id,title,descriptor,thumbnail_url,sort_order, lessons(id,module_id,title,descriptor,thumbnail_url,content_type,youtube_video_id,document_url,document_page_start,document_page_end,sort_order,passing_score, questions(id,lesson_id,prompt,options,correct_option_index,sort_order))",
     )
     .eq("course_id", courseId)
     .order("sort_order", { ascending: true });

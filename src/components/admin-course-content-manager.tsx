@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { DocumentUploadField } from "@/components/document-upload-field";
 import type { DioceseModuleRow } from "@/lib/repositories/diocese-admin";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,7 +22,11 @@ interface LessonDraft {
   title: string;
   descriptor: string;
   thumbnailUrl: string;
+  contentType: "VIDEO" | "DOCUMENT";
   youtubeVideoId: string;
+  documentUrl: string;
+  documentPageStart: string;
+  documentPageEnd: string;
   passingScore: string;
 }
 
@@ -50,7 +55,11 @@ function buildLessonDrafts(modules: DioceseModuleRow[]) {
           title: lesson.title,
           descriptor: lesson.descriptor ?? "",
           thumbnailUrl: lesson.thumbnail_url ?? "",
-          youtubeVideoId: lesson.youtube_video_id,
+          contentType: lesson.content_type,
+          youtubeVideoId: lesson.youtube_video_id ?? "",
+          documentUrl: lesson.document_url ?? "",
+          documentPageStart: lesson.document_page_start ? String(lesson.document_page_start) : "",
+          documentPageEnd: lesson.document_page_end ? String(lesson.document_page_end) : "",
           passingScore: String(lesson.passing_score),
         },
       ]),
@@ -234,7 +243,11 @@ export function AdminCourseContentManager({
         title: "New lesson",
         descriptor: null,
         thumbnailUrl: null,
+        contentType: "VIDEO",
         youtubeVideoId: "dQw4w9WgXcQ",
+        documentUrl: null,
+        documentPageStart: null,
+        documentPageEnd: null,
         sortOrder: selectedModule?.lessons.length ?? 0,
         passingScore: 80,
       }),
@@ -256,6 +269,8 @@ export function AdminCourseContentManager({
 
     const parsedScore = Number.parseInt(draft.passingScore, 10);
     const passingScore = Number.isFinite(parsedScore) ? Math.min(100, Math.max(0, parsedScore)) : 80;
+    const parsedPageStart = Number.parseInt(draft.documentPageStart, 10);
+    const parsedPageEnd = Number.parseInt(draft.documentPageEnd, 10);
 
     const response = await fetch(`/api/admin/lessons/${lessonId}`, {
       method: "PATCH",
@@ -264,7 +279,11 @@ export function AdminCourseContentManager({
         title,
         descriptor: draft.descriptor || null,
         thumbnailUrl: draft.thumbnailUrl || null,
-        youtubeVideoId: draft.youtubeVideoId,
+        contentType: draft.contentType,
+        youtubeVideoId: draft.youtubeVideoId || null,
+        documentUrl: draft.documentUrl || null,
+        documentPageStart: Number.isFinite(parsedPageStart) ? parsedPageStart : null,
+        documentPageEnd: Number.isFinite(parsedPageEnd) ? parsedPageEnd : null,
         sortOrder,
         passingScore,
       }),
@@ -443,7 +462,11 @@ export function AdminCourseContentManager({
                         title: lesson.title,
                         descriptor: lesson.descriptor ?? "",
                         thumbnailUrl: lesson.thumbnail_url ?? "",
-                        youtubeVideoId: lesson.youtube_video_id,
+                        contentType: lesson.content_type,
+                        youtubeVideoId: lesson.youtube_video_id ?? "",
+                        documentUrl: lesson.document_url ?? "",
+                        documentPageStart: lesson.document_page_start ? String(lesson.document_page_start) : "",
+                        documentPageEnd: lesson.document_page_end ? String(lesson.document_page_end) : "",
                         passingScore: String(lesson.passing_score),
                       };
 
@@ -520,16 +543,83 @@ export function AdminCourseContentManager({
                               placeholder="Lesson descriptor (optional)"
                               value={lessonDraft.descriptor}
                             />
-                            <Input
+                            <Select
                               onChange={(event) =>
                                 setLessonDrafts((prev) => ({
                                   ...prev,
-                                  [lesson.id]: { ...lessonDraft, youtubeVideoId: event.target.value },
+                                  [lesson.id]: { ...lessonDraft, contentType: event.target.value as "VIDEO" | "DOCUMENT" },
                                 }))
                               }
-                              placeholder="YouTube video ID"
-                              value={lessonDraft.youtubeVideoId}
-                            />
+                              value={lessonDraft.contentType}
+                            >
+                              <option value="VIDEO">Video lesson</option>
+                              <option value="DOCUMENT">Document lesson</option>
+                            </Select>
+                            {lessonDraft.contentType === "VIDEO" ? (
+                              <Input
+                                onChange={(event) =>
+                                  setLessonDrafts((prev) => ({
+                                    ...prev,
+                                    [lesson.id]: { ...lessonDraft, youtubeVideoId: event.target.value },
+                                  }))
+                                }
+                                placeholder="YouTube video ID"
+                                value={lessonDraft.youtubeVideoId}
+                              />
+                            ) : (
+                              <>
+                                <Input
+                                  onChange={(event) =>
+                                    setLessonDrafts((prev) => ({
+                                      ...prev,
+                                      [lesson.id]: { ...lessonDraft, documentUrl: event.target.value },
+                                    }))
+                                  }
+                                  placeholder="Document URL"
+                                  value={lessonDraft.documentUrl}
+                                />
+                                <DocumentUploadField
+                                  onMessage={setMessage}
+                                  onUploaded={(url) =>
+                                    setLessonDrafts((prev) => ({
+                                      ...prev,
+                                      [lesson.id]: {
+                                        ...(prev[lesson.id] ?? lessonDraft),
+                                        documentUrl: url,
+                                      },
+                                    }))
+                                  }
+                                />
+                              </>
+                            )}
+                            {lessonDraft.contentType === "DOCUMENT" ? (
+                              <>
+                                <Input
+                                  min={1}
+                                  onChange={(event) =>
+                                    setLessonDrafts((prev) => ({
+                                      ...prev,
+                                      [lesson.id]: { ...lessonDraft, documentPageStart: event.target.value },
+                                    }))
+                                  }
+                                  placeholder="Start page (optional)"
+                                  type="number"
+                                  value={lessonDraft.documentPageStart}
+                                />
+                                <Input
+                                  min={1}
+                                  onChange={(event) =>
+                                    setLessonDrafts((prev) => ({
+                                      ...prev,
+                                      [lesson.id]: { ...lessonDraft, documentPageEnd: event.target.value },
+                                    }))
+                                  }
+                                  placeholder="End page (optional)"
+                                  type="number"
+                                  value={lessonDraft.documentPageEnd}
+                                />
+                              </>
+                            ) : null}
                             <Input
                               max={100}
                               min={0}

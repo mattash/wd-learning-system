@@ -12,7 +12,12 @@ interface LessonQuestion {
 export interface LessonWithQuestions {
   id: string;
   title: string;
-  youtube_video_id: string;
+  descriptor: string | null;
+  content_type: "VIDEO" | "DOCUMENT";
+  youtube_video_id: string | null;
+  document_url: string | null;
+  document_page_start: number | null;
+  document_page_end: number | null;
   passing_score: number;
   module_id: string;
   questions: LessonQuestion[];
@@ -38,7 +43,7 @@ export async function getLessonWithQuestions(
   const { data, error } = await supabase
     .from("lessons")
     .select(
-      "id,title,youtube_video_id,passing_score,module_id, questions(id,prompt,options,sort_order)",
+      "id,title,descriptor,content_type,youtube_video_id,document_url,document_page_start,document_page_end,passing_score,module_id, questions(id,prompt,options,sort_order)",
     )
     .eq("id", lessonId)
     .order("sort_order", { referencedTable: "questions", ascending: true })
@@ -48,7 +53,7 @@ export async function getLessonWithQuestions(
   return (data as LessonWithQuestions | null) ?? null;
 }
 
-export async function getVideoProgress(
+export async function getLessonProgress(
   lessonId: string,
   parishId: string,
   clerkUserId: string,
