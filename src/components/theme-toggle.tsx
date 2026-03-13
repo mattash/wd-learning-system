@@ -1,7 +1,7 @@
 "use client";
 
 import { Moon, Sun } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 
 import { Button } from "@/components/ui/button";
 
@@ -18,19 +18,67 @@ function applyTheme(theme: Theme) {
   document.documentElement.dataset.theme = theme;
 }
 
+const themeListeners = new Set<() => void>();
+
+function emitThemeChange() {
+  themeListeners.forEach((listener) => listener());
+}
+
+function getStoredTheme(): Theme {
+  if (typeof window === "undefined") return "light";
+
+  const savedTheme = localStorage.getItem(THEME_KEY);
+  return savedTheme === "light" || savedTheme === "dark" ? savedTheme : getSystemTheme();
+}
+
+function subscribeToTheme(callback: () => void) {
+  themeListeners.add(callback);
+
+  if (typeof window === "undefined") {
+    return () => {
+      themeListeners.delete(callback);
+    };
+  }
+
+  const handleStorage = (event: StorageEvent) => {
+    if (event.key === THEME_KEY || event.key === null) {
+      callback();
+    }
+  };
+
+  window.addEventListener("storage", handleStorage);
+
+  if (typeof window.matchMedia !== "function") {
+    return () => {
+      themeListeners.delete(callback);
+      window.removeEventListener("storage", handleStorage);
+    };
+  }
+
+  const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+
+  const handleSystemThemeChange = () => {
+    if (!localStorage.getItem(THEME_KEY)) {
+      callback();
+    }
+  };
+
+  mediaQuery.addEventListener("change", handleSystemThemeChange);
+
+  return () => {
+    themeListeners.delete(callback);
+    window.removeEventListener("storage", handleStorage);
+    mediaQuery.removeEventListener("change", handleSystemThemeChange);
+  };
+}
+
+function subscribeToHydration() {
+  return () => {};
+}
+
 export function ThemeToggle() {
-  const [theme, setTheme] = useState<Theme>("light");
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    const savedTheme = localStorage.getItem(THEME_KEY);
-    const nextTheme = savedTheme === "light" || savedTheme === "dark" ? savedTheme : getSystemTheme();
-
-    queueMicrotask(() => {
-      setTheme(nextTheme);
-      setMounted(true);
-    });
-  }, []);
+  const theme = useSyncExternalStore(subscribeToTheme, getStoredTheme, () => "light");
+  const mounted = useSyncExternalStore(subscribeToHydration, () => true, () => false);
 
   useEffect(() => {
     if (!mounted) return;
@@ -39,7 +87,10 @@ export function ThemeToggle() {
   }, [mounted, theme]);
 
   const toggleTheme = () => {
-    setTheme((currentTheme) => (currentTheme === "light" ? "dark" : "light"));
+    const nextTheme = theme === "light" ? "dark" : "light";
+    localStorage.setItem(THEME_KEY, nextTheme);
+    applyTheme(nextTheme);
+    emitThemeChange();
   };
 
   return (
