@@ -24,8 +24,12 @@ export function ThemeToggle() {
 
   useEffect(() => {
     const savedTheme = localStorage.getItem(THEME_KEY);
-    setTheme(savedTheme === "light" || savedTheme === "dark" ? savedTheme : getSystemTheme());
-    setMounted(true);
+    const nextTheme = savedTheme === "light" || savedTheme === "dark" ? savedTheme : getSystemTheme();
+
+    queueMicrotask(() => {
+      setTheme(nextTheme);
+      setMounted(true);
+    });
   }, []);
 
   useEffect(() => {
