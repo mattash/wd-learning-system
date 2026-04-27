@@ -1,0 +1,99 @@
+# Import this file with:
+# npm run content:import -- scripts/example-course.yaml
+#
+# The importer accepts YAML or JSON and validates keys strictly. Use snake_case
+# keys that match the Supabase table columns.
+course:
+  # courses.title
+  title: "Foundations of Parish Formation"
+
+  # courses.description
+  description: "A starter course for parish learners entering diocesan formation."
+
+  # courses.thumbnail_url can be a public URL or a path served by the app.
+  thumbnail_url: "/globe.svg"
+
+  # courses.published controls whether the course is visible after import.
+  published: false
+
+  # courses.scope must be DIOCESE or PARISH.
+  scope: "DIOCESE"
+
+  # modules are inserted in this order with sort_order 0..N.
+  modules:
+    - title: "Orientation"
+      descriptor: "Introduces the learning path, expectations, and completion flow."
+      thumbnail_url: "/window.svg"
+
+      # lessons are inserted in this order with sort_order 0..N.
+      lessons:
+        - title: "Welcome to Formation"
+          descriptor: "A short welcome video that frames the course and learner commitments."
+          thumbnail_url: "/next.svg"
+          content_type: "VIDEO"
+
+          # VIDEO lessons require youtube_video_id.
+          youtube_video_id: "dQw4w9WgXcQ"
+
+          # DOCUMENT-only fields should be omitted or left blank for VIDEO lessons.
+          document_url:
+          document_page_start:
+          document_page_end:
+          passing_score: 80
+
+          # questions are inserted in this order with sort_order 0..N.
+          questions:
+            - prompt: "What does the course ask learners to do?"
+              options:
+                - "Skim the material without completing checks"
+                - "Engage each lesson and complete the checks for understanding"
+                - "Only watch the first module"
+              correct_option_index: 1
+
+            - prompt: "Who is this orientation designed for?"
+              options:
+                - "Parish learners beginning formation"
+                - "Only system administrators"
+                - "Only outside guests"
+              correct_option_index: 0
+
+        - title: "Learner Guide"
+          descriptor: "A document lesson with the core participation guidelines."
+          thumbnail_url: "/file.svg"
+          content_type: "DOCUMENT"
+
+          # DOCUMENT lessons require document_url. youtube_video_id is optional
+          # and ignored by the importer for DOCUMENT lessons.
+          youtube_video_id:
+          document_url: "https://example.com/formation-learner-guide.pdf"
+          document_page_start: 1
+          document_page_end: 4
+          passing_score: 80
+          questions:
+            - prompt: "Where should learners look for participation expectations?"
+              options:
+                - "The learner guide"
+                - "A private email thread"
+                - "The browser console"
+              correct_option_index: 0
+
+    - title: "Core Practices"
+      descriptor: "Connects course participation to recurring parish formation habits."
+      thumbnail_url: "/globe.svg"
+      lessons:
+        - title: "Practices for Weekly Learning"
+          descriptor: "A brief video on preparing for lessons and reflection."
+          thumbnail_url: "/next.svg"
+          content_type: "VIDEO"
+          youtube_video_id: "ysz5S6PUM-U"
+          document_url:
+          document_page_start:
+          document_page_end:
+          passing_score: 80
+          questions:
+            - prompt: "Which habit best supports weekly learning?"
+              options:
+                - "Waiting until the final deadline"
+                - "Setting aside regular time for lessons and reflection"
+                - "Skipping lesson questions"
+              correct_option_index: 1
