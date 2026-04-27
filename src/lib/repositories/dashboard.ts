@@ -56,7 +56,18 @@ export async function getStudentDashboardData(
 
   const supabase = getSupabaseAdminClient();
 
-  // Get enrolled courses
+  // Get visible courses the learner is enrolled in (respects publish/visibility)
+  const { data: visibleCourses } = await supabase
+    .from("courses")
+    .select("id, title, description")
+    .eq("published", true)
+    .order("created_at", { ascending: false });
+
+  const visibleCourseIds = new Set(
+    ((visibleCourses ?? []) as Array<{ id: string }>).map((c) => c.id),
+  );
+
+  // Get enrolled courses, filtered to visible
   const { data: enrollments, error: enrollError } = await supabase
     .from("enrollments")
     .select("course_id, courses(id, title, description)")
@@ -65,15 +76,22 @@ export async function getStudentDashboardData(
 
   if (enrollError) throw enrollError;
 
-  if (!enrollments || enrollments.length === 0) {
+  const enrolledCourses = (
+    (enrollments ?? []) as Array<{
+      course_id: string;
+      courses: { id: string; title: string; description: string | null };
+    }>
+  )
+    .filter((e) => visibleCourseIds.has(e.course_id))
+    .map((e) => ({
+      courseId: e.course_id,
+      title: e.courses.title,
+      description: e.courses.description,
+    }));
+
+  if (enrolledCourses.length === 0) {
     return { progress: [], recentActivity: [] };
   }
-
-  const enrolledCourses = enrollments.map((e) => ({
-    courseId: (e as { course_id: string; courses: { id: string; title: string; description: string | null } }).course_id,
-    title: (e as { courses: { title: string } }).courses.title,
-    description: (e as { courses: { description: string | null } }).courses.description,
-  }));
 
   // Get all lessons for all enrolled courses
   const courseIds = enrolledCourses.map((c) => c.courseId);
@@ -99,15 +117,36 @@ export async function getStudentDashboardData(
     }
   }
 
-  // Get all lesson IDs
+  // Build progress for each enrolled course
+  const progress: DashboardCourseProgress[] = enrolledCourses.map((course) => {
+    const lessons = lessonsByCourse.get(course.courseId) ?? [];
+    return {
+      courseId: course.courseId,
+      courseTitle: course.title,
+      courseDescription: course.description,
+      totalLessons: lessons.length,
+      completedLessons: 0,
+      progressPercent: 0,
+      lastLessonId: null,
+      lastLessonTitle: null,
+      lastPositionSeconds: 0,
+      lastActivityAt: null,
+    };
+  });
+
+  // Get all lesson IDs — if empty, skip progress/activity queries
   const allLessonIds = Array.from(lessonsByCourse.values()).flatMap((lessons) =>
     lessons.map((l) => l.id),
   );
 
+  if (allLessonIds.length === 0) {
+    return { progress, recentActivity: [] };
+  }
+
   // Get video progress for all lessons
   const { data: progressData, error: progError } = await supabase
     .from("video_progress")
-    .select("lesson_id, completed, last_position_seconds, updated_at, lessons(title)")
+    .select("lesson_id, completed, last_position_seconds, updated_at")
     .eq("parish_id", parishId)
     .eq("clerk_user_id", clerkUserId)
     .in("lesson_id", allLessonIds);
@@ -121,61 +160,86 @@ export async function getStudentDashboardData(
       completed: boolean;
       last_position_seconds: number;
       updated_at: string;
-      lessons: { title: string };
     }>).map((p) => [p.lesson_id, p]),
   );
 
-  // Get recent quiz attempts (last 7 days)
+  // Populate course progress from video_progress data
+  for (const course of progress) {
+    const lessons = lessonsByCourse.get(course.courseId) ?? [];
+
+    for (const lesson of lessons) {
+      const p = progressByLesson.get(lesson.id);
+      if (p) {
+        if (p.completed) course.completedLessons++;
+        if (!course.lastActivityAt || p.updated_at > course.lastActivityAt) {
+          course.lastActivityAt = p.updated_at;
+          course.lastLessonId = p.lesson_id;
+          course.lastLessonTitle = lesson.title;
+          course.lastPositionSeconds = p.last_position_seconds;
+        }
+      }
+    }
+
+    course.progressPercent =
+      course.totalLessons > 0
+        ? Math.round((course.completedLessons / course.totalLessons) * 100)
+        : 0;
+  }
+
+  // Recent activity (last 7 days)
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const cutoff = sevenDaysAgo.toISOString();
 
+  // Get recent quiz attempts (constrained to enrolled course lessons)
   const { data: quizData, error: quizError } = await supabase
     .from("quiz_attempts")
-    .select("lesson_id, score, created_at, lessons(title), modules!inner(course_id, courses!inner(title))")
+    .select("lesson_id, score, created_at, lessons!inner(title, modules!inner(course_id, courses!inner(title)))")
     .eq("parish_id", parishId)
     .eq("clerk_user_id", clerkUserId)
-    .gte("created_at", sevenDaysAgo.toISOString())
+    .in("lesson_id", allLessonIds)
+    .gte("created_at", cutoff)
     .order("created_at", { ascending: false })
-    .limit(10);
+    .limit(15);
 
   if (quizError) throw quizError;
 
-  // Build recent activity feed
+  // Build recent activity feed from quiz attempts
   const recentActivity: LessonActivity[] = (
     (quizData ?? []) as Array<{
       lesson_id: string;
       score: number;
       created_at: string;
-      lessons: { title: string };
-      modules: { course_id: string; courses: { title: string } };
+      lessons: { title: string; modules: { course_id: string; courses: { title: string } } };
     }>
   ).map((q) => ({
     lessonId: q.lesson_id,
     lessonTitle: q.lessons.title,
-    courseId: q.modules.course_id,
-    courseTitle: q.modules.courses.title,
+    courseId: q.lessons.modules.course_id,
+    courseTitle: q.lessons.modules.courses.title,
     score: q.score,
     completed: true,
     activityAt: q.created_at,
   }));
 
-  // Also include completed video lessons in activity
+  // Also include recent video completions (same time cutoff)
   const videoActivity: LessonActivity[] = (
     (progressData ?? []) as Array<{
       lesson_id: string;
       completed: boolean;
       last_position_seconds: number;
       updated_at: string;
-      lessons: { title: string };
     }>
   )
-    .filter((p) => p.completed)
+    .filter(
+      (p) =>
+        p.completed &&
+        new Date(p.updated_at) >= new Date(cutoff),
+    )
     .map((p) => {
-      const lesson = allLessonIds.includes(p.lesson_id)
-        ? Array.from(lessonsByCourse.values())
-            .flat()
-            .find((l) => l.id === p.lesson_id)
-        : undefined;
+      const lesson = Array.from(lessonsByCourse.values())
+        .flat()
+        .find((l) => l.id === p.lesson_id);
       const courseId =
         Array.from(lessonsByCourse.entries()).find(([, lessons]) =>
           lessons.some((l) => l.id === p.lesson_id),
@@ -184,7 +248,7 @@ export async function getStudentDashboardData(
 
       return {
         lessonId: p.lesson_id,
-        lessonTitle: lesson?.title ?? p.lessons?.title ?? "Unknown lesson",
+        lessonTitle: lesson?.title ?? "Unknown lesson",
         courseId,
         courseTitle,
         score: null,
@@ -207,47 +271,6 @@ export async function getStudentDashboardData(
         new Date(b.activityAt).getTime() - new Date(a.activityAt).getTime(),
     )
     .slice(0, 15);
-
-  // Build course progress summaries
-  const progress: DashboardCourseProgress[] = enrolledCourses.map((course) => {
-    const lessons = lessonsByCourse.get(course.courseId) ?? [];
-    const totalLessons = lessons.length;
-
-    let completedLessons = 0;
-    let lastActivityAt: string | null = null;
-    let lastLessonId: string | null = null;
-    let lastLessonTitle: string | null = null;
-    let lastPositionSeconds = 0;
-
-    for (const lesson of lessons) {
-      const p = progressByLesson.get(lesson.id);
-      if (p) {
-        if (p.completed) completedLessons++;
-        if (!lastActivityAt || p.updated_at > lastActivityAt) {
-          lastActivityAt = p.updated_at;
-          lastLessonId = p.lesson_id;
-          lastLessonTitle = lesson.title;
-          lastPositionSeconds = p.last_position_seconds;
-        }
-      }
-    }
-
-    return {
-      courseId: course.courseId,
-      courseTitle: course.title,
-      courseDescription: course.description,
-      totalLessons,
-      completedLessons,
-      progressPercent:
-        totalLessons > 0
-          ? Math.round((completedLessons / totalLessons) * 100)
-          : 0,
-      lastLessonId,
-      lastLessonTitle,
-      lastPositionSeconds,
-      lastActivityAt,
-    };
-  });
 
   return { progress, recentActivity: allActivities };
 }
