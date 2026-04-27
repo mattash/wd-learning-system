@@ -264,7 +264,7 @@ async function importContent(content: ContentImport): Promise<ImportSummary> {
   for (const [moduleIndex, moduleInput] of courseInput.modules.entries()) {
     console.log(`Creating module ${moduleIndex + 1}/${courseInput.modules.length}: ${moduleInput.title}`);
 
-    const module = await insertSingle<ModuleRow>(
+    const moduleRow = await insertSingle<ModuleRow>(
       supabase
         .from("modules")
         .insert({
@@ -280,7 +280,7 @@ async function importContent(content: ContentImport): Promise<ImportSummary> {
     );
 
     const moduleSummary: SummaryModule = {
-      ...module,
+      ...moduleRow,
       lessons: [],
     };
 
@@ -291,7 +291,7 @@ async function importContent(content: ContentImport): Promise<ImportSummary> {
         supabase
           .from("lessons")
           .insert({
-            module_id: module.id,
+            module_id: moduleRow.id,
             title: lessonInput.title,
             descriptor: lessonInput.descriptor,
             thumbnail_url: lessonInput.thumbnail_url,
