@@ -114,3 +114,113 @@ export async function getCourseTree(courseId: string, parishId: string) {
   if (modulesError) throw modulesError;
   return { course, modules: ((modules ?? []) as CourseModule[]) ?? [] };
 }
+
+export interface CourseLesson {
+  id: string;
+  title: string;
+  sort_order: number;
+  status: "not_started" | "in_progress" | "completed";
+  bestScore: number;
+}
+
+export interface CourseModuleWithProgress {
+  id: string;
+  title: string;
+  sort_order: number;
+  lessons: CourseLesson[];
+}
+
+export async function getCourseTreeWithProgress(
+  courseId: string,
+  parishId: string,
+  clerkUserId: string,
+) {
+  if (isE2ESmokeMode()) {
+    if (courseId !== E2E_COURSE.id) return null;
+    return {
+      course: E2E_COURSE,
+      modules: [
+        {
+          ...E2E_MODULE,
+          lessons: [
+            {
+              id: E2E_LESSON.id,
+              title: E2E_LESSON.title,
+              sort_order: 1,
+              status: "not_started" as const,
+              bestScore: 0,
+            },
+          ],
+        },
+      ],
+    };
+  }
+
+  const tree = await getCourseTree(courseId, parishId);
+  if (!tree) return null;
+
+  const allLessonIds = tree.modules.flatMap((m) => m.lessons.map((l) => l.id));
+  if (allLessonIds.length === 0) {
+    return {
+      course: tree.course,
+      modules: tree.modules.map((m) => ({
+        ...m,
+        lessons: m.lessons.map((l) => ({
+          ...l,
+          status: "not_started" as const,
+          bestScore: 0,
+        })),
+      })),
+    };
+  }
+
+  const supabase = getSupabaseAdminClient();
+
+  const { data: progressData } = await supabase
+    .from("video_progress")
+    .select("lesson_id, completed, percent_watched")
+    .eq("parish_id", parishId)
+    .eq("clerk_user_id", clerkUserId)
+    .in("lesson_id", allLessonIds);
+
+  const progressMap = new Map(
+    ((progressData ?? []) as Array<{
+      lesson_id: string;
+      completed: boolean;
+      percent_watched: number;
+    }>).map((p) => [p.lesson_id, p]),
+  );
+
+  const { data: quizData } = await supabase
+    .from("quiz_attempts")
+    .select("lesson_id, score")
+    .eq("parish_id", parishId)
+    .eq("clerk_user_id", clerkUserId)
+    .in("lesson_id", allLessonIds);
+
+  const bestScoreMap = new Map<string, number>();
+  for (const q of (quizData ?? []) as Array<{ lesson_id: string; score: number }>) {
+    const current = bestScoreMap.get(q.lesson_id) ?? 0;
+    if (q.score > current) bestScoreMap.set(q.lesson_id, q.score);
+  }
+
+  return {
+    course: tree.course,
+    modules: tree.modules.map((m) => ({
+      ...m,
+      lessons: m.lessons.map((l) => {
+        const progress = progressMap.get(l.id);
+        const bestScore = bestScoreMap.get(l.id) ?? 0;
+        let status: "not_started" | "in_progress" | "completed";
+        if (progress?.completed) {
+          status = "completed";
+        } else if (progress && progress.percent_watched > 0) {
+          status = "in_progress";
+        } else {
+          status = "not_started";
+        }
+        return { ...l, status, bestScore };
+      }),
+    })),
+  };
+}

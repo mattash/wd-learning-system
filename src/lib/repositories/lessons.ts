@@ -146,3 +146,79 @@ export async function isUserEnrolledForLesson({
   if (error) throw error;
   return Boolean(data);
 }
+
+export interface LessonNavContext {
+  lesson: { id: string; title: string };
+  course: { id: string; title: string };
+  module: { id: string; title: string };
+  previousLesson: { id: string; title: string } | null;
+  nextLesson: { id: string; title: string } | null;
+}
+
+export async function getLessonNavContext(
+  lessonId: string,
+): Promise<LessonNavContext | null> {
+  if (isE2ESmokeMode()) {
+    if (lessonId !== E2E_LESSON.id) return null;
+    return {
+      lesson: { id: E2E_LESSON.id, title: E2E_LESSON.title },
+      course: { id: E2E_COURSE.id, title: E2E_COURSE.title },
+      module: { id: "mod-1", title: "Module 1" },
+      previousLesson: null,
+      nextLesson: null,
+    };
+  }
+
+  const supabase = getSupabaseAdminClient();
+
+  // Get the lesson with its module and course
+  const { data: lesson, error: lessonError } = await supabase
+    .from("lessons")
+    .select("id, title, module_id, modules!inner(id, title, course_id, courses!inner(id, title))")
+    .eq("id", lessonId)
+    .maybeSingle();
+
+  if (lessonError) throw lessonError;
+  if (!lesson) return null;
+
+  const lessonData = lesson as {
+    id: string;
+    title: string;
+    module_id: string;
+    modules: {
+      id: string;
+      title: string;
+      course_id: string;
+      courses: { id: string; title: string };
+    };
+  };
+
+  // Get all lessons in this course, ordered
+  const { data: allLessons, error: allError } = await supabase
+    .from("modules")
+    .select("id, lessons(id, title, sort_order)")
+    .eq("course_id", lessonData.modules.course_id)
+    .order("sort_order", { ascending: true });
+
+  if (allError) throw allError;
+
+  const orderedLessons: Array<{ id: string; title: string }> = [];
+  for (const mod of (allLessons ?? []) as Array<{
+    lessons: Array<{ id: string; title: string; sort_order: number }>;
+  }>) {
+    const sorted = [...(mod.lessons ?? [])].sort((a, b) => a.sort_order - b.sort_order);
+    orderedLessons.push(...sorted);
+  }
+
+  const currentIndex = orderedLessons.findIndex((l) => l.id === lessonId);
+  const previousLesson = currentIndex > 0 ? orderedLessons[currentIndex - 1] : null;
+  const nextLesson = currentIndex < orderedLessons.length - 1 ? orderedLessons[currentIndex + 1] : null;
+
+  return {
+    lesson: { id: lessonData.id, title: lessonData.title },
+    course: { id: lessonData.modules.courses.id, title: lessonData.modules.courses.title },
+    module: { id: lessonData.modules.id, title: lessonData.modules.title },
+    previousLesson,
+    nextLesson,
+  };
+}

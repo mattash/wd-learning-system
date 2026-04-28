@@ -1,13 +1,17 @@
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import { DocumentReviewCard } from "@/components/document-review-card";
+import { LessonNav } from "@/components/lesson-nav";
 import { YoutubePlayer } from "@/components/player/youtube-player";
 import { QuizForm } from "@/components/quiz-form";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireParishRole } from "@/lib/authz";
 import { isE2ESmokeMode } from "@/lib/e2e-mode";
 import {
   getBestScore,
+  getLessonNavContext,
   getLessonProgress,
   getLessonWithQuestions,
   isUserEnrolledForLesson,
@@ -44,6 +48,7 @@ export default async function LessonPage({
 
   const progress = await getLessonProgress(lessonId, parishId, clerkUserId);
   const bestScore = await getBestScore(lessonId, parishId, clerkUserId);
+  const navContext = await getLessonNavContext(lessonId);
   const documentViewerUrl =
     lesson.content_type === "DOCUMENT" && lesson.document_url
       ? buildDocumentViewerUrl({
@@ -60,6 +65,21 @@ export default async function LessonPage({
 
   return (
     <div className="space-y-6">
+      {/* Breadcrumb */}
+      {navContext && (
+        <nav className="flex items-center gap-1 text-sm text-muted-foreground">
+          <Button asChild className="h-auto p-0" variant="link">
+            <Link href={`/app/courses/${navContext.course.id}`}>
+              {navContext.course.title}
+            </Link>
+          </Button>
+          <span>{">"}</span>
+          <span className="text-foreground">{navContext.module.title}</span>
+          <span>{">"}</span>
+          <span className="font-medium text-foreground">{lesson.title}</span>
+        </nav>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle>{lesson.title}</CardTitle>
@@ -118,6 +138,15 @@ export default async function LessonPage({
           </CardContent>
         </Card>
       )}
+
+      {/* Prev/Next navigation */}
+      {navContext && (
+        <LessonNav
+          previousLesson={navContext.previousLesson}
+          nextLesson={navContext.nextLesson}
+        />
+      )}
+
       <QuizForm
         lessonId={lesson.id}
         parishId={parishId}
@@ -126,6 +155,7 @@ export default async function LessonPage({
           prompt: q.prompt,
           options: q.options as string[],
         }))}
+        nextLesson={navContext?.nextLesson ?? null}
       />
     </div>
   );
