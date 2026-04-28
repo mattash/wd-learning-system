@@ -53,6 +53,9 @@ export default async function AppLayout({
       : parishOptions[0]?.id;
 
   const navItems = [
+    ...(!showParishAdmin && !showDioceseAdmin
+      ? [{ label: "Dashboard", href: "/app/dashboard" }]
+      : []),
     { label: "Courses", href: "/app/courses" },
     ...(showParishAdmin ? [{ label: "Parish Admin", href: "/app/parish-admin" }] : []),
     ...(showDioceseAdmin ? [{ label: "Diocese Admin", href: "/app/admin" }] : []),

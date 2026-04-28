@@ -31,7 +31,7 @@ export default async function AppIndex() {
       redirect("/app/parish-admin");
     }
 
-    redirect("/app/courses");
+    redirect("/app/dashboard");
   }
 
   const supabase = getSupabaseAdminClient();
@@ -74,5 +74,5 @@ export default async function AppIndex() {
     redirect("/app/parish-admin");
   }
 
-  redirect("/app/courses");
+  redirect("/app/dashboard");
 }
