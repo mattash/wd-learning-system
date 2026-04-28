@@ -29,34 +29,58 @@ export async function getCatalogCourses(
 
   const supabase = getSupabaseAdminClient();
 
-  // Get published DIOCESE courses + parish-scoped courses adopted by this parish
-  const { data: courses, error } = await supabase
+  // Get parish-scoped course IDs adopted by this parish
+  const { data: adoptedCourses, error: adoptedError } = await supabase
+    .from("course_parishes")
+    .select("course_id")
+    .eq("parish_id", parishId);
+
+  if (adoptedError) throw adoptedError;
+
+  const adoptedIds = ((adoptedCourses ?? []) as Array<{ course_id: string }>).map(
+    (r) => r.course_id,
+  );
+
+  // Build the visibility filter: DIOCESE courses OR parish-adopted PARISH courses
+  let query = supabase
     .from("courses")
     .select("id, title, description, thumbnail_url, scope")
-    .eq("published", true)
-    .or(`scope.eq.DIOCESE,and(scope.eq.PARISH,id.in.(select course_id from course_parishes where parish_id.eq.${parishId}))`)
-    .order("created_at", { ascending: false });
+    .eq("published", true);
 
-  if (error) throw error;
+  if (adoptedIds.length > 0) {
+    query = query.or(`scope.eq.DIOCESE,and(scope.eq.PARISH,id.in.(${adoptedIds.join(",")}))`);
+  } else {
+    query = query.eq("scope", "DIOCESE");
+  }
+
+  const { data: courses, error: coursesError } = await query.order("created_at", {
+    ascending: false,
+  });
+
+  if (coursesError) throw coursesError;
   if (!courses || courses.length === 0) return [];
 
   // Get enrollment status for this user
-  const { data: enrollments } = await supabase
+  const { data: enrollments, error: enrollError } = await supabase
     .from("enrollments")
     .select("course_id")
     .eq("parish_id", parishId)
     .eq("clerk_user_id", clerkUserId);
 
+  if (enrollError) throw enrollError;
+
   const enrolledSet = new Set(
     ((enrollments ?? []) as Array<{ course_id: string }>).map((e) => e.course_id),
   );
 
-  // Get lesson counts
+  // Get lesson counts for visible courses
   const courseIds = (courses as Array<{ id: string }>).map((c) => c.id);
-  const { data: lessonCounts } = await supabase
+  const { data: lessonCounts, error: countError } = await supabase
     .from("modules")
     .select("course_id, lessons(id)")
     .in("course_id", courseIds);
+
+  if (countError) throw countError;
 
   const lessonCountByCourse = new Map<string, number>();
   for (const mod of (lessonCounts ?? []) as Array<{

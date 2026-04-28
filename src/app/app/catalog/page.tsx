@@ -51,23 +51,35 @@ function CourseCard({ course }: { course: CatalogCourse }) {
 export default async function CatalogPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ q?: string }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { parishId, clerkUserId } = await requireParishRole("student");
   const allCourses = await getCatalogCourses(parishId, clerkUserId);
   const params = (await searchParams) ?? {};
-  const query = params.q?.trim() ?? "";
 
-  const filtered =
+  const rawQ = params.q;
+  const query = Array.isArray(rawQ) ? rawQ[0] : (rawQ?.trim() ?? "");
+
+  const enrolled = allCourses.filter((c) => c.enrolled);
+  const unenrolled = allCourses.filter((c) => !c.enrolled);
+
+  const filteredEnrolled =
     query.length > 0
-      ? allCourses.filter(
+      ? enrolled.filter(
           (c) =>
             c.title.toLowerCase().includes(query.toLowerCase()) ||
             (c.description?.toLowerCase().includes(query.toLowerCase()) ?? false),
         )
-      : allCourses;
+      : enrolled;
 
-  const filteredEnrolled = filtered.filter((c) => c.enrolled);
+  const filteredUnenrolled =
+    query.length > 0
+      ? unenrolled.filter(
+          (c) =>
+            c.title.toLowerCase().includes(query.toLowerCase()) ||
+            (c.description?.toLowerCase().includes(query.toLowerCase()) ?? false),
+        )
+      : unenrolled;
 
   return (
     <div className="space-y-6">
@@ -80,9 +92,13 @@ export default async function CatalogPage({
 
       {/* Search */}
       <form className="flex gap-2">
+        <label className="sr-only" htmlFor="catalog-search">
+          Search courses
+        </label>
         <Input
           className="max-w-sm"
           defaultValue={query}
+          id="catalog-search"
           name="q"
           placeholder="Search courses..."
           type="search"
@@ -111,32 +127,41 @@ export default async function CatalogPage({
         </section>
       )}
 
-      {/* Full catalog */}
-      <section>
-        <h2 className="mb-3 text-sm font-medium text-muted-foreground">
-          {query ? `Results for "${query}"` : "All available courses"}
-        </h2>
+      {/* Available courses */}
+      {filteredUnenrolled.length > 0 && (
+        <section>
+          <h2 className="mb-3 text-sm font-medium text-muted-foreground">
+            {query ? `Results for "${query}"` : "All available courses"}
+          </h2>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {filteredUnenrolled.map((course) => (
+              <CourseCard course={course} key={course.id} />
+            ))}
+          </div>
+        </section>
+      )}
 
-        {filtered.length === 0 ? (
+      {/* Empty states */}
+      {allCourses.length === 0 && (
+        <Card>
+          <CardContent className="py-8 text-center">
+            <p className="text-sm text-muted-foreground">
+              No courses are available in the catalog yet.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+      {allCourses.length > 0 &&
+        filteredEnrolled.length === 0 &&
+        filteredUnenrolled.length === 0 && (
           <Card>
             <CardContent className="py-8 text-center">
               <p className="text-sm text-muted-foreground">
-                {allCourses.length === 0
-                  ? "No courses are available in the catalog yet."
-                  : "No courses match your search."}
+                No courses match your search.
               </p>
             </CardContent>
           </Card>
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {filtered
-              .filter((c) => !c.enrolled)
-              .map((course) => (
-                <CourseCard course={course} key={course.id} />
-              ))}
-          </div>
         )}
-      </section>
 
       <div className="flex justify-end gap-2">
         <Button asChild variant="outline">
