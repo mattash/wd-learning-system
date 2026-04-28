@@ -35,6 +35,7 @@ vi.mock("@/lib/e2e-mode", () => ({
 
 vi.mock("@/lib/repositories/lessons", () => ({
   getBestScore: vi.fn(),
+  getLessonNavContext: vi.fn(),
   getLessonProgress: vi.fn(),
   getLessonWithQuestions: vi.fn(),
   isUserEnrolledForLesson: vi.fn(),
@@ -44,6 +45,7 @@ import LessonPage from "@/app/app/lessons/[lessonId]/page";
 import { requireParishRole } from "@/lib/authz";
 import {
   getBestScore,
+  getLessonNavContext,
   getLessonProgress,
   getLessonWithQuestions,
   isUserEnrolledForLesson,
@@ -62,6 +64,13 @@ describe("LessonPage", () => {
       percent_watched: 100,
       last_position_seconds: 0,
       completed: true,
+    });
+    vi.mocked(getLessonNavContext).mockResolvedValue({
+      lesson: { id: "lesson-1", title: "Test Lesson" },
+      course: { id: "course-1", title: "Test Course" },
+      module: { id: "module-1", title: "Test Module" },
+      previousLesson: null,
+      nextLesson: null,
     });
     vi.mocked(getBestScore).mockResolvedValue(100);
   });
@@ -83,7 +92,7 @@ describe("LessonPage", () => {
 
     render(await LessonPage({ params: Promise.resolve({ lessonId: "lesson-1" }) }));
 
-    expect(screen.getByText("Reading lesson")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Reading lesson" })).toBeInTheDocument();
     expect(screen.getByText("Review status: Reviewed · Pages 2-4")).toBeInTheDocument();
     expect(screen.getByText("Document review: Pages 2-4")).toBeInTheDocument();
     expect(screen.getByTitle("Reading lesson document")).toHaveAttribute("src", "/docs/reading.pdf#page=2");
