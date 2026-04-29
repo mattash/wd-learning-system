@@ -461,13 +461,12 @@ export async function getParishAdminDashboardDataForUser({
       ((((stalledRowsResult.data ?? []) as Array<{ clerk_user_id: string }>).map((row) => row.clerk_user_id)) ?? []),
     ).size;
 
-    const pendingJoinRequestCount = pendingJoinRequestsResult.count ?? 0;
-
     const metricRows = ((metricRowsResult.data ?? []) as ParishMetricRow[]) ?? [];
     const learnersStarted = metricRows.reduce((sum, row) => sum + Number(row.learners_started ?? 0), 0);
     const learnersCompleted = metricRows.reduce((sum, row) => sum + Number(row.learners_completed ?? 0), 0);
     completionRate = learnersStarted > 0 ? Math.round((learnersCompleted / learnersStarted) * 100) : 0;
     communicationSends = ((messageSendsResult.data ?? []) as ParishAdminCommunicationSendRow[]) ?? [];
+    pendingJoinRequestCount = pendingJoinRequestsResult.count ?? 0;
   } else if (scopedUserIds.length > 0) {
     const progressRowsResult = await supabase
       .from("video_progress")
