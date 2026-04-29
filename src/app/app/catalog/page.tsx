@@ -5,9 +5,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { requireParishRole } from "@/lib/authz";
 import { getCatalogCourses } from "@/lib/repositories/catalog";
+import { getStudentPendingRequests } from "@/lib/repositories/course-join-requests";
 import type { CatalogCourse } from "@/lib/repositories/catalog";
+import { RequestJoinButton } from "@/components/course-join/request-join-button";
 
-function CourseCard({ course }: { course: CatalogCourse }) {
+function CourseCard({
+  course,
+  hasPendingRequest,
+}: {
+  course: CatalogCourse;
+  hasPendingRequest: boolean;
+}) {
   return (
     <Card className="flex h-full flex-col transition-colors hover:bg-secondary/50">
       <CardHeader className="pb-2">
@@ -38,10 +46,13 @@ function CourseCard({ course }: { course: CatalogCourse }) {
           <Button asChild className="w-full" variant="outline">
             <Link href={`/app/courses/${course.id}`}>Go to course</Link>
           </Button>
+        ) : hasPendingRequest ? (
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-success">Request sent</p>
+            <p className="text-xs text-muted-foreground">Your parish admin will review it soon.</p>
+          </div>
         ) : (
-          <p className="text-xs text-muted-foreground">
-            Ask your parish admin to enroll you.
-          </p>
+          <RequestJoinButton courseId={course.id} />
         )}
       </CardContent>
     </Card>
@@ -59,6 +70,10 @@ export default async function CatalogPage({
 
   const rawQ = params.q;
   const query = Array.isArray(rawQ) ? rawQ[0] : (rawQ?.trim() ?? "");
+
+  // Get pending join requests so we can show "Request sent" on course cards
+  const pendingRequests = await getStudentPendingRequests({ parishId, clerkUserId });
+  const pendingCourseIds = new Set(pendingRequests.map((r) => r.courseId));
 
   const enrolled = allCourses.filter((c) => c.enrolled);
   const unenrolled = allCourses.filter((c) => !c.enrolled);
@@ -121,7 +136,7 @@ export default async function CatalogPage({
           </h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {filteredEnrolled.map((course) => (
-              <CourseCard course={course} key={course.id} />
+              <CourseCard course={course} hasPendingRequest={pendingCourseIds.has(course.id)} key={course.id} />
             ))}
           </div>
         </section>
@@ -135,7 +150,7 @@ export default async function CatalogPage({
           </h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {filteredUnenrolled.map((course) => (
-              <CourseCard course={course} key={course.id} />
+              <CourseCard course={course} hasPendingRequest={pendingCourseIds.has(course.id)} key={course.id} />
             ))}
           </div>
         </section>

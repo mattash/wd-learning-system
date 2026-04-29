@@ -1,7 +1,9 @@
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireParishRole } from "@/lib/authz";
 import { getParishAdminDashboardDataForUser } from "@/lib/repositories/parish-admin";
+import Link from "next/link";
 
 export default async function OverviewPage() {
   const { parishId, role, clerkUserId } = await requireParishRole("instructor");
@@ -52,6 +54,20 @@ export default async function OverviewPage() {
           </CardHeader>
         </Card>
       </section>
+
+      {role === "parish_admin" ? (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Pending join requests</CardDescription>
+            <CardTitle className="text-2xl">{data.overview.pendingJoinRequestCount.toLocaleString()}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Button asChild size="sm" variant="outline">
+              <Link href="/app/parish-admin/join-requests">Review requests</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {role === "parish_admin" && data.dioceseCourses.length > 0 ? (
         <Card>

@@ -26,6 +26,7 @@ describe("GET /api/parish-admin/participation/export", () => {
         activeLearnerCount: 1,
         stalledLearnerCount: 0,
         completionRate: 50,
+        pendingJoinRequestCount: 0,
       },
       visibleCourses: [
         { id: "22222222-2222-4222-8222-222222222222", title: "RCIA", description: null, published: true, scope: "PARISH" },
@@ -72,6 +73,7 @@ describe("GET /api/parish-admin/participation/export", () => {
         activeLearnerCount: 1,
         stalledLearnerCount: 1,
         completionRate: 50,
+        pendingJoinRequestCount: 0,
       },
       visibleCourses: [
         { id: "22222222-2222-4222-8222-222222222222", title: "RCIA", description: null, published: true, scope: "PARISH" },

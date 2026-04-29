@@ -11,6 +11,7 @@ const tabs = [
   { href: "/app/parish-admin/cohorts", label: "Cohorts" },
   { href: "/app/parish-admin/courses", label: "Course Adoption" },
   { href: "/app/parish-admin/enrollments", label: "Enrollment Management" },
+  { href: "/app/parish-admin/join-requests", label: "Join Requests" },
   { href: "/app/parish-admin/communications", label: "Communications" },
   { href: "/app/parish-admin/people", label: "People" },
 ];
