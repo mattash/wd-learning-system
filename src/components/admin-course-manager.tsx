@@ -19,9 +19,9 @@ interface CourseDraft {
   published: boolean;
 }
 
-
 export function AdminCourseManager({ courses }: { courses: DioceseCourseRow[] }) {
   const router = useRouter();
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newDescription, setNewDescription] = useState("");
@@ -29,7 +29,9 @@ export function AdminCourseManager({ courses }: { courses: DioceseCourseRow[] })
   const [newScope, setNewScope] = useState<"DIOCESE" | "PARISH">("DIOCESE");
   const [newPublished, setNewPublished] = useState(false);
   const [message, setMessage] = useState("");
-  const [drafts] = useState<Record<string, CourseDraft>>(
+
+  // Drafts keyed by course id — local editing state
+  const [drafts, setDrafts] = useState<Record<string, CourseDraft>>(
     Object.fromEntries(
       courses.map((course) => [
         course.id,
@@ -44,6 +46,43 @@ export function AdminCourseManager({ courses }: { courses: DioceseCourseRow[] })
       ]),
     ),
   );
+
+  function startEdit(id: string) {
+    setEditingId(id);
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+  }
+
+  function updateDraft(id: string, field: keyof CourseDraft, value: string | boolean) {
+    setDrafts((prev) => ({
+      ...prev,
+      [id]: { ...prev[id], [field]: value },
+    }));
+  }
+
+  async function saveCourse(id: string) {
+    const draft = drafts[id];
+    const response = await fetch(`/api/admin/courses/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: draft.title,
+        description: draft.description || null,
+        thumbnailUrl: draft.thumbnailUrl || null,
+        scope: draft.scope,
+        published: draft.published,
+      }),
+    });
+
+    const data = await response.json();
+    setMessage(response.ok ? "Course updated." : data.error ?? "Failed to update course.");
+    if (response.ok) {
+      setEditingId(null);
+      router.refresh();
+    }
+  }
 
   async function createCourse() {
     const response = await fetch("/api/admin/courses", {
@@ -71,25 +110,6 @@ export function AdminCourseManager({ courses }: { courses: DioceseCourseRow[] })
     router.refresh();
   }
 
-  async function saveCourse(id: string) {
-    const draft = drafts[id];
-    const response = await fetch(`/api/admin/courses/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title: draft.title,
-        description: draft.description || null,
-        thumbnailUrl: draft.thumbnailUrl || null,
-        scope: draft.scope,
-        published: draft.published,
-      }),
-    });
-
-    const data = await response.json();
-    setMessage(response.ok ? "Course updated." : data.error ?? "Failed to update course.");
-    if (response.ok) router.refresh();
-  }
-
   async function deleteCourse(id: string) {
     const response = await fetch(`/api/admin/courses/${id}`, { method: "DELETE" });
     const data = await response.json();
@@ -106,34 +126,64 @@ export function AdminCourseManager({ courses }: { courses: DioceseCourseRow[] })
           <div className="grid grid-cols-1 items-end gap-2 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_120px_140px_auto]">
             <div>
               <label className="mb-1 block text-[11px] font-semibold text-muted-foreground">Title</label>
-              <Input className="h-[34px] text-[13px]" onChange={(e) => setNewTitle(e.target.value)} placeholder="Course title" value={newTitle} />
+              <Input
+                className="h-[34px] text-[13px]"
+                onChange={(e) => setNewTitle(e.target.value)}
+                placeholder="Course title"
+                value={newTitle}
+              />
             </div>
             <div>
               <label className="mb-1 block text-[11px] font-semibold text-muted-foreground">Description</label>
-              <Input className="h-[34px] text-[13px]" onChange={(e) => setNewDescription(e.target.value)} placeholder="Short description" value={newDescription} />
+              <Input
+                className="h-[34px] text-[13px]"
+                onChange={(e) => setNewDescription(e.target.value)}
+                placeholder="Short description"
+                value={newDescription}
+              />
             </div>
             <div>
               <label className="mb-1 block text-[11px] font-semibold text-muted-foreground">Scope</label>
-              <Select className="h-[34px] text-[13px]" onChange={(e) => setNewScope(e.target.value as "DIOCESE" | "PARISH")} value={newScope}>
+              <Select
+                className="h-[34px] text-[13px]"
+                onChange={(e) => setNewScope(e.target.value as "DIOCESE" | "PARISH")}
+                value={newScope}
+              >
                 <option value="DIOCESE">Diocese</option>
                 <option value="PARISH">Parish</option>
               </Select>
             </div>
             <div>
               <label className="mb-1 block text-[11px] font-semibold text-muted-foreground">Thumbnail URL</label>
-              <Input className="h-[34px] text-[13px]" onChange={(e) => setNewThumbnailUrl(e.target.value)} placeholder="https://..." value={newThumbnailUrl} />
+              <Input
+                className="h-[34px] text-[13px]"
+                onChange={(e) => setNewThumbnailUrl(e.target.value)}
+                placeholder="https://..."
+                value={newThumbnailUrl}
+              />
             </div>
             <div className="flex gap-1.5">
-              <Button onClick={createCourse} size="sm" type="button">Create</Button>
-              <Button onClick={() => setShowCreateForm(false)} size="sm" type="button" variant="ghost">Cancel</Button>
+              <Button onClick={createCourse} size="sm" type="button">
+                Create
+              </Button>
+              <Button onClick={() => setShowCreateForm(false)} size="sm" type="button" variant="ghost">
+                Cancel
+              </Button>
             </div>
           </div>
         </div>
       )}
 
+      {/* Show inline create toggle only when form is closed */}
       {!showCreateForm && (
-        <div className="flex justify-end border-b border-border px-5 py-3">
-          <Button onClick={() => setShowCreateForm(true)} size="sm" type="button">+ Create course</Button>
+        <div className="border-b border-border px-5 py-2.5">
+          <button
+            onClick={() => setShowCreateForm(true)}
+            className="text-[13px] text-primary hover:underline"
+            type="button"
+          >
+            + Add a course inline
+          </button>
         </div>
       )}
 
@@ -141,28 +191,91 @@ export function AdminCourseManager({ courses }: { courses: DioceseCourseRow[] })
       <table className="w-full text-left">
         <thead>
           <tr>
-            <th className="px-3.5 py-2.5 text-[10.5px] font-bold uppercase tracking-widest text-muted-foreground">Title</th>
-            <th className="px-3.5 py-2.5 text-[10.5px] font-bold uppercase tracking-widest text-muted-foreground">Scope</th>
-            <th className="px-3.5 py-2.5 text-[10.5px] font-bold uppercase tracking-widest text-muted-foreground">Published</th>
-            <th className="px-3.5 py-2.5 text-right text-[10.5px] font-bold uppercase tracking-widest text-muted-foreground">Actions</th>
+            <th className="px-3.5 py-2.5 text-[10.5px] font-bold uppercase tracking-widest text-muted-foreground">
+              Title
+            </th>
+            <th className="px-3.5 py-2.5 text-[10.5px] font-bold uppercase tracking-widest text-muted-foreground">
+              Scope
+            </th>
+            <th className="px-3.5 py-2.5 text-[10.5px] font-bold uppercase tracking-widest text-muted-foreground">
+              Published
+            </th>
+            <th className="px-3.5 py-2.5 text-right text-[10.5px] font-bold uppercase tracking-widest text-muted-foreground">
+              Actions
+            </th>
           </tr>
         </thead>
         <tbody>
           {courses.map((course) => {
             const draft = drafts[course.id];
+            const isEditing = editingId === course.id;
+
+            if (isEditing) {
+              return (
+                <tr className="border-t border-border bg-brand-subtle" key={course.id}>
+                  <td className="px-3.5 py-3">
+                    <Input
+                      className="mb-2 h-[32px] text-[13px]"
+                      value={draft.title}
+                      onChange={(e) => updateDraft(course.id, "title", e.target.value)}
+                    />
+                    <Input
+                      className="h-[32px] text-[13px]"
+                      placeholder="Description (optional)"
+                      value={draft.description}
+                      onChange={(e) => updateDraft(course.id, "description", e.target.value)}
+                    />
+                  </td>
+                  <td className="px-3.5 py-3">
+                    <Select
+                      className="h-[32px] text-[13px]"
+                      value={draft.scope}
+                      onChange={(e) => updateDraft(course.id, "scope", e.target.value as "DIOCESE" | "PARISH")}
+                    >
+                      <option value="DIOCESE">Diocese-wide</option>
+                      <option value="PARISH">Parish</option>
+                    </Select>
+                  </td>
+                  <td className="px-3.5 py-3">
+                    <label className="flex cursor-pointer items-center gap-2 text-[13px]">
+                      <input
+                        type="checkbox"
+                        checked={draft.published}
+                        onChange={(e) => updateDraft(course.id, "published", e.target.checked)}
+                        className="accent-primary"
+                      />
+                      Published
+                    </label>
+                  </td>
+                  <td className="px-3.5 py-3 text-right">
+                    <div className="flex justify-end gap-1.5">
+                      <Button onClick={() => saveCourse(course.id)} size="xs" type="button">
+                        Save
+                      </Button>
+                      <Button onClick={cancelEdit} size="xs" type="button" variant="ghost">
+                        Cancel
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            }
+
             return (
               <tr className="border-t border-border hover:bg-secondary" key={course.id}>
                 <td className="px-3.5 py-3">
-                  <strong className="text-[13.5px]">{draft?.title ?? course.title}</strong>
-                  <div className="mt-0.5 text-xs text-muted-foreground">{draft?.description ?? course.description ?? ""}</div>
+                  <strong className="text-[13.5px]">{course.title}</strong>
+                  <div className="mt-0.5 text-xs text-muted-foreground">
+                    {course.description ?? ""}
+                  </div>
                 </td>
                 <td className="px-3.5 py-3">
-                  <Badge variant={(draft?.scope ?? course.scope) === "PARISH" ? "parish" : "diocese"}>
-                    {(draft?.scope ?? course.scope) === "PARISH" ? "Parish" : "Diocese-wide"}
+                  <Badge variant={course.scope === "PARISH" ? "parish" : "diocese"}>
+                    {course.scope === "PARISH" ? "Parish" : "Diocese-wide"}
                   </Badge>
                 </td>
                 <td className="px-3.5 py-3">
-                  {(draft?.published ?? course.published) ? (
+                  {course.published ? (
                     <Badge variant="success">
                       <span className="inline-block h-1.5 w-1.5 rounded-full bg-success" />
                       Published
@@ -176,8 +289,12 @@ export function AdminCourseManager({ courses }: { courses: DioceseCourseRow[] })
                     <Button asChild size="xs" type="button" variant="secondary">
                       <Link href={`/app/admin/courses/${course.id}`}>Manage content</Link>
                     </Button>
-                    <Button onClick={() => saveCourse(course.id)} size="xs" type="button" variant="ghost">Edit</Button>
-                    <Button onClick={() => deleteCourse(course.id)} size="xs" type="button" variant="destructive">Delete</Button>
+                    <Button onClick={() => startEdit(course.id)} size="xs" type="button" variant="ghost">
+                      Edit
+                    </Button>
+                    <Button onClick={() => deleteCourse(course.id)} size="xs" type="button" variant="destructive">
+                      Delete
+                    </Button>
                   </div>
                 </td>
               </tr>
@@ -186,7 +303,9 @@ export function AdminCourseManager({ courses }: { courses: DioceseCourseRow[] })
         </tbody>
       </table>
 
-      {message ? <p className="px-5 py-3 text-[13px] text-muted-foreground">{message}</p> : null}
+      {message ? (
+        <p className="px-5 py-3 text-[13px] text-muted-foreground">{message}</p>
+      ) : null}
     </div>
   );
 }
