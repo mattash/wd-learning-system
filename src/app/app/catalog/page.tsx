@@ -48,11 +48,11 @@ function CourseCard({
           </Button>
         ) : hasPendingRequest ? (
           <div className="space-y-1">
-            <p className="text-xs text-green-600 dark:text-green-400 font-medium">Request sent</p>
+            <p className="text-sm font-medium text-success">Request sent</p>
             <p className="text-xs text-muted-foreground">Your parish admin will review it soon.</p>
           </div>
         ) : (
-          <RequestJoinButton courseId={course.id} courseTitle={course.title} />
+          <RequestJoinButton courseId={course.id} />
         )}
       </CardContent>
     </Card>

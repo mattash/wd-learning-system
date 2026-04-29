@@ -7,10 +7,9 @@ import { useRouter } from "next/navigation";
 
 interface RequestJoinButtonProps {
   courseId: string;
-  courseTitle: string;
 }
 
-export function RequestJoinButton({ courseId, courseTitle }: RequestJoinButtonProps) {
+export function RequestJoinButton({ courseId }: RequestJoinButtonProps) {
   const [isPending, startTransition] = useTransition();
   const [requested, setRequested] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -19,9 +18,7 @@ export function RequestJoinButton({ courseId, courseTitle }: RequestJoinButtonPr
   if (requested) {
     return (
       <div className="space-y-1">
-        <p className="text-xs text-green-600 dark:text-green-400 font-medium">
-          Request sent
-        </p>
+        <p className="text-sm font-medium text-success">Request sent</p>
         <p className="text-xs text-muted-foreground">
           Your parish admin will review it soon.
         </p>
