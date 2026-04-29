@@ -7,7 +7,6 @@ import { useRouter } from "next/navigation";
 import type { DioceseCourseRow } from "@/lib/repositories/diocese-admin";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 
@@ -20,8 +19,6 @@ interface CourseDraft {
   published: boolean;
 }
 
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
-const SUPPORTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"] as const;
 
 export function AdminCourseManager({ courses }: { courses: DioceseCourseRow[] }) {
   const router = useRouter();
@@ -32,8 +29,7 @@ export function AdminCourseManager({ courses }: { courses: DioceseCourseRow[] })
   const [newScope, setNewScope] = useState<"DIOCESE" | "PARISH">("DIOCESE");
   const [newPublished, setNewPublished] = useState(false);
   const [message, setMessage] = useState("");
-  const [uploadingTarget, setUploadingTarget] = useState<string | null>(null);
-  const [drafts, setDrafts] = useState<Record<string, CourseDraft>>(
+  const [drafts] = useState<Record<string, CourseDraft>>(
     Object.fromEntries(
       courses.map((course) => [
         course.id,
@@ -48,65 +44,6 @@ export function AdminCourseManager({ courses }: { courses: DioceseCourseRow[] })
       ]),
     ),
   );
-
-  async function uploadThumbnailImage({
-    file,
-    targetId,
-    onUploaded,
-  }: {
-    file: File;
-    targetId: string;
-    onUploaded: (url: string) => void;
-  }) {
-    if (!SUPPORTED_IMAGE_TYPES.includes(file.type as (typeof SUPPORTED_IMAGE_TYPES)[number])) {
-      setMessage("Unsupported image type. Use JPG, PNG, WEBP, or GIF.");
-      return;
-    }
-
-    if (file.size > MAX_IMAGE_BYTES) {
-      setMessage("Image too large. Max upload size is 5 MB.");
-      return;
-    }
-
-    setUploadingTarget(targetId);
-
-    try {
-      const uploadRequest = await fetch("/api/admin/uploads/images", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          kind: "course",
-          fileName: file.name,
-          contentType: file.type,
-          size: file.size,
-        }),
-      });
-      const uploadRequestData = await uploadRequest.json();
-
-      if (!uploadRequest.ok) {
-        setMessage(uploadRequestData.error ?? "Failed to start upload.");
-        return;
-      }
-
-      const uploadResponse = await fetch(uploadRequestData.uploadUrl as string, {
-        method: "PUT",
-        headers: { "Content-Type": file.type },
-        body: file,
-      });
-
-      if (!uploadResponse.ok) {
-        setMessage("Image upload failed.");
-        return;
-      }
-
-      onUploaded(uploadRequestData.assetUrl as string);
-      setMessage("Thumbnail uploaded. Save to persist the new URL.");
-    } catch {
-      setMessage("Image upload failed.");
-    } finally {
-      setUploadingTarget(null);
-    }
-  }
 
   async function createCourse() {
     const response = await fetch("/api/admin/courses", {

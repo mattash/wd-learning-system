@@ -91,7 +91,7 @@ export default async function LessonPage({
             <div className="relative w-full bg-vid-bg">
               {isE2ESmokeMode() ? (
                 <div className="flex aspect-video items-center justify-center">
-                  <p className="text-[13px] text-white/50">Video player placeholder (e2e mode)</p>
+                  <p className="text-[13px] text-primary-foreground/50">Video player placeholder (e2e mode)</p>
                 </div>
               ) : (
                 <YoutubePlayer

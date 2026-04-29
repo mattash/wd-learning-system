@@ -14,9 +14,9 @@ export const buttonVariants = cva(
         outline: "border border-border bg-card text-foreground hover:bg-muted",
         ghost: "text-muted-foreground hover:bg-secondary hover:text-foreground",
         link: "h-auto p-0 text-primary underline-offset-4 hover:underline",
-        destructive: "bg-destructive text-white shadow-sm hover:opacity-90",
+        destructive: "bg-destructive text-primary-foreground shadow-sm hover:opacity-90",
         "destructive-outline": "bg-transparent text-destructive border-[1.5px] border-destructive hover:bg-destructive-subtle",
-        gold: "bg-gold text-white hover:opacity-90",
+        gold: "bg-gold text-primary-foreground hover:opacity-90",
       },
       size: {
         xs: "h-[26px] rounded-sm px-2.5 text-[11px]",

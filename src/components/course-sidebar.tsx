@@ -82,7 +82,7 @@ export function CourseSidebar({ courseTitle, courseId, modules, currentLessonId 
                         <path d="M2 5l2.5 2.5L8 3" stroke="white" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" />
                       </svg>
                     ) : isActive ? (
-                      <div className="h-[7px] w-[7px] rounded-full bg-white" />
+                      <div className="h-[7px] w-[7px] rounded-full bg-primary-foreground" />
                     ) : null}
                   </div>
 

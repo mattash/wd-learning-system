@@ -57,7 +57,6 @@ export function QuizForm({
     <div className="space-y-6">
       {questions.map((q, qIdx) => {
         const selectedIdx = answers[q.id];
-        const isAnswered = selectedIdx !== undefined;
         const correctIdx = correctIndices[q.id];
         const hasCorrectInfo = correctIdx !== undefined;
 
@@ -127,7 +126,7 @@ export function QuizForm({
                         className={`mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border-2 transition-all ${radioClass}`}
                       >
                         {(isSelected || (submitted && isCorrect)) && (
-                          <div className="h-[7px] w-[7px] rounded-full bg-white" />
+                          <div className="h-[7px] w-[7px] rounded-full bg-primary-foreground" />
                         )}
                       </div>
                       <span className="flex-1 text-[14px] leading-relaxed text-foreground">

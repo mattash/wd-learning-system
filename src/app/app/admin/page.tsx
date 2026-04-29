@@ -11,12 +11,7 @@ const statRow1 = [
   { key: "courseCount", label: "Courses" },
 ] as const;
 
-const statRow2 = [
-  { key: "publishedCourseCount", label: "Published Courses" },
-  { key: "enrollmentCount", label: "Enrollments" },
-  { key: "progressRecordCount", label: "Progress Records" },
-  { key: "completedProgressRecordCount", label: "Completed Records" },
-] as const;
+
 
 const moduleLinks = [
   { href: "/app/admin/users", label: "Manage users" },
