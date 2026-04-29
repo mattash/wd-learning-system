@@ -9,6 +9,7 @@ export interface ParishAdminOverview {
   activeLearnerCount: number;
   stalledLearnerCount: number;
   completionRate: number;
+  pendingJoinRequestCount: number;
 }
 
 export interface ParishAdminCourseRow {
@@ -122,6 +123,7 @@ export async function getParishAdminDashboardDataForUser({
         activeLearnerCount: 1,
         stalledLearnerCount: 0,
         completionRate: 0,
+        pendingJoinRequestCount: 0,
       },
       visibleCourses: e2eCourses,
       dioceseCourses: [],
@@ -420,9 +422,10 @@ export async function getParishAdminDashboardDataForUser({
   let stalledLearnerCount = 0;
   let completionRate = 0;
   let communicationSends: ParishAdminCommunicationSendRow[] = [];
+  let pendingJoinRequestCount = 0;
 
   if (role === "parish_admin") {
-    const [activeLearnerRowsResult, stalledRowsResult, messageSendsResult] = await Promise.all([
+    const [activeLearnerRowsResult, stalledRowsResult, messageSendsResult, pendingJoinRequestsResult] = await Promise.all([
       supabase.from("video_progress").select("clerk_user_id").eq("parish_id", parishId),
       supabase
         .from("video_progress")
@@ -438,11 +441,17 @@ export async function getParishAdminDashboardDataForUser({
         .eq("parish_id", parishId)
         .order("created_at", { ascending: false })
         .limit(50),
+      supabase
+        .from("course_join_requests")
+        .select("id", { count: "exact", head: true })
+        .eq("parish_id", parishId)
+        .eq("status", "PENDING"),
     ]);
 
     if (activeLearnerRowsResult.error) throw activeLearnerRowsResult.error;
     if (stalledRowsResult.error) throw stalledRowsResult.error;
     if (messageSendsResult.error) throw messageSendsResult.error;
+    if (pendingJoinRequestsResult.error) throw pendingJoinRequestsResult.error;
 
     activeLearnerCount = new Set(
       ((((activeLearnerRowsResult.data ?? []) as Array<{ clerk_user_id: string }>).map((row) => row.clerk_user_id)) ??
@@ -451,6 +460,8 @@ export async function getParishAdminDashboardDataForUser({
     stalledLearnerCount = new Set(
       ((((stalledRowsResult.data ?? []) as Array<{ clerk_user_id: string }>).map((row) => row.clerk_user_id)) ?? []),
     ).size;
+
+    const pendingJoinRequestCount = pendingJoinRequestsResult.count ?? 0;
 
     const metricRows = ((metricRowsResult.data ?? []) as ParishMetricRow[]) ?? [];
     const learnersStarted = metricRows.reduce((sum, row) => sum + Number(row.learners_started ?? 0), 0);
@@ -490,6 +501,7 @@ export async function getParishAdminDashboardDataForUser({
       activeLearnerCount,
       stalledLearnerCount,
       completionRate,
+      pendingJoinRequestCount,
     },
     visibleCourses: sortCoursesByTitle(scopedVisibleCourses),
     dioceseCourses,
