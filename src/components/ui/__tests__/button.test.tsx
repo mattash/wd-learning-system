@@ -12,7 +12,7 @@ describe("Button", () => {
     expect(button).toBeInTheDocument();
     expect(button.className).toContain("bg-primary");
     expect(button.className).toContain("text-primary-foreground");
-    expect(button.className).toContain("h-10");
+    expect(button.className).toContain("h-[38px]");
   });
 
   it("renders configured variant and size styles", () => {
@@ -25,7 +25,7 @@ describe("Button", () => {
     const button = screen.getByRole("button", { name: "Cancel" });
     expect(button.className).toContain("border-border");
     expect(button.className).toContain("bg-card");
-    expect(button.className).toContain("h-9");
+    expect(button.className).toContain("h-8");
   });
 
   it("forwards native attributes", () => {

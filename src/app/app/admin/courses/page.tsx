@@ -1,5 +1,5 @@
 import { AdminCourseManager } from "@/components/admin-course-manager";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { listCourses } from "@/lib/repositories/diocese-admin";
 
 export default async function DioceseAdminCoursesPage() {
@@ -9,11 +9,11 @@ export default async function DioceseAdminCoursesPage() {
     <Card>
       <CardHeader>
         <CardTitle>Courses</CardTitle>
-        <CardDescription>Create, update, publish, and delete courses from the diocesan catalog.</CardDescription>
+        <CardDescription>Create, update, publish, and remove courses from the diocesan catalog.</CardDescription>
       </CardHeader>
-      <CardContent className="overflow-auto">
+      <div className="overflow-auto">
         <AdminCourseManager courses={courses} />
-      </CardContent>
+      </div>
     </Card>
   );
 }

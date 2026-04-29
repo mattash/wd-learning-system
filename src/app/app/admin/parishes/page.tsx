@@ -1,5 +1,5 @@
 import { AdminParishManager } from "@/components/admin-parish-manager";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { listParishes } from "@/lib/repositories/diocese-admin";
 
 export default async function DioceseAdminParishesPage() {
@@ -9,11 +9,11 @@ export default async function DioceseAdminParishesPage() {
     <Card>
       <CardHeader>
         <CardTitle>Parishes</CardTitle>
-        <CardDescription>Create, update, archive, or delete parishes. Manage self-signup policy.</CardDescription>
+        <CardDescription>Parishes registered in the diocese. Each parish can adopt diocese-published courses.</CardDescription>
       </CardHeader>
-      <CardContent className="overflow-auto">
+      <div className="overflow-auto">
         <AdminParishManager parishes={parishes} />
-      </CardContent>
+      </div>
     </Card>
   );
 }

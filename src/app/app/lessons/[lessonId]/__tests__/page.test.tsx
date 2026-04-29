@@ -35,16 +35,27 @@ vi.mock("@/lib/e2e-mode", () => ({
 
 vi.mock("@/lib/repositories/lessons", () => ({
   getBestScore: vi.fn(),
+  getCourseIdForLesson: vi.fn(),
   getLessonNavContext: vi.fn(),
   getLessonProgress: vi.fn(),
   getLessonWithQuestions: vi.fn(),
   isUserEnrolledForLesson: vi.fn(),
 }));
 
+vi.mock("@/lib/repositories/courses", () => ({
+  getCourseTreeWithProgress: vi.fn(),
+}));
+
+vi.mock("@/components/course-sidebar", () => ({
+  CourseSidebar: () => <div>Course sidebar</div>,
+}));
+
 import LessonPage from "@/app/app/lessons/[lessonId]/page";
 import { requireParishRole } from "@/lib/authz";
+import { getCourseTreeWithProgress } from "@/lib/repositories/courses";
 import {
   getBestScore,
+  getCourseIdForLesson,
   getLessonNavContext,
   getLessonProgress,
   getLessonWithQuestions,
@@ -73,6 +84,16 @@ describe("LessonPage", () => {
       nextLesson: null,
     });
     vi.mocked(getBestScore).mockResolvedValue(100);
+    vi.mocked(getCourseIdForLesson).mockResolvedValue("course-1");
+    vi.mocked(getCourseTreeWithProgress).mockResolvedValue({
+      course: { id: "course-1", title: "Test Course", description: null, published: true, scope: "DIOCESE" as const },
+      modules: [{
+        id: "module-1",
+        title: "Test Module",
+        sort_order: 1,
+        lessons: [{ id: "lesson-1", title: "Test Lesson", sort_order: 1, content_type: "VIDEO" as const, status: "not_started" as const, bestScore: 0 }],
+      }],
+    });
   });
 
   it("renders document lessons with review status and iframe", async () => {
@@ -93,7 +114,6 @@ describe("LessonPage", () => {
     render(await LessonPage({ params: Promise.resolve({ lessonId: "lesson-1" }) }));
 
     expect(screen.getByRole("heading", { name: "Reading lesson" })).toBeInTheDocument();
-    expect(screen.getByText("Review status: Reviewed · Pages 2-4")).toBeInTheDocument();
     expect(screen.getByText("Document review: Pages 2-4")).toBeInTheDocument();
     expect(screen.getByTitle("Reading lesson document")).toHaveAttribute("src", "/docs/reading.pdf#page=2");
     expect(screen.getByText("Quiz questions: 1")).toBeInTheDocument();
@@ -117,6 +137,5 @@ describe("LessonPage", () => {
     render(await LessonPage({ params: Promise.resolve({ lessonId: "lesson-1" }) }));
 
     expect(screen.getByText("Video player: abc123")).toBeInTheDocument();
-    expect(screen.getByText("Quiz questions: 0")).toBeInTheDocument();
   });
 });

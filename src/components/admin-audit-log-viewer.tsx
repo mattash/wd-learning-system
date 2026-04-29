@@ -27,6 +27,19 @@ const defaultFilters: AuditFilters = {
   endDate: "",
 };
 
+const ACTION_DOT_COLORS: Record<string, string> = {
+  "course": "bg-primary",
+  "enrollment": "bg-success",
+  "parish": "bg-success",
+  "user_access": "bg-warning",
+  "user_profile": "bg-warning",
+};
+
+function getDotColor(action: string, resourceType: string): string {
+  if (action.includes("delete") || action.includes("remove")) return "bg-destructive";
+  return ACTION_DOT_COLORS[resourceType] ?? "bg-primary";
+}
+
 export function AdminAuditLogViewer({ initialLogs }: AdminAuditLogViewerProps) {
   const [logs, setLogs] = useState<AdminAuditLogRow[]>(initialLogs);
   const [filters, setFilters] = useState<AuditFilters>(defaultFilters);
@@ -66,72 +79,70 @@ export function AdminAuditLogViewer({ initialLogs }: AdminAuditLogViewerProps) {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="grid gap-2 rounded-md border border-border p-3 md:grid-cols-3 lg:grid-cols-6">
+    <div>
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-border px-5 py-3">
         <Input
+          className="h-[34px] w-[200px] text-[13px]"
           onChange={(e) => setFilters((prev) => ({ ...prev, action: e.target.value }))}
-          placeholder="Action (ex: parish.updated)"
+          placeholder="Filter logs..."
           value={filters.action}
         />
-        <Input
-          onChange={(e) => setFilters((prev) => ({ ...prev, actorUserId: e.target.value }))}
-          placeholder="Actor Clerk user ID"
-          value={filters.actorUserId}
-        />
         <Select
+          className="h-[34px] w-[140px] text-[13px]"
           onChange={(e) => setFilters((prev) => ({ ...prev, resourceType: e.target.value }))}
           value={filters.resourceType}
         >
-          <option value="">All resources</option>
-          <option value="parish">parish</option>
-          <option value="user_profile">user_profile</option>
-          <option value="user_access">user_access</option>
+          <option value="">All actions</option>
+          <option value="course">Course actions</option>
+          <option value="user_profile">User actions</option>
+          <option value="parish">Parish actions</option>
+          <option value="user_access">Access actions</option>
         </Select>
-        <Input onChange={(e) => setFilters((prev) => ({ ...prev, startDate: e.target.value }))} type="date" value={filters.startDate} />
-        <Input onChange={(e) => setFilters((prev) => ({ ...prev, endDate: e.target.value }))} type="date" value={filters.endDate} />
-        <div className="flex gap-2">
-          <Button onClick={applyFilters} type="button" variant="secondary">
-            Apply
-          </Button>
-          <Button onClick={resetFilters} type="button" variant="ghost">
-            Reset
-          </Button>
-        </div>
+        <Input className="h-[34px] w-[140px] text-[13px]" onChange={(e) => setFilters((prev) => ({ ...prev, startDate: e.target.value }))} type="date" value={filters.startDate} />
+        <Input className="h-[34px] w-[140px] text-[13px]" onChange={(e) => setFilters((prev) => ({ ...prev, endDate: e.target.value }))} type="date" value={filters.endDate} />
+        <Button onClick={applyFilters} size="sm" type="button" variant="secondary">
+          Apply
+        </Button>
+        <Button onClick={resetFilters} size="sm" type="button" variant="ghost">
+          Reset
+        </Button>
       </div>
 
-      <p className="text-sm text-muted-foreground">{loading ? "Loading logs..." : `${logs.length} audit events shown`}</p>
+      {/* Log entries */}
+      <div>
+        {logs.map((log) => (
+          <div className="flex items-start gap-3.5 border-b border-border px-5 py-2.5 text-[13px]" key={log.id}>
+            <div className="min-w-[120px] shrink-0 whitespace-nowrap text-xs text-muted-foreground">
+              {new Date(log.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+              {" · "}
+              {new Date(log.created_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+            </div>
+            <div className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${getDotColor(log.action, log.resource_type)}`} />
+            <div className="flex-1">
+              <strong>{log.action}:</strong>{" "}
+              {log.resource_type}
+              {log.resource_id ? ` (${log.resource_id})` : ""}
+              {log.details ? (
+                <span className="ml-1 text-muted-foreground">
+                  {JSON.stringify(log.details).slice(0, 80)}
+                  {JSON.stringify(log.details).length > 80 ? "..." : ""}
+                </span>
+              ) : null}
+            </div>
+            <div className="shrink-0 text-xs text-primary">{log.actor_clerk_user_id}</div>
+          </div>
+        ))}
+      </div>
 
-      <table className="w-full text-left text-sm">
-        <thead className="text-muted-foreground">
-          <tr>
-            <th className="py-2 pr-4 font-medium">Timestamp</th>
-            <th className="py-2 pr-4 font-medium">Actor</th>
-            <th className="py-2 pr-4 font-medium">Action</th>
-            <th className="py-2 pr-4 font-medium">Resource</th>
-            <th className="py-2 pr-4 font-medium">Details</th>
-          </tr>
-        </thead>
-        <tbody>
-          {logs.map((log) => (
-            <tr className="border-t align-top" key={log.id}>
-              <td className="py-2 pr-4">{new Date(log.created_at).toLocaleString()}</td>
-              <td className="py-2 pr-4 font-mono text-xs">{log.actor_clerk_user_id}</td>
-              <td className="py-2 pr-4">{log.action}</td>
-              <td className="py-2 pr-4">
-                {log.resource_type}
-                {log.resource_id ? ` (${log.resource_id})` : ""}
-              </td>
-              <td className="py-2 pr-4">
-                <pre className="max-w-[28rem] overflow-auto rounded bg-muted p-2 text-xs">
-                  {JSON.stringify(log.details ?? {}, null, 2)}
-                </pre>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      {/* Footer */}
+      <div className="flex items-center justify-between rounded-b-lg border-t border-border bg-secondary px-5 py-3">
+        <span className="text-xs text-muted-foreground">
+          {loading ? "Loading logs..." : `Showing ${logs.length} entries`}
+        </span>
+      </div>
 
-      {message ? <p className="text-sm text-muted-foreground">{message}</p> : null}
+      {message ? <p className="px-5 py-3 text-[13px] text-muted-foreground">{message}</p> : null}
     </div>
   );
 }

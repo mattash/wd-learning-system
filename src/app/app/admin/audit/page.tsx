@@ -1,5 +1,5 @@
 import { AdminAuditLogViewer } from "@/components/admin-audit-log-viewer";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { listAdminAuditLogs } from "@/lib/audit-log";
 
 export default async function DioceseAdminAuditPage() {
@@ -8,12 +8,12 @@ export default async function DioceseAdminAuditPage() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Audit logs</CardTitle>
-        <CardDescription>Review admin actions for governance and traceability.</CardDescription>
+        <CardTitle>Audit Logs</CardTitle>
+        <CardDescription>System-level record of administrative actions across the diocese.</CardDescription>
       </CardHeader>
-      <CardContent className="overflow-auto">
+      <div className="overflow-auto">
         <AdminAuditLogViewer initialLogs={logs} />
-      </CardContent>
+      </div>
     </Card>
   );
 }

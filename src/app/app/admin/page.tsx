@@ -1,72 +1,128 @@
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { getDioceseOverview } from "@/lib/repositories/diocese-admin";
 
-const overviewCards = [
+const statRow1 = [
   { key: "parishCount", label: "Parishes" },
   { key: "userCount", label: "Users" },
-  { key: "dioceseAdminCount", label: "Diocese admins" },
+  { key: "dioceseAdminCount", label: "Diocese Admins" },
   { key: "courseCount", label: "Courses" },
-  { key: "publishedCourseCount", label: "Published courses" },
-  { key: "enrollmentCount", label: "Enrollments" },
-  { key: "progressRecordCount", label: "Progress records" },
-  { key: "completedProgressRecordCount", label: "Completed progress records" },
 ] as const;
+
+
+
+const moduleLinks = [
+  { href: "/app/admin/users", label: "Manage users" },
+  { href: "/app/admin/parishes", label: "Manage parishes" },
+  { href: "/app/admin/courses", label: "Manage courses" },
+  { href: "/app/admin/engagement", label: "View engagement" },
+];
+
+function StatCard({ label, value, sub }: { label: string; value: number; sub?: string }) {
+  return (
+    <div className="rounded-lg border border-border bg-card p-4 shadow-sm transition-colors">
+      <div className="text-[10.5px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5">
+        {label}
+      </div>
+      <div className="font-display text-[30px] font-bold tracking-tight leading-none">
+        {value.toLocaleString()}
+      </div>
+      {sub && <div className="mt-1.5 text-xs text-muted-foreground">{sub}</div>}
+    </div>
+  );
+}
 
 export default async function DioceseAdminPage() {
   const overview = await getDioceseOverview();
 
+  const completionRate =
+    overview.progressRecordCount > 0
+      ? Math.round((overview.completedProgressRecordCount / overview.progressRecordCount) * 100)
+      : 0;
+
+  const draftCount = overview.courseCount - overview.publishedCourseCount;
+
   return (
-    <div className="space-y-6">
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {overviewCards.map((card) => (
-          <Card key={card.key}>
-            <CardHeader className="pb-2">
-              <CardDescription>{card.label}</CardDescription>
-              <CardTitle className="text-2xl">{overview[card.key].toLocaleString()}</CardTitle>
-            </CardHeader>
-          </Card>
+    <div className="space-y-5">
+      {/* Stats row 1 */}
+      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {statRow1.map((s) => (
+          <StatCard key={s.key} label={s.label} value={overview[s.key]} />
         ))}
       </section>
 
+      {/* Stats row 2 */}
+      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <StatCard
+          label="Published Courses"
+          value={overview.publishedCourseCount}
+          sub={draftCount > 0 ? `${draftCount} draft` : undefined}
+        />
+        <StatCard label="Enrollments" value={overview.enrollmentCount} />
+        <StatCard label="Progress Records" value={overview.progressRecordCount} />
+        <StatCard
+          label="Completed Records"
+          value={overview.completedProgressRecordCount}
+          sub={`${completionRate}% completion rate`}
+        />
+      </section>
+
+      {/* Bottom two-col */}
       <section className="grid gap-4 lg:grid-cols-2">
+        {/* Management modules */}
         <Card>
           <CardHeader>
-            <CardTitle>Diocese management modules</CardTitle>
+            <CardTitle>Diocese Management Modules</CardTitle>
             <CardDescription>Open focused tools for users, parishes, courses, and engagement.</CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-2 sm:grid-cols-2">
-            <Button asChild variant="secondary">
-              <Link href="/app/admin/users">Manage users</Link>
-            </Button>
-            <Button asChild variant="secondary">
-              <Link href="/app/admin/parishes">Manage parishes</Link>
-            </Button>
-            <Button asChild variant="secondary">
-              <Link href="/app/admin/courses">Manage courses</Link>
-            </Button>
-            <Button asChild variant="secondary">
-              <Link href="/app/admin/engagement">View engagement</Link>
-            </Button>
-            <Button asChild variant="secondary">
-              <Link href="/app/admin/audit">View audit logs</Link>
-            </Button>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-2.5">
+              {moduleLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className="rounded-md border-[1.5px] border-border bg-secondary px-3.5 py-2.5 text-center text-[13.5px] font-medium text-foreground transition-all hover:border-primary hover:bg-brand-subtle hover:text-primary hover:shadow-sm"
+                >
+                  {link.label}
+                </Link>
+              ))}
+              <Link
+                href="/app/admin/audit"
+                className="col-span-2 rounded-md border-[1.5px] border-border bg-secondary px-3.5 py-2.5 text-center text-[13.5px] font-medium text-foreground transition-all hover:border-primary hover:bg-brand-subtle hover:text-primary hover:shadow-sm"
+              >
+                View audit logs
+              </Link>
+            </div>
           </CardContent>
         </Card>
 
+        {/* Access & roles */}
         <Card>
           <CardHeader>
-            <CardTitle>Access and roles</CardTitle>
-            <CardDescription>
-              Continue using the access tool for assigning parish memberships and diocesan admins.
-            </CardDescription>
+            <CardTitle>Access &amp; Roles</CardTitle>
+            <CardDescription>Assign parish memberships and diocesan admin roles.</CardDescription>
           </CardHeader>
           <CardContent>
+            <p className="mb-4 text-[13px] leading-relaxed text-muted-foreground">
+              Use the Access tool to manage who has access to which parishes and who holds diocesan admin
+              privileges. Changes take effect immediately.
+            </p>
             <Button asChild>
-              <Link href="/app/admin/memberships">Open membership tool</Link>
+              <Link href="/app/admin/memberships">Open access tool &rarr;</Link>
             </Button>
+            <div className="my-5 h-px bg-border" />
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between text-[13px]">
+                <span className="text-muted-foreground">Diocese admins</span>
+                <span className="font-bold">{overview.dioceseAdminCount} assigned</span>
+              </div>
+              <div className="flex items-center justify-between text-[13px]">
+                <span className="text-muted-foreground">Parish memberships</span>
+                <span className="font-bold">{overview.userCount} active</span>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </section>

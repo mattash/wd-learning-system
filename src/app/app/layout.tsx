@@ -64,9 +64,17 @@ export default async function AppLayout({
 
   return (
     <div className="min-h-screen">
-      <header className="border-b border-border bg-card">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
-          <nav className="flex flex-wrap items-center gap-1">
+      <header className="sticky top-0 z-50 border-b border-nav-border bg-nav-bg shadow-sm transition-colors duration-250">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 h-[52px]">
+          <div className="flex items-center gap-2 mr-6">
+            <div className="flex h-[26px] w-[26px] items-center justify-center rounded-[5px] bg-primary">
+              <svg viewBox="0 0 20 20" width="14" height="14" xmlns="http://www.w3.org/2000/svg">
+                <path d="M10 1v18M1 10h18M6 6l-3-3M14 6l3-3M6 14l-3 3M14 14l3 3" stroke="white" strokeWidth="2" strokeLinecap="round" fill="none"/>
+              </svg>
+            </div>
+            <span className="text-[13px] font-bold text-foreground tracking-tight">WD Learning</span>
+          </div>
+          <nav className="flex flex-wrap items-center gap-0.5">
             {navItems.map((item) => (
               <Button
                 asChild
@@ -79,7 +87,7 @@ export default async function AppLayout({
               </Button>
             ))}
           </nav>
-          <div className="flex items-center gap-3">
+          <div className="ml-auto flex items-center gap-2">
             {parishOptions.length > 1 && activeParishId ? (
               <ParishSwitcher activeParishId={activeParishId} parishes={parishOptions} />
             ) : null}
@@ -88,7 +96,7 @@ export default async function AppLayout({
           </div>
         </div>
       </header>
-      <main className="mx-auto max-w-6xl px-6 py-6">{children}</main>
+      <main className="mx-auto max-w-6xl px-6 py-7">{children}</main>
     </div>
   );
 }

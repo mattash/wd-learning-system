@@ -1,16 +1,16 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
+import { CourseSidebar } from "@/components/course-sidebar";
 import { DocumentReviewCard } from "@/components/document-review-card";
 import { LessonNav } from "@/components/lesson-nav";
 import { YoutubePlayer } from "@/components/player/youtube-player";
 import { QuizForm } from "@/components/quiz-form";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireParishRole } from "@/lib/authz";
 import { isE2ESmokeMode } from "@/lib/e2e-mode";
+import { getCourseTreeWithProgress } from "@/lib/repositories/courses";
 import {
   getBestScore,
+  getCourseIdForLesson,
   getLessonNavContext,
   getLessonProgress,
   getLessonWithQuestions,
@@ -46,9 +46,17 @@ export default async function LessonPage({
   const lesson = await getLessonWithQuestions(lessonId);
   if (!lesson) notFound();
 
-  const progress = await getLessonProgress(lessonId, parishId, clerkUserId);
-  const bestScore = await getBestScore(lessonId, parishId, clerkUserId);
-  const navContext = await getLessonNavContext(lessonId);
+  const [progress, bestScore, navContext, courseId] = await Promise.all([
+    getLessonProgress(lessonId, parishId, clerkUserId),
+    getBestScore(lessonId, parishId, clerkUserId),
+    getLessonNavContext(lessonId),
+    getCourseIdForLesson(lessonId),
+  ]);
+
+  const courseTree = courseId
+    ? await getCourseTreeWithProgress(courseId, parishId, clerkUserId)
+    : null;
+
   const documentViewerUrl =
     lesson.content_type === "DOCUMENT" && lesson.document_url
       ? buildDocumentViewerUrl({
@@ -64,99 +72,102 @@ export default async function LessonPage({
         : "Assigned document";
 
   return (
-    <div className="space-y-6">
-      {/* Breadcrumb */}
-      {navContext && (
-        <nav className="flex items-center gap-1 text-sm text-muted-foreground">
-          <Button asChild className="h-auto p-0" variant="link">
-            <Link href={`/app/courses/${navContext.course.id}`}>
-              {navContext.course.title}
-            </Link>
-          </Button>
-          <span>{">"}</span>
-          <span className="text-foreground">{navContext.module.title}</span>
-          <span>{">"}</span>
-          <span className="font-medium text-foreground">{lesson.title}</span>
-        </nav>
-      )}
-
-      <Card>
-        <CardHeader>
-          <CardTitle>{lesson.title}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {lesson.descriptor ? <p className="mb-2 text-sm text-muted-foreground">{lesson.descriptor}</p> : null}
-          {lesson.content_type === "DOCUMENT" ? (
-            <p className="text-sm text-muted-foreground">
-              Review status: {progress?.completed ? "Reviewed" : "Pending"} · {pageRangeLabel}
-            </p>
-          ) : null}
-          <p className="text-sm text-muted-foreground">Best score: {bestScore}%</p>
-        </CardContent>
-      </Card>
-      {lesson.content_type === "VIDEO" && lesson.youtube_video_id ? (
-        isE2ESmokeMode() ? (
-          <Card>
-            <CardContent className="pt-4">
-              <p className="text-sm text-muted-foreground">Video player placeholder (e2e mode).</p>
-            </CardContent>
-          </Card>
-        ) : (
-          <YoutubePlayer
-            lessonId={lesson.id}
-            parishId={parishId}
-            resumeSeconds={progress?.last_position_seconds ?? 0}
-            videoId={lesson.youtube_video_id}
-          />
-        )
-      ) : lesson.content_type === "DOCUMENT" && lesson.document_url && documentViewerUrl ? (
-        <>
-          <DocumentReviewCard
-            documentLabel={pageRangeLabel}
-            documentUrl={documentViewerUrl}
-            initiallyCompleted={Boolean(progress?.completed)}
-            lessonId={lesson.id}
-            parishId={parishId}
-          />
-          <Card>
-            <CardHeader>
-              <CardTitle>Assigned reading</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <iframe
-                className="h-[720px] w-full rounded-md border border-border"
-                src={documentViewerUrl}
-                title={`${lesson.title} document`}
-              />
-            </CardContent>
-          </Card>
-        </>
-      ) : (
-        <Card>
-          <CardContent className="pt-4">
-            <p className="text-sm text-muted-foreground">This lesson is missing its content configuration.</p>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Prev/Next navigation */}
-      {navContext && (
-        <LessonNav
-          previousLesson={navContext.previousLesson}
-          nextLesson={navContext.nextLesson}
+    <div className="-mx-6 -mt-7 flex" style={{ height: "calc(100vh - 52px)" }}>
+      {/* Sidebar */}
+      {courseTree && (
+        <CourseSidebar
+          courseId={courseTree.course.id}
+          courseTitle={courseTree.course.title}
+          currentLessonId={lessonId}
+          modules={courseTree.modules}
         />
       )}
 
-      <QuizForm
-        lessonId={lesson.id}
-        parishId={parishId}
-        questions={(lesson.questions ?? []).map((q: { id: string; prompt: string; options: unknown }) => ({
-          id: q.id,
-          prompt: q.prompt,
-          options: q.options as string[],
-        }))}
-        nextLesson={navContext?.nextLesson ?? null}
-      />
+      {/* Main content */}
+      <main className="flex flex-1 flex-col overflow-y-auto">
+        <div className="mx-auto w-full max-w-[820px] pb-20">
+          {/* Video player */}
+          {lesson.content_type === "VIDEO" && lesson.youtube_video_id ? (
+            <div className="relative w-full bg-vid-bg">
+              {isE2ESmokeMode() ? (
+                <div className="flex aspect-video items-center justify-center">
+                  <p className="text-[13px] text-primary-foreground/50">Video player placeholder (e2e mode)</p>
+                </div>
+              ) : (
+                <YoutubePlayer
+                  lessonId={lesson.id}
+                  parishId={parishId}
+                  resumeSeconds={progress?.last_position_seconds ?? 0}
+                  videoId={lesson.youtube_video_id}
+                />
+              )}
+            </div>
+          ) : lesson.content_type === "DOCUMENT" && lesson.document_url && documentViewerUrl ? (
+            <div className="mx-8 mt-7">
+              <DocumentReviewCard
+                documentLabel={pageRangeLabel}
+                documentUrl={documentViewerUrl}
+                initiallyCompleted={Boolean(progress?.completed)}
+                lessonId={lesson.id}
+                parishId={parishId}
+              />
+            </div>
+          ) : null}
+
+          {/* Lesson header */}
+          <div className="px-8 pt-7">
+            {navContext && (
+              <div className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-primary">
+                {navContext.module.title}
+              </div>
+            )}
+            <h1 className="font-display text-[22px] font-bold leading-tight tracking-tight text-foreground">
+              {lesson.title}
+            </h1>
+            {lesson.descriptor ? (
+              <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground">
+                {lesson.descriptor}
+              </p>
+            ) : null}
+            {bestScore > 0 && (
+              <p className="mt-2 text-[13px] text-muted-foreground">Best score: {bestScore}%</p>
+            )}
+          </div>
+
+          {/* Document viewer iframe */}
+          {lesson.content_type === "DOCUMENT" && documentViewerUrl ? (
+            <div className="mx-8 mt-6">
+              <iframe
+                className="h-[720px] w-full rounded-lg border border-border"
+                src={documentViewerUrl}
+                title={`${lesson.title} document`}
+              />
+            </div>
+          ) : null}
+
+          {/* Quiz */}
+          <div className="mt-6 px-8">
+            <QuizForm
+              lessonId={lesson.id}
+              nextLesson={navContext?.nextLesson ?? null}
+              parishId={parishId}
+              questions={(lesson.questions ?? []).map((q: { id: string; prompt: string; options: unknown }) => ({
+                id: q.id,
+                prompt: q.prompt,
+                options: q.options as string[],
+              }))}
+            />
+          </div>
+
+          {/* Prev/Next navigation */}
+          {navContext && (
+            <LessonNav
+              nextLesson={navContext.nextLesson}
+              previousLesson={navContext.previousLesson}
+            />
+          )}
+        </div>
+      </main>
     </div>
   );
 }
