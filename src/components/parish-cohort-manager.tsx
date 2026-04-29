@@ -281,7 +281,7 @@ export function ParishCohortManager({
                 ? memberById.get(cohort.facilitator_clerk_user_id)
                 : null;
               return (
-                <tr className="border-t" key={cohort.id}>
+                <tr className="border-t border-border" key={cohort.id}>
                   <td className="py-2 pr-4">
                     <Input
                       onChange={(e) =>

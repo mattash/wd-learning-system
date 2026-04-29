@@ -9,15 +9,19 @@ import type {
   ParishAdminParticipationRow,
   ParishParticipationStatus,
 } from "@/lib/repositories/parish-admin";
+import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 
-const STATUS_LABELS: Record<ParishParticipationStatus, string> = {
-  not_started: "Not started",
-  active: "Active",
-  stalled: "Stalled",
-  completed: "Completed",
+const STATUS_BADGES: Record<
+  ParishParticipationStatus,
+  { label: string; variant: BadgeProps["variant"] }
+> = {
+  not_started: { label: "Not started", variant: "danger" },
+  active: { label: "Active", variant: "success" },
+  stalled: { label: "Stalled", variant: "warning" },
+  completed: { label: "Completed", variant: "success" },
 };
 
 function formatDate(value: string | null) {
@@ -45,7 +49,7 @@ function buildCommunicationHref({
   params.set("audienceValue", audienceValue);
   params.set("subject", subject);
   params.set("body", body);
-  return `/app/parish-admin?${params.toString()}#communications`;
+  return `/app/parish-admin/communications?${params.toString()}`;
 }
 
 export function ParishParticipationManager({
@@ -213,7 +217,7 @@ export function ParishParticipationManager({
         </thead>
         <tbody>
           {filteredRows.map((row) => (
-            <tr className="border-t" key={row.enrollment_id}>
+            <tr className="border-t border-border" key={row.enrollment_id}>
               <td className="py-2 pr-4">
                 <p>{toLearnerLabel(memberById.get(row.clerk_user_id), row.clerk_user_id)}</p>
                 <p className="text-xs text-muted-foreground">{row.clerk_user_id}</p>
@@ -223,7 +227,9 @@ export function ParishParticipationManager({
               <td className="py-2 pr-4">
                 {row.completed_lessons}/{row.total_lessons} ({row.progress_percent}%)
               </td>
-              <td className="py-2 pr-4">{STATUS_LABELS[row.status]}</td>
+              <td className="py-2 pr-4">
+                <Badge variant={STATUS_BADGES[row.status].variant}>{STATUS_BADGES[row.status].label}</Badge>
+              </td>
               <td className="py-2 pr-4">{formatDate(row.last_activity_at)}</td>
               <td className="py-2 pr-4">{new Date(row.enrolled_at).toLocaleDateString()}</td>
               {canLogCommunications ? (

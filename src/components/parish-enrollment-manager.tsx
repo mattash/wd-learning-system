@@ -120,7 +120,7 @@ export function ParishEnrollmentManager({
               const member = memberById.get(item.clerk_user_id);
               const course = courseById.get(item.course_id);
               return (
-                <tr className="border-t" key={item.id}>
+                <tr className="border-t border-border" key={item.id}>
                   <td className="py-2 pr-4">
                     <div className="flex flex-col">
                       <span>{member ? getMemberLabel(member) : item.clerk_user_id}</span>
