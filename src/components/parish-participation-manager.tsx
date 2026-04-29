@@ -49,7 +49,7 @@ function buildCommunicationHref({
   params.set("audienceValue", audienceValue);
   params.set("subject", subject);
   params.set("body", body);
-  return `/app/parish-admin?${params.toString()}#communications-section`;
+  return `/app/parish-admin/communications?${params.toString()}`;
 }
 
 export function ParishParticipationManager({

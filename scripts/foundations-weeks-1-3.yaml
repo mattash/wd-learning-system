@@ -1,0 +1,252 @@
+course:
+  title: "Foundations of Faith"
+  description: "A 14-week catechesis course for those 'young of faith' — a sincere, grounded look at what the Armenian Church actually teaches. Story-based, experiential learning covering God, Trinity, Church, Scripture, Sacraments, and living the faith."
+  scope: PARISH
+  published: false
+
+  modules:
+    # ═══════════════════════════════════════════════
+    # WEEK 1: God — "Who is God, and can we know Him?"
+    # ═══════════════════════════════════════════════
+    - title: "Week 1 — God"
+      descriptor: "Who is God, and can we know Him? Exploring the four windows through which God reveals Himself."
+      lessons:
+        - title: "Week 1 Teaching: Encountering God"
+          descriptor: "Full teaching session: arguments for God's existence, the four windows (Names, Scripture, Incarnation, Sacraments), and theosis."
+          content_type: VIDEO
+          youtube_video_id: "M8RREaZyL5Q"
+          passing_score: 70
+          questions:
+            - prompt: "According to the Foundations course, how many primary ways do we have to know God?"
+              options:
+                - "Two: faith and reason"
+                - "Four: through His names, Scripture, incarnation, and the sacraments"
+                - "Three: prayer, fasting, and almsgiving"
+                - "One: only through Scripture alone"
+              correct_option_index: 1
+
+            - prompt: "What is theosis?"
+              options:
+                - "The belief that humans can become gods"
+                - "A theological debate about the nature of Christ"
+                - "Growing in the image and likeness of God through relationship with Him"
+                - "The Armenian word for 'faith'"
+              correct_option_index: 2
+
+            - prompt: "Why does the course emphasize approaching faith as 'not comparative religion'?"
+              options:
+                - "Because other religions are not worth studying"
+                - "Because the goal is a sincere, grounded look at what the Armenian Church actually teaches, not comparing traditions"
+                - "Because the Armenian Church is the only true church"
+                - "Because comparisons are too complicated for beginners"
+              correct_option_index: 1
+
+            - prompt: "The course is designed for people who are:"
+              options:
+                - "Only young adults aged 18–30"
+                - "Exclusively Armenian by ethnicity"
+                - "'Young of faith' — regardless of age or background"
+                - "Already deeply knowledgeable about theology"
+              correct_option_index: 2
+
+        - title: "Practical Minute: The Sign of the Cross"
+          descriptor: "Learn why and how we make the sign of the cross — a foundational prayer gesture in the Armenian Church."
+          content_type: VIDEO
+          youtube_video_id: "KFfx84RETfE"
+          passing_score: 70
+          questions:
+            - prompt: "In whose name do we make the sign of the cross?"
+              options:
+                - "In the name of the Father, the Son, and the Holy Spirit"
+                - "In the name of Jesus only"
+                - "In the name of St. Gregory the Illuminator"
+                - "In our own name"
+              correct_option_index: 0
+
+            - prompt: "Which early Christian writer from the second century spoke about the Holy Trinity and the sign of the cross?"
+              options:
+                - "St. Augustine"
+                - "Tertullian"
+                - "St. Gregory of Narek"
+                - "St. Nerses Shnorhali"
+              correct_option_index: 1
+
+            - prompt: "What does the sign of the cross represent for Christians?"
+              options:
+                - "A superstitious gesture"
+                - "A way to identify other Christians"
+                - "Revealing the prayer of our hearts and accepting the call into relationship with the Holy Trinity"
+                - "A cultural tradition with no theological meaning"
+              correct_option_index: 2
+
+    # ═══════════════════════════════════════════════
+    # WEEK 2: The Holy Trinity — "Is God one or three?"
+    # ═══════════════════════════════════════════════
+    - title: "Week 2 — The Holy Trinity"
+      descriptor: "Is God one or three? Understanding the central mystery of Christian faith."
+      lessons:
+        - title: "Week 2 Teaching: The Holy Trinity"
+          descriptor: "Full teaching session: Elohim in Genesis, baptism of Christ as theophany, mutual testimony, adoption theology, and the fire analogy."
+          content_type: VIDEO
+          youtube_video_id: "iTZNwx7aZ2A"
+          passing_score: 70
+          questions:
+            - prompt: "What does the Hebrew word 'Elohim' in Genesis 1:1 tell us?"
+              options:
+                - "It is a singular word referring to one person"
+                - "It is a plural word, but the verb is conjugated singularly — hinting at one God in multiple persons"
+                - "It means 'angel'"
+                - "It is the name of Adam"
+              correct_option_index: 1
+
+            - prompt: "Which event is considered the ultimate revelation of the Holy Trinity?"
+              options:
+                - "The Last Supper"
+                - "The Nativity of Christ"
+                - "The Baptism of Jesus Christ (Theophany)"
+                - "Pentecost"
+              correct_option_index: 2
+
+            - prompt: "What did Christ command at the Great Commission?"
+              options:
+                - "Build a temple in Jerusalem"
+                - "Go and baptize all nations in the name of the Father and the Son and the Holy Spirit"
+                - "Only preach to the Jewish people"
+                - "Write down all His teachings in a book"
+              correct_option_index: 1
+
+            - prompt: "What is tritheism and why is it incorrect?"
+              options:
+                - "The belief that God is only one person — incorrect because we believe in three separate gods"
+                - "The belief that there are three gods — incorrect because we believe in one God in three persons"
+                - "The belief that God is a Trinity — this is actually correct"
+                - "The belief that God does not exist — incorrect because God is real"
+              correct_option_index: 1
+
+            - prompt: "What is modalism (Sabellianism) and why is it incorrect?"
+              options:
+                - "The belief that God is sometimes the Father, sometimes the Son, sometimes the Spirit in different modes — incorrect because all three always exist simultaneously"
+                - "The belief that God has no form — incorrect because God took human form in Christ"
+                - "A modern fashion trend with no theological meaning"
+                - "The belief that only the Father is God — incorrect because the Son and Spirit are also God"
+              correct_option_index: 0
+
+            - prompt: "In the fire analogy for the Holy Trinity, what does the warmth represent?"
+              options:
+                - "God the Father, the source from which everything flows"
+                - "God the Son, the light that reveals the source"
+                - "God the Holy Spirit, which draws us in, touches us, and transforms us"
+                - "The angels who serve God"
+              correct_option_index: 2
+
+            - prompt: "What does it mean that the persons of the Trinity practice 'mutual testimony'?"
+              options:
+                - "They argue about who is greatest"
+                - "Each person points to and glorifies another rather than themselves — modeling perfect self-giving love"
+                - "They take turns being in charge"
+                - "They testify against each other in a heavenly court"
+              correct_option_index: 1
+
+            - prompt: "According to Romans 8, through the Holy Spirit we are:"
+              options:
+                - "Merely servants of God"
+                - "Adopted as God's children, crying 'Abba, Father'"
+                - "Observers from a distance"
+                - "Judged and condemned"
+              correct_option_index: 1
+
+    # ═══════════════════════════════════════════════
+    # WEEK 3: The Church — "What is it, and why does it matter?"
+    # ═══════════════════════════════════════════════
+    - title: "Week 3 — The Church"
+      descriptor: "What is the Church, and why does it matter? Understanding the Body of Christ."
+      lessons:
+        - title: "Week 3 Teaching: The Church"
+          descriptor: "Full teaching session: the five characteristics of the Church, Pentecost origin, the Church Militant and Triumphant, and why the Church matters for salvation."
+          content_type: VIDEO
+          youtube_video_id: "bwerFK9aJ9A"
+          passing_score: 70
+          questions:
+            - prompt: "Which event marks the birth of the Church?"
+              options:
+                - "The Nativity of Christ"
+                - "The Baptism of Jesus"
+                - "Pentecost — the descent of the Holy Spirit upon the apostles"
+                - "The Council of Nicaea"
+              correct_option_index: 2
+
+            - prompt: "Which of these is NOT one of the five characteristics of the Church discussed in Foundations?"
+              options:
+                - "Spiritual Mother"
+                - "Body of Christ"
+                - "Pillar of Truth"
+                - "Political institution"
+              correct_option_index: 3
+
+            - prompt: "What are the 'Church Militant' and 'Church Triumphant'?"
+              options:
+                - "Two rival branches of Christianity"
+                - "The faithful on earth still struggling (Militant) and the saints in heaven (Triumphant)"
+                - "Armenian terms for the Old and New Testaments"
+                - "Military orders in church history"
+              correct_option_index: 1
+
+            - prompt: "Why is the Church described as a 'Spiritual Mother'?"
+              options:
+                - "Because it replaces biological mothers"
+                - "Because the Church nurtures, teaches, and gives birth to new life in Christ through the sacraments"
+                - "Because only women can lead the Church"
+                - "This is not a description used in the course"
+              correct_option_index: 1
+
+            - prompt: "What analogy from Scripture describes the Church as a place of salvation?"
+              options:
+                - "The Tower of Babel"
+                - "Noah's Ark — a vessel of salvation through the waters"
+                - "The Titanic"
+                - "A shopping mall"
+              correct_option_index: 1
+
+        - title: "Healing Through Community"
+          descriptor: "How the Church community supports healing, growth, and transformation through shared faith."
+          content_type: VIDEO
+          youtube_video_id: "8dAaa-QdOKQ"
+          passing_score: 70
+          questions:
+            - prompt: "According to the Foundations course, how does the church community contribute to healing?"
+              options:
+                - "By providing medical services"
+                - "By isolating individuals to focus on themselves"
+                - "Through shared faith, mutual support, and being surrounded by people who love and support you"
+                - "The church has nothing to do with healing"
+              correct_option_index: 2
+
+            - prompt: "What is one way the course suggests we experience God's presence?"
+              options:
+                - "Only through private prayer in solitude"
+                - "Through the community of believers and the relationships we cultivate in the Church"
+                - "Exclusively through reading Scripture alone"
+                - "God's presence cannot be experienced by humans"
+              correct_option_index: 1
+
+        - title: "Practical Minute: How to Go to Church"
+          descriptor: "A practical guide to participating in Armenian Church worship — what to expect, how to engage, and why it matters."
+          content_type: VIDEO
+          youtube_video_id: "n9ojD2k-AsY"
+          passing_score: 70
+          questions:
+            - prompt: "What is the primary purpose of going to church, according to the Foundations teaching?"
+              options:
+                - "To fulfill a weekly obligation out of fear"
+                - "To build and nurture a relationship with God through worship and community"
+                - "To socialize and network with other Armenians"
+                - "To be seen by others as a good Christian"
+              correct_option_index: 1
+
+            - prompt: "When we participate in church worship, we are joining in:"
+              options:
+                - "A private, individual activity"
+                - "The worship of the Church across time — joining with the Church Militant on earth and the Church Triumphant in heaven"
+                - "A political gathering"
+                - "A cultural performance only"
+              correct_option_index: 2

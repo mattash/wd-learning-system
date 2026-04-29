@@ -1,44 +1,32 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { usePathname } from "next/navigation";
 
 import { cn } from "@/lib/utils";
 
-const sections = [
-  { href: "#top", label: "Overview", targetId: "top" },
-  { href: "#courses-section", label: "Course Adoption", targetId: "courses-section" },
-  { href: "#participation-section", label: "Participation Watchlist", targetId: "participation-section" },
-  { href: "#cohorts-section", label: "Cohorts", targetId: "cohorts-section" },
-  { href: "#enrollment-section", label: "Enrollment Management", targetId: "enrollment-section" },
-  { href: "#communications-section", label: "Communications", targetId: "communications-section" },
-  { href: "#people-section", label: "People", targetId: "people-section" },
+const tabs = [
+  { href: "/app/parish-admin", label: "Overview", exact: true },
+  { href: "/app/parish-admin/participation", label: "Participation Watchlist" },
+  { href: "/app/parish-admin/cohorts", label: "Cohorts" },
+  { href: "/app/parish-admin/courses", label: "Course Adoption" },
+  { href: "/app/parish-admin/enrollments", label: "Enrollment Management" },
+  { href: "/app/parish-admin/communications", label: "Communications" },
+  { href: "/app/parish-admin/people", label: "People" },
 ];
 
 export function ParishAdminNav() {
-  const [activeSection, setActiveSection] = useState("top");
-
-  function scrollToSection(targetId: string) {
-    setActiveSection(targetId);
-    const element = document.getElementById(targetId);
-    if (!element) return;
-
-    element.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
+  const pathname = usePathname();
 
   return (
     <nav aria-label="Parish admin sections" className="flex flex-wrap gap-1.5">
-      {sections.map((section) => {
-        const isActive = activeSection === section.targetId;
+      {tabs.map((tab) => {
+        const isActive = tab.exact ? pathname === tab.href : pathname.startsWith(tab.href);
 
         return (
           <Link
-            key={section.href}
-            href={section.href}
-            onClick={(event) => {
-              event.preventDefault();
-              scrollToSection(section.targetId);
-            }}
+            key={tab.href}
+            href={tab.href}
             className={cn(
               "inline-flex items-center justify-center whitespace-nowrap rounded-full border-[1.5px] px-4 py-1.5 text-[13px] font-medium transition-all",
               isActive
@@ -46,7 +34,7 @@ export function ParishAdminNav() {
                 : "border-border bg-card text-muted-foreground hover:border-brand-muted hover:text-foreground",
             )}
           >
-            {section.label}
+            {tab.label}
           </Link>
         );
       })}
