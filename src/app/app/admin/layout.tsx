@@ -15,8 +15,8 @@ export default async function DioceseAdminLayout({
   return (
     <div className="space-y-6">
       <header className="space-y-3">
-        <h1 className="text-2xl font-semibold">Diocese Admin</h1>
-        <p className="text-sm text-muted-foreground">
+        <h1 className="font-display text-xl font-bold tracking-tight">Diocese Admin</h1>
+        <p className="text-[13px] text-muted-foreground">
           Manage users, parishes, course catalog, and engagement insights across the diocese.
         </p>
         <DioceseAdminNav />

@@ -16,69 +16,156 @@
   --color-secondary-foreground: var(--ds-color-text-default);
   --color-destructive: var(--ds-color-destructive);
   --color-destructive-foreground: var(--ds-color-on-destructive);
-  --font-sans: var(--font-geist-sans), "Segoe UI", sans-serif;
-  --font-mono: var(--font-geist-mono), "SFMono-Regular", monospace;
-  --radius-sm: calc(var(--ds-radius-base) - 2px);
+  --color-success: var(--ds-color-success);
+  --color-success-foreground: var(--ds-color-on-success);
+  --color-success-subtle: var(--ds-color-success-subtle);
+  --color-warning: var(--ds-color-warning);
+  --color-warning-foreground: var(--ds-color-on-warning);
+  --color-warning-subtle: var(--ds-color-warning-subtle);
+  --color-gold: var(--ds-color-gold);
+  --color-gold-foreground: #fff;
+  --color-gold-subtle: var(--ds-color-gold-subtle);
+  --color-brand-subtle: var(--ds-color-brand-subtle);
+  --color-brand-muted: var(--ds-color-brand-muted);
+  --color-destructive-subtle: var(--ds-color-destructive-subtle);
+  --color-surface-raised: var(--ds-color-bg-surface-raised);
+  --color-nav-bg: var(--ds-color-nav-bg);
+  --color-nav-border: var(--ds-color-nav-border);
+  --color-tag-parish-bg: var(--ds-color-tag-parish-bg);
+  --color-tag-parish-text: var(--ds-color-tag-parish-text);
+  --color-tag-diocese-bg: var(--ds-color-tag-diocese-bg);
+  --color-tag-diocese-text: var(--ds-color-tag-diocese-text);
+  --font-sans: var(--font-source-sans), 'Source Sans 3', system-ui, sans-serif;
+  --font-display: var(--font-merriweather), 'Merriweather', Georgia, serif;
+  --font-mono: var(--font-geist-mono), 'SFMono-Regular', monospace;
+  --radius-sm: calc(var(--ds-radius-base) - 4px);
   --radius-md: var(--ds-radius-base);
   --radius-lg: calc(var(--ds-radius-base) + 4px);
+  --radius-xl: calc(var(--ds-radius-base) + 8px);
+  --radius-pill: 999px;
+  --shadow-sm: var(--ds-shadow-sm);
+  --shadow-md: var(--ds-shadow-md);
+  --shadow-lg: var(--ds-shadow-lg);
 }
 
 :root {
   --ds-radius-base: 0.5rem;
   --ds-motion-fast: 120ms;
+
+  /* Brand */
+  --ds-color-brand-primary:    oklch(38% 0.175 14);
+  --ds-color-brand-hover:      oklch(32% 0.175 14);
+  --ds-color-brand-active:     oklch(28% 0.175 14);
+  --ds-color-brand-subtle:     oklch(96.5% 0.022 14);
+  --ds-color-brand-muted:      oklch(75% 0.09 14);
+  --ds-color-brand-on-primary: oklch(100% 0 0);
+
+  /* Gold */
+  --ds-color-gold:             oklch(64% 0.13 70);
+  --ds-color-gold-subtle:      oklch(96% 0.022 70);
+
+  /* Semantic status */
+  --ds-color-success:          oklch(52% 0.15 155);
+  --ds-color-success-subtle:   oklch(96% 0.025 155);
+  --ds-color-on-success:       #fff;
+  --ds-color-warning:          oklch(65% 0.14 72);
+  --ds-color-warning-subtle:   oklch(97% 0.022 72);
+  --ds-color-on-warning:       #fff;
+  --ds-color-destructive:      oklch(48% 0.19 22);
+  --ds-color-destructive-subtle: oklch(97% 0.025 22);
+  --ds-color-on-destructive:   #fff;
 }
 
+/* Light Mode */
 :root,
 :root[data-theme="light"] {
-  --ds-color-bg-app: #f8fafc;
-  --ds-color-bg-surface: #ffffff;
-  --ds-color-bg-surface-raised: #f1f5f9;
-  --ds-color-bg-muted: #e2e8f0;
-  --ds-color-text-default: #0f172a;
-  --ds-color-text-muted: #475569;
-  --ds-color-border-default: #cbd5e1;
-  --ds-color-focus-ring: #0f172a;
-  --ds-color-brand-primary: #0f172a;
-  --ds-color-brand-on-primary: #f8fafc;
-  --ds-color-destructive: #b91c1c;
-  --ds-color-on-destructive: #fef2f2;
+  --ds-color-bg-app:           oklch(97.2% 0.006 245);
+  --ds-color-bg-surface:       oklch(100% 0 0);
+  --ds-color-bg-surface-raised:oklch(98.5% 0.005 245);
+  --ds-color-bg-muted:         oklch(90.5% 0.008 245);
+  --ds-color-text-default:     oklch(19% 0.018 245);
+  --ds-color-text-muted:       oklch(60% 0.009 245);
+  --ds-color-text-secondary:   oklch(42% 0.014 245);
+  --ds-color-border-default:   oklch(90.5% 0.008 245);
+  --ds-color-border-strong:    oklch(82% 0.012 245);
+  --ds-color-focus-ring:       oklch(38% 0.175 14);
+  --ds-color-nav-bg:           oklch(100% 0 0);
+  --ds-color-nav-border:       oklch(91% 0.007 245);
+  --ds-color-input-bg:         oklch(100% 0 0);
+  --ds-color-input-border:     oklch(84% 0.01 245);
+  --ds-color-tag-parish-bg:    oklch(94% 0.02 245);
+  --ds-color-tag-parish-text:  oklch(35% 0.025 245);
+  --ds-color-tag-diocese-bg:   var(--ds-color-brand-subtle);
+  --ds-color-tag-diocese-text:  var(--ds-color-brand-primary);
+
+  --ds-shadow-sm: 0 1px 3px oklch(0% 0 0 / 0.07), 0 1px 2px oklch(0% 0 0 / 0.05);
+  --ds-shadow-md: 0 4px 12px oklch(0% 0 0 / 0.08), 0 2px 4px oklch(0% 0 0 / 0.05);
+  --ds-shadow-lg: 0 8px 24px oklch(0% 0 0 / 0.10), 0 4px 8px oklch(0% 0 0 / 0.06);
+
   color-scheme: light;
 }
 
+/* Dark Mode */
 :root[data-theme="dark"] {
-  --ds-color-bg-app: #020617;
-  --ds-color-bg-surface: #0f172a;
-  --ds-color-bg-surface-raised: #1e293b;
-  --ds-color-bg-muted: #334155;
-  --ds-color-text-default: #e2e8f0;
-  --ds-color-text-muted: #94a3b8;
-  --ds-color-border-default: #334155;
-  --ds-color-focus-ring: #cbd5e1;
-  --ds-color-brand-primary: #e2e8f0;
-  --ds-color-brand-on-primary: #0f172a;
-  --ds-color-destructive: #f87171;
-  --ds-color-on-destructive: #450a0a;
+  --ds-color-bg-app:           oklch(13.5% 0.015 245);
+  --ds-color-bg-surface:       oklch(18.5% 0.015 245);
+  --ds-color-bg-surface-raised:oklch(23% 0.014 245);
+  --ds-color-bg-muted:         oklch(28% 0.015 245);
+  --ds-color-text-default:     oklch(93% 0.006 245);
+  --ds-color-text-muted:       oklch(52% 0.008 245);
+  --ds-color-text-secondary:   oklch(71% 0.009 245);
+  --ds-color-border-default:   oklch(28% 0.015 245);
+  --ds-color-border-strong:    oklch(36% 0.015 245);
+  --ds-color-focus-ring:       oklch(55% 0.15 14);
+  --ds-color-brand-subtle:     oklch(24% 0.045 14);
+  --ds-color-nav-bg:           oklch(16% 0.016 245);
+  --ds-color-nav-border:       oklch(26% 0.014 245);
+  --ds-color-input-bg:         oklch(16% 0.016 245);
+  --ds-color-input-border:     oklch(32% 0.014 245);
+  --ds-color-tag-parish-bg:    oklch(28% 0.018 245);
+  --ds-color-tag-parish-text:  oklch(76% 0.01 245);
+  --ds-color-tag-diocese-bg:   oklch(28% 0.05 14);
+  --ds-color-tag-diocese-text:  oklch(72% 0.12 14);
+
+  --ds-shadow-sm: 0 1px 3px oklch(0% 0 0 / 0.25);
+  --ds-shadow-md: 0 4px 12px oklch(0% 0 0 / 0.3);
+  --ds-shadow-lg: 0 8px 24px oklch(0% 0 0 / 0.4);
+
   color-scheme: dark;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
-    --ds-color-bg-app: #020617;
-    --ds-color-bg-surface: #0f172a;
-    --ds-color-bg-surface-raised: #1e293b;
-    --ds-color-bg-muted: #334155;
-    --ds-color-text-default: #e2e8f0;
-    --ds-color-text-muted: #94a3b8;
-    --ds-color-border-default: #334155;
-    --ds-color-focus-ring: #cbd5e1;
-    --ds-color-brand-primary: #e2e8f0;
-    --ds-color-brand-on-primary: #0f172a;
-    --ds-color-destructive: #f87171;
-    --ds-color-on-destructive: #450a0a;
+    --ds-color-bg-app:           oklch(13.5% 0.015 245);
+    --ds-color-bg-surface:       oklch(18.5% 0.015 245);
+    --ds-color-bg-surface-raised:oklch(23% 0.014 245);
+    --ds-color-bg-muted:         oklch(28% 0.015 245);
+    --ds-color-text-default:     oklch(93% 0.006 245);
+    --ds-color-text-muted:       oklch(52% 0.008 245);
+    --ds-color-text-secondary:   oklch(71% 0.009 245);
+    --ds-color-border-default:   oklch(28% 0.015 245);
+    --ds-color-border-strong:    oklch(36% 0.015 245);
+    --ds-color-focus-ring:       oklch(55% 0.15 14);
+    --ds-color-brand-subtle:     oklch(24% 0.045 14);
+    --ds-color-nav-bg:           oklch(16% 0.016 245);
+    --ds-color-nav-border:       oklch(26% 0.014 245);
+    --ds-color-input-bg:         oklch(16% 0.016 245);
+    --ds-color-input-border:     oklch(32% 0.014 245);
+    --ds-color-tag-parish-bg:    oklch(28% 0.018 245);
+    --ds-color-tag-parish-text:  oklch(76% 0.01 245);
+    --ds-color-tag-diocese-bg:   oklch(28% 0.05 14);
+    --ds-color-tag-diocese-text:  oklch(72% 0.12 14);
+
+    --ds-shadow-sm: 0 1px 3px oklch(0% 0 0 / 0.25);
+    --ds-shadow-md: 0 4px 12px oklch(0% 0 0 / 0.3);
+    --ds-shadow-lg: 0 8px 24px oklch(0% 0 0 / 0.4);
+
     color-scheme: dark;
   }
 }
 
 body {
   @apply bg-background text-foreground font-sans antialiased;
+  line-height: 1.6;
+  transition: background 0.25s, color 0.25s;
 }

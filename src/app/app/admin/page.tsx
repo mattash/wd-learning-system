@@ -20,14 +20,12 @@ export default async function DioceseAdminPage() {
 
   return (
     <div className="space-y-6">
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {overviewCards.map((card) => (
-          <Card key={card.key}>
-            <CardHeader className="pb-2">
-              <CardDescription>{card.label}</CardDescription>
-              <CardTitle className="text-2xl">{overview[card.key].toLocaleString()}</CardTitle>
-            </CardHeader>
-          </Card>
+          <div key={card.key} className="rounded-lg border border-border bg-card p-4.5 shadow-sm">
+            <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">{card.label}</div>
+            <div className="font-display text-[28px] font-bold tracking-tight leading-none">{overview[card.key].toLocaleString()}</div>
+          </div>
         ))}
       </section>
 
