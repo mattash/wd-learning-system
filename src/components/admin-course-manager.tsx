@@ -194,6 +194,9 @@ export function AdminCourseManager({ courses }: { courses: DioceseCourseRow[] })
             <th className="px-3.5 py-2.5 text-[10.5px] font-bold uppercase tracking-widest text-muted-foreground">
               Title
             </th>
+            <th className="px-3.5 py-2.5 w-24 text-[10.5px] font-bold uppercase tracking-widest text-muted-foreground">
+              Thumbnail
+            </th>
             <th className="px-3.5 py-2.5 text-[10.5px] font-bold uppercase tracking-widest text-muted-foreground">
               Scope
             </th>
@@ -213,7 +216,7 @@ export function AdminCourseManager({ courses }: { courses: DioceseCourseRow[] })
             if (isEditing) {
               return (
                 <tr className="border-t border-border bg-brand-subtle" key={course.id}>
-                  <td className="px-3.5 py-3">
+                  <td className="px-3.5 py-3" colSpan={2}>
                     <Input
                       className="mb-2 h-[32px] text-[13px]"
                       value={draft.title}
@@ -227,14 +230,33 @@ export function AdminCourseManager({ courses }: { courses: DioceseCourseRow[] })
                     />
                   </td>
                   <td className="px-3.5 py-3">
-                    <Select
+                    <div className="h-10 w-16 overflow-hidden rounded border bg-muted">
+                      {draft.thumbnailUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          alt={draft.title}
+                          className="h-full w-full object-cover"
+                          src={draft.thumbnailUrl}
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).style.display = "none";
+                          }}
+                        />
+                      ) : (
+                        <div className="flex h-full items-center justify-center text-muted-foreground">
+                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} />
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-3.5 py-3">
+                    <Input
                       className="h-[32px] text-[13px]"
-                      value={draft.scope}
-                      onChange={(e) => updateDraft(course.id, "scope", e.target.value as "DIOCESE" | "PARISH")}
-                    >
-                      <option value="DIOCESE">Diocese-wide</option>
-                      <option value="PARISH">Parish</option>
-                    </Select>
+                      placeholder="Thumbnail URL"
+                      value={draft.thumbnailUrl}
+                      onChange={(e) => updateDraft(course.id, "thumbnailUrl", e.target.value)}
+                    />
                   </td>
                   <td className="px-3.5 py-3">
                     <label className="flex cursor-pointer items-center gap-2 text-[13px]">
@@ -264,9 +286,24 @@ export function AdminCourseManager({ courses }: { courses: DioceseCourseRow[] })
             return (
               <tr className="border-t border-border hover:bg-secondary" key={course.id}>
                 <td className="px-3.5 py-3">
-                  <strong className="text-[13.5px]">{course.title}</strong>
-                  <div className="mt-0.5 text-xs text-muted-foreground">
-                    {course.description ?? ""}
+                  <div className="h-10 w-16 overflow-hidden rounded border bg-muted">
+                    {draft.thumbnailUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        alt={course.title}
+                        className="h-full w-full object-cover"
+                        src={draft.thumbnailUrl}
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = "none";
+                        }}
+                      />
+                    ) : (
+                      <div className="flex h-full items-center justify-center text-muted-foreground">
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} />
+                        </svg>
+                      </div>
+                    )}
                   </div>
                 </td>
                 <td className="px-3.5 py-3">

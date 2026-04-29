@@ -18,27 +18,46 @@ function CourseCard({
 }) {
   return (
     <Card className="flex h-full flex-col transition-colors hover:bg-secondary/50">
-      <CardHeader className="pb-2">
-        <div className="flex items-start justify-between gap-2">
-          <CardTitle className="text-base">{course.title}</CardTitle>
-          <span
-            className={[
-              "shrink-0 rounded-full px-2 py-0.5 text-xs font-medium",
-              course.scope === "DIOCESE"
-                ? "bg-primary/10 text-primary"
-                : "bg-secondary text-secondary-foreground",
-            ].join(" ")}
-          >
-            {course.scope === "DIOCESE" ? "Diocese-wide" : "Parish"}
-          </span>
+      <div className="flex gap-3 p-4 pb-0">
+        {/* Thumbnail */}
+        <div className="h-20 w-20 shrink-0 overflow-hidden rounded-md border bg-muted">
+          {course.thumbnailUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              alt={course.title}
+              className="h-full w-full object-cover"
+              src={course.thumbnailUrl}
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center text-muted-foreground">
+              <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} />
+              </svg>
+            </div>
+          )}
         </div>
-        {course.description && (
-          <CardDescription className="line-clamp-2">
-            {course.description}
-          </CardDescription>
-        )}
-      </CardHeader>
-      <CardContent className="mt-auto space-y-3 pt-0">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <CardTitle className="text-base">{course.title}</CardTitle>
+            <span
+              className={[
+                "shrink-0 rounded-full px-2 py-0.5 text-xs font-medium",
+                course.scope === "DIOCESE"
+                  ? "bg-primary/10 text-primary"
+                  : "bg-secondary text-secondary-foreground",
+              ].join(" ")}
+            >
+              {course.scope === "DIOCESE" ? "Diocese-wide" : "Parish"}
+            </span>
+          </div>
+          {course.description && (
+            <CardDescription className="line-clamp-2 mt-0.5">
+              {course.description}
+            </CardDescription>
+          )}
+        </div>
+      </div>
+      <CardContent className="mt-auto space-y-3 pt-3">
         <p className="text-xs text-muted-foreground">
           {course.lessonCount} lesson{course.lessonCount !== 1 ? "s" : ""}
         </p>
