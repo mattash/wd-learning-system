@@ -66,13 +66,13 @@
 
   /* Semantic status */
   --ds-color-success:          oklch(52% 0.15 155);
-  --ds-color-success-subtle:   oklch(96% 0.025 155);
+  --ds-color-success-subtle:   oklch(94% 0.035 155);
   --ds-color-on-success:       #fff;
   --ds-color-warning:          oklch(65% 0.14 72);
-  --ds-color-warning-subtle:   oklch(97% 0.022 72);
+  --ds-color-warning-subtle:   oklch(94% 0.035 72);
   --ds-color-on-warning:       #fff;
   --ds-color-destructive:      oklch(48% 0.19 22);
-  --ds-color-destructive-subtle: oklch(97% 0.025 22);
+  --ds-color-destructive-subtle: oklch(94% 0.035 22);
   --ds-color-on-destructive:   #fff;
 }
 
@@ -93,10 +93,10 @@
   --ds-color-nav-border:       oklch(91% 0.007 245);
   --ds-color-input-bg:         oklch(100% 0 0);
   --ds-color-input-border:     oklch(84% 0.01 245);
-  --ds-color-tag-parish-bg:    oklch(94% 0.02 245);
-  --ds-color-tag-parish-text:  oklch(35% 0.025 245);
-  --ds-color-tag-diocese-bg:   var(--ds-color-brand-subtle);
-  --ds-color-tag-diocese-text:  var(--ds-color-brand-primary);
+  --ds-color-tag-parish-bg:    oklch(92% 0.025 245);
+  --ds-color-tag-parish-text:  oklch(30% 0.03 245);
+  --ds-color-tag-diocese-bg:   oklch(94% 0.04 14);
+  --ds-color-tag-diocese-text:  oklch(38% 0.175 14);
 
   --ds-shadow-sm: 0 1px 3px oklch(0% 0 0 / 0.07), 0 1px 2px oklch(0% 0 0 / 0.05);
   --ds-shadow-md: 0 4px 12px oklch(0% 0 0 / 0.08), 0 2px 4px oklch(0% 0 0 / 0.05);
@@ -122,10 +122,13 @@
   --ds-color-nav-border:       oklch(26% 0.014 245);
   --ds-color-input-bg:         oklch(16% 0.016 245);
   --ds-color-input-border:     oklch(32% 0.014 245);
-  --ds-color-tag-parish-bg:    oklch(28% 0.018 245);
-  --ds-color-tag-parish-text:  oklch(76% 0.01 245);
-  --ds-color-tag-diocese-bg:   oklch(28% 0.05 14);
-  --ds-color-tag-diocese-text:  oklch(72% 0.12 14);
+  --ds-color-success-subtle:   oklch(22% 0.04 155);
+  --ds-color-warning-subtle:   oklch(24% 0.04 72);
+  --ds-color-destructive-subtle: oklch(22% 0.04 22);
+  --ds-color-tag-parish-bg:    oklch(28% 0.03 245);
+  --ds-color-tag-parish-text:  oklch(80% 0.015 245);
+  --ds-color-tag-diocese-bg:   oklch(26% 0.06 14);
+  --ds-color-tag-diocese-text:  oklch(75% 0.12 14);
 
   --ds-shadow-sm: 0 1px 3px oklch(0% 0 0 / 0.25);
   --ds-shadow-md: 0 4px 12px oklch(0% 0 0 / 0.3);
@@ -151,10 +154,13 @@
     --ds-color-nav-border:       oklch(26% 0.014 245);
     --ds-color-input-bg:         oklch(16% 0.016 245);
     --ds-color-input-border:     oklch(32% 0.014 245);
-    --ds-color-tag-parish-bg:    oklch(28% 0.018 245);
-    --ds-color-tag-parish-text:  oklch(76% 0.01 245);
-    --ds-color-tag-diocese-bg:   oklch(28% 0.05 14);
-    --ds-color-tag-diocese-text:  oklch(72% 0.12 14);
+    --ds-color-success-subtle:   oklch(22% 0.04 155);
+    --ds-color-warning-subtle:   oklch(24% 0.04 72);
+    --ds-color-destructive-subtle: oklch(22% 0.04 22);
+    --ds-color-tag-parish-bg:    oklch(28% 0.03 245);
+    --ds-color-tag-parish-text:  oklch(80% 0.015 245);
+    --ds-color-tag-diocese-bg:   oklch(26% 0.06 14);
+    --ds-color-tag-diocese-text:  oklch(75% 0.12 14);
 
     --ds-shadow-sm: 0 1px 3px oklch(0% 0 0 / 0.25);
     --ds-shadow-md: 0 4px 12px oklch(0% 0 0 / 0.3);

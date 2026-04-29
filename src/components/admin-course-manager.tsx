@@ -226,7 +226,10 @@ export function AdminCourseManager({ courses }: { courses: DioceseCourseRow[] })
                 </td>
                 <td className="px-3.5 py-3">
                   {(draft?.published ?? course.published) ? (
-                    <Badge variant="success">Published</Badge>
+                    <Badge variant="success">
+                      <span className="inline-block h-1.5 w-1.5 rounded-full bg-success" />
+                      Published
+                    </Badge>
                   ) : (
                     <Badge>Draft</Badge>
                   )}
