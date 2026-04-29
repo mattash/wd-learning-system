@@ -216,7 +216,7 @@ export function AdminCourseManager({ courses }: { courses: DioceseCourseRow[] })
             if (isEditing) {
               return (
                 <tr className="border-t border-border bg-brand-subtle" key={course.id}>
-                  <td className="px-3.5 py-3" colSpan={2}>
+                  <td className="px-3.5 py-3">
                     <Input
                       className="mb-2 h-[32px] text-[13px]"
                       value={draft.title}
@@ -251,12 +251,14 @@ export function AdminCourseManager({ courses }: { courses: DioceseCourseRow[] })
                     </div>
                   </td>
                   <td className="px-3.5 py-3">
-                    <Input
+                    <Select
                       className="h-[32px] text-[13px]"
-                      placeholder="Thumbnail URL"
-                      value={draft.thumbnailUrl}
-                      onChange={(e) => updateDraft(course.id, "thumbnailUrl", e.target.value)}
-                    />
+                      value={draft.scope}
+                      onChange={(e) => updateDraft(course.id, "scope", e.target.value as "DIOCESE" | "PARISH")}
+                    >
+                      <option value="DIOCESE">Diocese-wide</option>
+                      <option value="PARISH">Parish</option>
+                    </Select>
                   </td>
                   <td className="px-3.5 py-3">
                     <label className="flex cursor-pointer items-center gap-2 text-[13px]">
@@ -268,6 +270,14 @@ export function AdminCourseManager({ courses }: { courses: DioceseCourseRow[] })
                       />
                       Published
                     </label>
+                  </td>
+                  <td className="px-3.5 py-3">
+                    <Input
+                      className="h-[32px] text-[13px]"
+                      placeholder="Thumbnail URL"
+                      value={draft.thumbnailUrl}
+                      onChange={(e) => updateDraft(course.id, "thumbnailUrl", e.target.value)}
+                    />
                   </td>
                   <td className="px-3.5 py-3 text-right">
                     <div className="flex justify-end gap-1.5">
@@ -286,13 +296,19 @@ export function AdminCourseManager({ courses }: { courses: DioceseCourseRow[] })
             return (
               <tr className="border-t border-border hover:bg-secondary" key={course.id}>
                 <td className="px-3.5 py-3">
+                  <strong className="text-[13.5px]">{course.title}</strong>
+                  <div className="mt-0.5 text-xs text-muted-foreground">
+                    {course.description ?? ""}
+                  </div>
+                </td>
+                <td className="px-3.5 py-3">
                   <div className="h-10 w-16 overflow-hidden rounded border bg-muted">
-                    {draft.thumbnailUrl ? (
+                    {course.thumbnail_url ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         alt={course.title}
                         className="h-full w-full object-cover"
-                        src={draft.thumbnailUrl}
+                        src={course.thumbnail_url}
                         onError={(e) => {
                           (e.target as HTMLImageElement).style.display = "none";
                         }}
