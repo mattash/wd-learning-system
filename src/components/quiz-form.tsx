@@ -162,34 +162,35 @@ export function QuizForm({
               )}
             </div>
 
-            {/* Card footer */}
-            <div className="flex items-center justify-between gap-3 border-t border-border bg-surface-raised px-5 py-3.5">
-              <span className="text-[13px] text-muted-foreground">
-                {submitted
-                  ? score !== null && score >= 100
-                    ? "Great work — move on when ready."
-                    : `Score: ${score}%`
-                  : isAnswered
-                    ? "Ready to submit?"
-                    : "Select an answer above, then submit."}
-              </span>
-              <div className="flex items-center gap-2">
-                {submitted && nextLesson ? (
-                  <Button asChild size="sm">
-                    <Link href={`/app/lessons/${nextLesson.id}`}>
-                      {nextLesson.title} →
-                    </Link>
-                  </Button>
-                ) : (
-                  <Button disabled={!allAnswered || submitted} onClick={submit} size="sm" type="button">
-                    Submit answer
-                  </Button>
-                )}
-              </div>
-            </div>
           </div>
         );
       })}
+
+      {/* Submit / Next footer */}
+      <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface-raised px-5 py-3.5 shadow-sm">
+        <span className="text-[13px] text-muted-foreground">
+          {submitted
+            ? score !== null && score >= 100
+              ? "Great work — move on when ready."
+              : `Score: ${score}%`
+            : allAnswered
+              ? "Ready to submit?"
+              : "Answer all questions above, then submit."}
+        </span>
+        <div className="flex items-center gap-2">
+          {submitted && nextLesson ? (
+            <Button asChild size="sm">
+              <Link href={`/app/lessons/${nextLesson.id}`}>
+                {nextLesson.title} →
+              </Link>
+            </Button>
+          ) : (
+            <Button disabled={!allAnswered || submitted} onClick={submit} size="sm" type="button">
+              Submit answers
+            </Button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
