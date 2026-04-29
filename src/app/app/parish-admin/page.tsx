@@ -2,8 +2,10 @@ import { ParishCourseAdoptionManager } from "@/components/parish-course-adoption
 import { ParishCohortManager } from "@/components/parish-cohort-manager";
 import { ParishCommunicationsManager } from "@/components/parish-communications-manager";
 import { ParishEnrollmentManager } from "@/components/parish-enrollment-manager";
+import { ParishAdminNav } from "@/components/parish-admin-nav";
 import { ParishPeopleManager } from "@/components/parish-people-manager";
 import { ParishParticipationManager } from "@/components/parish-participation-manager";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireParishRole } from "@/lib/authz";
 import { getParishAdminDashboardDataForUser } from "@/lib/repositories/parish-admin";
@@ -41,24 +43,18 @@ export default async function ParishAdminPage({
   const roleLabel = role === "parish_admin" ? "Parish Admin" : "Facilitator";
 
   return (
-    <div className="space-y-6">
-      <header className="space-y-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <h1 className="text-2xl font-semibold">Parish Admin Dashboard</h1>
-          <span className="inline-flex items-center rounded-full border border-border bg-muted px-2 py-0.5 text-xs font-medium text-foreground">
-            {roleLabel}
-          </span>
+    <div className="space-y-6" id="top">
+      <header className="space-y-3">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <h1 className="font-display text-[22px] font-bold tracking-tight">Parish Admin Dashboard</h1>
+          <Badge variant="role">{roleLabel}</Badge>
         </div>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-[13.5px] text-muted-foreground">
           {role === "parish_admin"
             ? "Adopt parish-scoped courses, manage learner enrollments, and monitor current participation."
-            : "Manage your assigned cohorts and monitor participation for your learners."}
+            : "Manage assigned cohorts and monitor participation for your learners."}
         </p>
-        <p className="text-xs text-muted-foreground">
-          {role === "parish_admin"
-            ? "Full parish controls: course adoption, enrollment management, and cohort administration."
-            : "Limited scope: you can view and update cohorts where you are the assigned facilitator."}
-        </p>
+        <ParishAdminNav />
       </header>
 
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
@@ -95,7 +91,7 @@ export default async function ParishAdminPage({
       </section>
 
       {role === "parish_admin" ? (
-        <Card>
+        <Card id="courses-section">
           <CardHeader>
             <CardTitle>Adopt Parish Courses</CardTitle>
             <CardDescription>
@@ -111,7 +107,7 @@ export default async function ParishAdminPage({
         </Card>
       ) : null}
 
-      <Card>
+      <Card id="participation-section">
         <CardHeader>
           <CardTitle>Participation Watchlist</CardTitle>
           <CardDescription>
@@ -129,7 +125,7 @@ export default async function ParishAdminPage({
         </CardContent>
       </Card>
 
-      <Card>
+      <Card id="cohorts-section">
         <CardHeader>
           <CardTitle>Cohorts</CardTitle>
           <CardDescription>
@@ -148,7 +144,7 @@ export default async function ParishAdminPage({
       </Card>
 
       {role === "parish_admin" ? (
-        <Card>
+        <Card id="enrollment-section">
           <CardHeader>
             <CardTitle>Enrollment Management</CardTitle>
             <CardDescription>
@@ -162,7 +158,7 @@ export default async function ParishAdminPage({
       ) : null}
 
       {role === "parish_admin" ? (
-        <Card id="communications">
+        <Card id="communications-section">
           <CardHeader>
             <CardTitle>Communications</CardTitle>
             <CardDescription>
@@ -181,7 +177,7 @@ export default async function ParishAdminPage({
       ) : null}
 
       {role === "parish_admin" ? (
-        <Card>
+        <Card id="people-section">
           <CardHeader>
             <CardTitle>People</CardTitle>
             <CardDescription>

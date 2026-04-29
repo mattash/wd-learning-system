@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import type { ParishAdminMemberRow } from "@/lib/repositories/parish-admin";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -22,6 +23,12 @@ interface MemberDraft {
 
 function getMemberLabel(member: ParishAdminMemberRow) {
   return member.display_name ?? member.email ?? member.clerk_user_id;
+}
+
+function formatRoleLabel(role: ImportResultRow["role"]) {
+  if (role === "parish_admin") return "Parish Admin";
+  if (role === "instructor") return "Instructor";
+  return "Student";
 }
 
 export function ParishPeopleManager({ members }: { members: ParishAdminMemberRow[] }) {
@@ -187,7 +194,7 @@ export function ParishPeopleManager({ members }: { members: ParishAdminMemberRow
         </thead>
         <tbody>
           {filteredMembers.map((member) => (
-            <tr className="border-t" key={member.clerk_user_id}>
+            <tr className="border-t border-border" key={member.clerk_user_id}>
               <td className="py-2 pr-4">{getMemberLabel(member)}</td>
               <td className="py-2 pr-4">{member.email ?? "—"}</td>
               <td className="py-2 pr-4 font-mono text-xs">{member.clerk_user_id}</td>
@@ -238,10 +245,12 @@ export function ParishPeopleManager({ members }: { members: ParishAdminMemberRow
             </thead>
             <tbody>
               {importResults.map((result) => (
-                <tr className="border-t" key={`${result.row}-${result.identifier}-${result.status}`}>
+                <tr className="border-t border-border" key={`${result.row}-${result.identifier}-${result.status}`}>
                   <td className="py-1 pr-3">{result.row}</td>
                   <td className="py-1 pr-3 font-mono">{result.identifier || "—"}</td>
-                  <td className="py-1 pr-3">{result.role}</td>
+                  <td className="py-1 pr-3">
+                    <Badge variant="role">{formatRoleLabel(result.role)}</Badge>
+                  </td>
                   <td className="py-1 pr-3">{result.status}</td>
                   <td className="py-1 pr-3 text-muted-foreground">{result.message}</td>
                 </tr>

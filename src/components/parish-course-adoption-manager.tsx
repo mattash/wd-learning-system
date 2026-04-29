@@ -79,7 +79,7 @@ export function ParishCourseAdoptionManager({
           </thead>
           <tbody>
             {adoptedCourses.map((course) => (
-              <tr className="border-t" key={course.id}>
+              <tr className="border-t border-border" key={course.id}>
                 <td className="py-2 pr-4">{course.title}</td>
                 <td className="py-2 pr-4 text-muted-foreground">{course.description ?? "No description"}</td>
                 <td className="py-2 pr-4">

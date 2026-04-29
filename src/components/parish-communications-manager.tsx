@@ -8,6 +8,7 @@ import type {
   ParishAdminCommunicationSendRow,
   ParishAdminCourseRow,
 } from "@/lib/repositories/parish-admin";
+import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -15,6 +16,17 @@ import { Select } from "@/components/ui/select";
 type AudienceType = "all_members" | "stalled_learners" | "cohort" | "course";
 type RecipientDeliveryStatus = "not_configured" | "pending" | "sent" | "failed";
 type SendDeliveryStatus = ParishAdminCommunicationSendRow["delivery_status"];
+
+const DELIVERY_STATUS_BADGES: Record<
+  SendDeliveryStatus | RecipientDeliveryStatus,
+  { label: string; variant: BadgeProps["variant"] }
+> = {
+  not_configured: { label: "Not configured", variant: "warning" },
+  pending: { label: "Pending", variant: "warning" },
+  queued: { label: "Queued", variant: "warning" },
+  sent: { label: "Sent", variant: "success" },
+  failed: { label: "Failed", variant: "danger" },
+};
 
 interface SendDetailsResponse {
   summary: {
@@ -319,12 +331,16 @@ export function ParishCommunicationsManager({
 
             return (
               <Fragment key={send.id}>
-                <tr className="border-t">
+                <tr className="border-t border-border">
                   <td className="py-2 pr-4">{new Date(send.created_at).toLocaleString()}</td>
                   <td className="py-2 pr-4">{formatAudienceLabel(send, cohortNameById, courseTitleById)}</td>
                   <td className="py-2 pr-4">{send.subject}</td>
                   <td className="py-2 pr-4">{send.recipient_count}</td>
-                  <td className="py-2 pr-4">{send.delivery_status}</td>
+                  <td className="py-2 pr-4">
+                    <Badge variant={DELIVERY_STATUS_BADGES[send.delivery_status].variant}>
+                      {DELIVERY_STATUS_BADGES[send.delivery_status].label}
+                    </Badge>
+                  </td>
                   <td className="py-2 pr-4">
                     <Button onClick={() => toggleDetails(send.id)} size="sm" type="button" variant="outline">
                       {detailsLoadingSendId === send.id ? "Loading..." : isExpanded ? "Hide" : "View details"}
@@ -332,7 +348,7 @@ export function ParishCommunicationsManager({
                   </td>
                 </tr>
                 {isExpanded && details ? (
-                  <tr className="border-t bg-muted/30">
+                  <tr className="border-t border-border bg-muted/30">
                     <td className="py-3" colSpan={6}>
                       <div className="space-y-2">
                         <div className="flex flex-wrap gap-2 text-xs">
@@ -356,10 +372,14 @@ export function ParishCommunicationsManager({
                           </thead>
                           <tbody>
                             {details.recipients.map((recipient) => (
-                              <tr className="border-t" key={recipient.clerk_user_id}>
+                              <tr className="border-t border-border" key={recipient.clerk_user_id}>
                                 <td className="py-1 pr-2">{recipientLabel(recipient)}</td>
                                 <td className="py-1 pr-2">{recipient.email ?? "—"}</td>
-                                <td className="py-1 pr-2">{recipient.delivery_status}</td>
+                                <td className="py-1 pr-2">
+                                  <Badge variant={DELIVERY_STATUS_BADGES[recipient.delivery_status].variant}>
+                                    {DELIVERY_STATUS_BADGES[recipient.delivery_status].label}
+                                  </Badge>
+                                </td>
                                 <td className="py-1 pr-2">
                                   {recipient.delivery_attempted_at
                                     ? new Date(recipient.delivery_attempted_at).toLocaleString()
