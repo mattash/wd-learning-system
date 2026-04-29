@@ -14,7 +14,7 @@ export interface CourseModule {
   id: string;
   title: string;
   sort_order: number;
-  lessons: { id: string; title: string; sort_order: number }[];
+  lessons: { id: string; title: string; sort_order: number; content_type: "VIDEO" | "DOCUMENT" }[];
 }
 
 export async function listVisibleCourses(parishId: string): Promise<VisibleCourse[]> {
@@ -93,7 +93,7 @@ export async function getCourseTree(courseId: string, parishId: string) {
       modules: [
         {
           ...E2E_MODULE,
-          lessons: [{ id: E2E_LESSON.id, title: E2E_LESSON.title, sort_order: 1 }],
+          lessons: [{ id: E2E_LESSON.id, title: E2E_LESSON.title, sort_order: 1, content_type: E2E_LESSON.content_type }],
         },
       ],
     };
@@ -107,7 +107,7 @@ export async function getCourseTree(courseId: string, parishId: string) {
 
   const { data: modules, error: modulesError } = await supabase
     .from("modules")
-    .select("id,title,sort_order, lessons(id,title,sort_order)")
+    .select("id,title,sort_order, lessons(id,title,sort_order,content_type)")
     .eq("course_id", courseId)
     .order("sort_order", { ascending: true });
 
@@ -119,6 +119,7 @@ export interface CourseLesson {
   id: string;
   title: string;
   sort_order: number;
+  content_type: "VIDEO" | "DOCUMENT";
   status: "not_started" | "in_progress" | "completed";
   bestScore: number;
 }
@@ -147,6 +148,7 @@ export async function getCourseTreeWithProgress(
               id: E2E_LESSON.id,
               title: E2E_LESSON.title,
               sort_order: 1,
+              content_type: E2E_LESSON.content_type,
               status: "not_started" as const,
               bestScore: 0,
             },

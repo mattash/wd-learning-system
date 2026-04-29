@@ -11,27 +11,39 @@ export function LessonNav({ previousLesson, nextLesson }: LessonNavProps) {
   if (!previousLesson && !nextLesson) return null;
 
   return (
-    <div className="flex items-center justify-between gap-4 rounded-lg border border-border bg-card p-4">
-      <div className="flex-1 text-left">
+    <div className="flex items-start justify-between gap-4 px-8 pt-5">
+      <div>
         {previousLesson ? (
-          <Button asChild size="sm" variant="outline">
-            <Link href={`/app/lessons/${previousLesson.id}`}>
-              ←&nbsp;{previousLesson.title}
-            </Link>
-          </Button>
+          <>
+            <span className="mb-1 block text-[11px] uppercase tracking-wide text-muted-foreground">
+              Previous
+            </span>
+            <Button asChild size="sm" variant="secondary">
+              <Link href={`/app/lessons/${previousLesson.id}`}>
+                ← {previousLesson.title}
+              </Link>
+            </Button>
+          </>
         ) : (
-          <span className="invisible block text-sm">No previous lesson</span>
+          <div />
         )}
       </div>
-      <div className="flex-1 text-right">
+      <div className="text-right">
         {nextLesson ? (
-          <Button asChild size="sm" variant="outline">
-            <Link href={`/app/lessons/${nextLesson.id}`}>
-              {nextLesson.title}&nbsp;→
-            </Link>
-          </Button>
+          <>
+            <span className="mb-1 block text-[11px] uppercase tracking-wide text-muted-foreground">
+              Next
+            </span>
+            <Button asChild size="sm">
+              <Link href={`/app/lessons/${nextLesson.id}`}>
+                {nextLesson.title} →
+              </Link>
+            </Button>
+          </>
         ) : (
-          <span className="text-sm text-muted-foreground">End of course</span>
+          <Button disabled size="sm">
+            Course complete
+          </Button>
         )}
       </div>
     </div>

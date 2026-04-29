@@ -35,6 +35,9 @@
   --color-tag-parish-text: var(--ds-color-tag-parish-text);
   --color-tag-diocese-bg: var(--ds-color-tag-diocese-bg);
   --color-tag-diocese-text: var(--ds-color-tag-diocese-text);
+  --color-sidebar-bg: var(--ds-color-sidebar-bg);
+  --color-vid-bg: var(--ds-color-vid-bg);
+  --color-border-strong: var(--ds-color-border-strong);
   --font-sans: var(--font-source-sans), 'Source Sans 3', system-ui, sans-serif;
   --font-display: var(--font-merriweather), 'Merriweather', Georgia, serif;
   --font-mono: var(--font-geist-mono), 'SFMono-Regular', monospace;
@@ -97,6 +100,8 @@
   --ds-color-tag-parish-text:  oklch(30% 0.03 245);
   --ds-color-tag-diocese-bg:   oklch(94% 0.04 14);
   --ds-color-tag-diocese-text:  oklch(38% 0.175 14);
+  --ds-color-sidebar-bg:       oklch(100% 0 0);
+  --ds-color-vid-bg:           oklch(14% 0.015 245);
 
   --ds-shadow-sm: 0 1px 3px oklch(0% 0 0 / 0.07), 0 1px 2px oklch(0% 0 0 / 0.05);
   --ds-shadow-md: 0 4px 12px oklch(0% 0 0 / 0.08), 0 2px 4px oklch(0% 0 0 / 0.05);
@@ -129,6 +134,8 @@
   --ds-color-tag-parish-text:  oklch(80% 0.015 245);
   --ds-color-tag-diocese-bg:   oklch(26% 0.06 14);
   --ds-color-tag-diocese-text:  oklch(75% 0.12 14);
+  --ds-color-sidebar-bg:       oklch(16% 0.016 245);
+  --ds-color-vid-bg:           oklch(10% 0.01 245);
 
   --ds-shadow-sm: 0 1px 3px oklch(0% 0 0 / 0.25);
   --ds-shadow-md: 0 4px 12px oklch(0% 0 0 / 0.3);
@@ -161,6 +168,8 @@
     --ds-color-tag-parish-text:  oklch(80% 0.015 245);
     --ds-color-tag-diocese-bg:   oklch(26% 0.06 14);
     --ds-color-tag-diocese-text:  oklch(75% 0.12 14);
+    --ds-color-sidebar-bg:       oklch(16% 0.016 245);
+    --ds-color-vid-bg:           oklch(10% 0.01 245);
 
     --ds-shadow-sm: 0 1px 3px oklch(0% 0 0 / 0.25);
     --ds-shadow-md: 0 4px 12px oklch(0% 0 0 / 0.3);
