@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import type { DioceseCourseRow } from "@/lib/repositories/diocese-admin";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -24,6 +25,7 @@ const SUPPORTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/g
 
 export function AdminCourseManager({ courses }: { courses: DioceseCourseRow[] }) {
   const router = useRouter();
+  const [showCreateForm, setShowCreateForm] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newDescription, setNewDescription] = useState("");
   const [newThumbnailUrl, setNewThumbnailUrl] = useState("");
@@ -128,6 +130,7 @@ export function AdminCourseManager({ courses }: { courses: DioceseCourseRow[] })
     setNewThumbnailUrl("");
     setNewScope("DIOCESE");
     setNewPublished(false);
+    setShowCreateForm(false);
     router.refresh();
   }
 
@@ -158,158 +161,83 @@ export function AdminCourseManager({ courses }: { courses: DioceseCourseRow[] })
   }
 
   return (
-    <div className="space-y-4">
-      <div className="grid gap-2 rounded-md border border-border p-3 md:grid-cols-7">
-        <Input onChange={(e) => setNewTitle(e.target.value)} placeholder="New course title" value={newTitle} />
-        <Input
-          onChange={(e) => setNewDescription(e.target.value)}
-          placeholder="Description (optional)"
-          value={newDescription}
-        />
-        <Input
-          onChange={(e) => setNewThumbnailUrl(e.target.value)}
-          placeholder="Thumbnail URL (optional)"
-          value={newThumbnailUrl}
-        />
-        <Input
-          accept={SUPPORTED_IMAGE_TYPES.join(",")}
-          disabled={uploadingTarget === "new-course-thumbnail"}
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            event.target.value = "";
-            if (!file) return;
+    <div>
+      {/* Inline create form */}
+      {showCreateForm && (
+        <div className="border-b border-border bg-brand-subtle p-4">
+          <div className="mb-3 text-[13px] font-bold">New course</div>
+          <div className="grid grid-cols-1 items-end gap-2 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_120px_140px_auto]">
+            <div>
+              <label className="mb-1 block text-[11px] font-semibold text-muted-foreground">Title</label>
+              <Input className="h-[34px] text-[13px]" onChange={(e) => setNewTitle(e.target.value)} placeholder="Course title" value={newTitle} />
+            </div>
+            <div>
+              <label className="mb-1 block text-[11px] font-semibold text-muted-foreground">Description</label>
+              <Input className="h-[34px] text-[13px]" onChange={(e) => setNewDescription(e.target.value)} placeholder="Short description" value={newDescription} />
+            </div>
+            <div>
+              <label className="mb-1 block text-[11px] font-semibold text-muted-foreground">Scope</label>
+              <Select className="h-[34px] text-[13px]" onChange={(e) => setNewScope(e.target.value as "DIOCESE" | "PARISH")} value={newScope}>
+                <option value="DIOCESE">Diocese</option>
+                <option value="PARISH">Parish</option>
+              </Select>
+            </div>
+            <div>
+              <label className="mb-1 block text-[11px] font-semibold text-muted-foreground">Thumbnail URL</label>
+              <Input className="h-[34px] text-[13px]" onChange={(e) => setNewThumbnailUrl(e.target.value)} placeholder="https://..." value={newThumbnailUrl} />
+            </div>
+            <div className="flex gap-1.5">
+              <Button onClick={createCourse} size="sm" type="button">Create</Button>
+              <Button onClick={() => setShowCreateForm(false)} size="sm" type="button" variant="ghost">Cancel</Button>
+            </div>
+          </div>
+        </div>
+      )}
 
-            void uploadThumbnailImage({
-              file,
-              targetId: "new-course-thumbnail",
-              onUploaded: (url) => setNewThumbnailUrl(url),
-            });
-          }}
-          type="file"
-        />
-        <Select onChange={(e) => setNewScope(e.target.value as "DIOCESE" | "PARISH")} value={newScope}>
-          <option value="DIOCESE">DIOCESE</option>
-          <option value="PARISH">PARISH</option>
-        </Select>
-        <label className="flex items-center gap-2 text-sm">
-          <Checkbox checked={newPublished} onChange={(e) => setNewPublished(e.target.checked)} />
-          Published
-        </label>
-        <Button onClick={createCourse} type="button">
-          Create course
-        </Button>
-      </div>
+      {!showCreateForm && (
+        <div className="flex justify-end border-b border-border px-5 py-3">
+          <Button onClick={() => setShowCreateForm(true)} size="sm" type="button">+ Create course</Button>
+        </div>
+      )}
 
-      <table className="w-full text-left text-sm">
-        <thead className="text-muted-foreground">
+      {/* Course table */}
+      <table className="w-full text-left">
+        <thead>
           <tr>
-            <th className="py-2 pr-4 font-medium">Title</th>
-            <th className="py-2 pr-4 font-medium">Description</th>
-            <th className="py-2 pr-4 font-medium">Thumbnail</th>
-            <th className="py-2 pr-4 font-medium">Scope</th>
-            <th className="py-2 pr-4 font-medium">Published</th>
-            <th className="py-2 pr-4 font-medium">Actions</th>
+            <th className="px-3.5 py-2.5 text-[10.5px] font-bold uppercase tracking-widest text-muted-foreground">Title</th>
+            <th className="px-3.5 py-2.5 text-[10.5px] font-bold uppercase tracking-widest text-muted-foreground">Scope</th>
+            <th className="px-3.5 py-2.5 text-[10.5px] font-bold uppercase tracking-widest text-muted-foreground">Published</th>
+            <th className="px-3.5 py-2.5 text-right text-[10.5px] font-bold uppercase tracking-widest text-muted-foreground">Actions</th>
           </tr>
         </thead>
         <tbody>
           {courses.map((course) => {
             const draft = drafts[course.id];
             return (
-              <tr className="border-t" key={course.id}>
-                <td className="py-2 pr-4">
-                  <Input
-                    onChange={(e) =>
-                      setDrafts((prev) => ({ ...prev, [course.id]: { ...prev[course.id], title: e.target.value } }))
-                    }
-                    value={draft?.title ?? course.title}
-                  />
+              <tr className="border-t border-border hover:bg-secondary" key={course.id}>
+                <td className="px-3.5 py-3">
+                  <strong className="text-[13.5px]">{draft?.title ?? course.title}</strong>
+                  <div className="mt-0.5 text-xs text-muted-foreground">{draft?.description ?? course.description ?? ""}</div>
                 </td>
-                <td className="py-2 pr-4">
-                  <Input
-                    onChange={(e) =>
-                      setDrafts((prev) => ({
-                        ...prev,
-                        [course.id]: { ...prev[course.id], description: e.target.value },
-                      }))
-                    }
-                    value={draft?.description ?? course.description ?? ""}
-                  />
+                <td className="px-3.5 py-3">
+                  <Badge variant={(draft?.scope ?? course.scope) === "PARISH" ? "parish" : "diocese"}>
+                    {(draft?.scope ?? course.scope) === "PARISH" ? "Parish" : "Diocese-wide"}
+                  </Badge>
                 </td>
-                <td className="py-2 pr-4">
-                  <div className="space-y-2">
-                    <Input
-                      onChange={(e) =>
-                        setDrafts((prev) => ({
-                          ...prev,
-                          [course.id]: { ...prev[course.id], thumbnailUrl: e.target.value },
-                        }))
-                      }
-                      value={draft?.thumbnailUrl ?? course.thumbnail_url ?? ""}
-                    />
-                    <Input
-                      accept={SUPPORTED_IMAGE_TYPES.join(",")}
-                      disabled={uploadingTarget === `course-thumbnail:${course.id}`}
-                      onChange={(event) => {
-                        const file = event.target.files?.[0];
-                        event.target.value = "";
-                        if (!file) return;
-
-                        void uploadThumbnailImage({
-                          file,
-                          targetId: `course-thumbnail:${course.id}`,
-                          onUploaded: (url) =>
-                            setDrafts((prev) => ({
-                              ...prev,
-                              [course.id]: {
-                                ...prev[course.id],
-                                thumbnailUrl: url,
-                              },
-                            })),
-                        });
-                      }}
-                      type="file"
-                    />
-                  </div>
+                <td className="px-3.5 py-3">
+                  {(draft?.published ?? course.published) ? (
+                    <Badge variant="success">Published</Badge>
+                  ) : (
+                    <Badge>Draft</Badge>
+                  )}
                 </td>
-                <td className="py-2 pr-4">
-                  <Select
-                    onChange={(e) =>
-                      setDrafts((prev) => ({
-                        ...prev,
-                        [course.id]: { ...prev[course.id], scope: e.target.value as "DIOCESE" | "PARISH" },
-                      }))
-                    }
-                    value={draft?.scope ?? course.scope}
-                  >
-                    <option value="DIOCESE">DIOCESE</option>
-                    <option value="PARISH">PARISH</option>
-                  </Select>
-                </td>
-                <td className="py-2 pr-4">
-                  <label className="flex items-center gap-2 text-sm">
-                    <Checkbox
-                      checked={draft?.published ?? course.published}
-                      onChange={(e) =>
-                        setDrafts((prev) => ({
-                          ...prev,
-                          [course.id]: { ...prev[course.id], published: e.target.checked },
-                        }))
-                      }
-                    />
-                    Published
-                  </label>
-                </td>
-                <td className="py-2 pr-4">
-                  <div className="flex flex-wrap gap-2">
-                    <Button onClick={() => saveCourse(course.id)} size="sm" type="button" variant="secondary">
-                      Save
-                    </Button>
-                    <Button asChild size="sm" type="button" variant="outline">
+                <td className="px-3.5 py-3 text-right">
+                  <div className="flex justify-end gap-1.5">
+                    <Button asChild size="xs" type="button" variant="secondary">
                       <Link href={`/app/admin/courses/${course.id}`}>Manage content</Link>
                     </Button>
-                    <Button onClick={() => deleteCourse(course.id)} size="sm" type="button" variant="destructive">
-                      Delete
-                    </Button>
+                    <Button onClick={() => saveCourse(course.id)} size="xs" type="button" variant="ghost">Edit</Button>
+                    <Button onClick={() => deleteCourse(course.id)} size="xs" type="button" variant="destructive">Delete</Button>
                   </div>
                 </td>
               </tr>
@@ -318,7 +246,7 @@ export function AdminCourseManager({ courses }: { courses: DioceseCourseRow[] })
         </tbody>
       </table>
 
-      {message ? <p className="text-sm text-muted-foreground">{message}</p> : null}
+      {message ? <p className="px-5 py-3 text-[13px] text-muted-foreground">{message}</p> : null}
     </div>
   );
 }

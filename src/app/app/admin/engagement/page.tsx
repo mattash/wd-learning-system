@@ -1,6 +1,7 @@
 import { AdminEngagementReport } from "@/components/admin-engagement-report";
 import { AdminEnrollmentManager } from "@/components/admin-enrollment-manager";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ProgressBar } from "@/components/ui/progress-bar";
 import { listCourses, listEngagement, listEnrollments, listParishes } from "@/lib/repositories/diocese-admin";
 
 export default async function DioceseAdminEngagementPage() {
@@ -14,28 +15,29 @@ export default async function DioceseAdminEngagementPage() {
   const startedTotal = engagementRows.reduce((sum, row) => sum + row.learners_started, 0);
   const completedTotal = engagementRows.reduce((sum, row) => sum + row.learners_completed, 0);
   const completionRate = startedTotal ? Math.round((completedTotal / startedTotal) * 100) : 0;
+  const enrolledTotal = enrollments.length;
 
   return (
     <div className="space-y-4">
-      <section className="grid gap-4 sm:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Total started learners</CardDescription>
-            <CardTitle className="text-2xl">{startedTotal.toLocaleString()}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Total completed learners</CardDescription>
-            <CardTitle className="text-2xl">{completedTotal.toLocaleString()}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Completion rate</CardDescription>
-            <CardTitle className="text-2xl">{completionRate}%</CardTitle>
-          </CardHeader>
-        </Card>
+      <section className="grid grid-cols-2 gap-3">
+        <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
+          <div className="text-[10.5px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5">
+            Avg. Completion Rate
+          </div>
+          <div className="font-display text-[30px] font-bold tracking-tight leading-none text-success">
+            {completionRate}%
+          </div>
+          <ProgressBar value={completionRate} variant="success" className="mt-2.5" />
+        </div>
+        <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
+          <div className="text-[10.5px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5">
+            Active This Month
+          </div>
+          <div className="font-display text-[30px] font-bold tracking-tight leading-none">
+            {startedTotal}
+          </div>
+          <div className="mt-1.5 text-xs text-muted-foreground">of {enrolledTotal} enrolled learners</div>
+        </div>
       </section>
 
       <Card>
@@ -50,7 +52,7 @@ export default async function DioceseAdminEngagementPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Engagement report</CardTitle>
+          <CardTitle>Per-Course Engagement</CardTitle>
           <CardDescription>
             Filter by parish/course, export CSV, and drill into learner-level progress.
           </CardDescription>

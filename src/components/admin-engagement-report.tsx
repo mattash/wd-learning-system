@@ -3,8 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 
 import type { DioceseCourseRow, DioceseParishRow } from "@/lib/repositories/diocese-admin";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ProgressBar } from "@/components/ui/progress-bar";
 import { Select } from "@/components/ui/select";
 
 interface EngagementRow {
@@ -101,9 +103,10 @@ export function AdminEngagementReport({ parishes, courses }: { parishes: Diocese
   const exportHref = `/api/admin/reports/engagement/export${query ? `?${query}` : ""}`;
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <Select onChange={(e) => setParishId(e.target.value)} value={parishId}>
+    <div>
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-border px-5 py-3">
+        <Select className="h-[34px] w-[160px] text-[13px]" onChange={(e) => setParishId(e.target.value)} value={parishId}>
           <option value="all">All parishes</option>
           {parishes.map((parish) => (
             <option key={parish.id} value={parish.id}>
@@ -111,8 +114,7 @@ export function AdminEngagementReport({ parishes, courses }: { parishes: Diocese
             </option>
           ))}
         </Select>
-
-        <Select onChange={(e) => setCourseId(e.target.value)} value={courseId}>
+        <Select className="h-[34px] w-[160px] text-[13px]" onChange={(e) => setCourseId(e.target.value)} value={courseId}>
           <option value="all">All courses</option>
           {courses.map((course) => (
             <option key={course.id} value={course.id}>
@@ -120,51 +122,65 @@ export function AdminEngagementReport({ parishes, courses }: { parishes: Diocese
             </option>
           ))}
         </Select>
-
         <Input
           aria-label="Start date"
+          className="h-[34px] w-[140px] text-[13px]"
           onChange={(e) => setStartDate(e.target.value)}
           type="date"
           value={startDate}
         />
-        <Input aria-label="End date" onChange={(e) => setEndDate(e.target.value)} type="date" value={endDate} />
-
+        <Input
+          aria-label="End date"
+          className="h-[34px] w-[140px] text-[13px]"
+          onChange={(e) => setEndDate(e.target.value)}
+          type="date"
+          value={endDate}
+        />
         {(startDate || endDate) ? (
-          <Button onClick={() => { setStartDate(""); setEndDate(""); }} type="button" variant="ghost">
+          <Button onClick={() => { setStartDate(""); setEndDate(""); }} size="sm" type="button" variant="ghost">
             Clear dates
           </Button>
         ) : null}
-
-        <Button asChild type="button" variant="outline">
+        <Button asChild size="sm" type="button" variant="secondary">
           <a href={exportHref}>Export CSV</a>
         </Button>
       </div>
 
-      <table className="w-full text-left text-sm">
-        <thead className="text-muted-foreground">
+      {/* Engagement table */}
+      <table className="w-full text-left">
+        <thead>
           <tr>
-            <th className="py-2 pr-4 font-medium">Parish</th>
-            <th className="py-2 pr-4 font-medium">Course</th>
-            <th className="py-2 pr-4 font-medium">Enrolled</th>
-            <th className="py-2 pr-4 font-medium">Started</th>
-            <th className="py-2 pr-4 font-medium">Completed</th>
-            <th className="py-2 pr-4 font-medium">Completion rate</th>
-            <th className="py-2 pr-4 font-medium">Drill-down</th>
+            <th className="px-3.5 py-2.5 text-[10.5px] font-bold uppercase tracking-widest text-muted-foreground">Parish</th>
+            <th className="px-3.5 py-2.5 text-[10.5px] font-bold uppercase tracking-widest text-muted-foreground">Course</th>
+            <th className="px-3.5 py-2.5 text-[10.5px] font-bold uppercase tracking-widest text-muted-foreground">Enrolled</th>
+            <th className="px-3.5 py-2.5 text-[10.5px] font-bold uppercase tracking-widest text-muted-foreground">Started</th>
+            <th className="px-3.5 py-2.5 text-[10.5px] font-bold uppercase tracking-widest text-muted-foreground">Completed</th>
+            <th className="px-3.5 py-2.5 text-[10.5px] font-bold uppercase tracking-widest text-muted-foreground">Completion</th>
+            <th className="px-3.5 py-2.5 text-right text-[10.5px] font-bold uppercase tracking-widest text-muted-foreground">Details</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((row) => (
-            <tr className="border-t" key={`${row.parish_id}-${row.course_id}`}>
-              <td className="py-2 pr-4">{row.parish_name}</td>
-              <td className="py-2 pr-4">{row.course_title}</td>
-              <td className="py-2 pr-4">{row.enrollment_count}</td>
-              <td className="py-2 pr-4">{row.learners_started}</td>
-              <td className="py-2 pr-4">{row.learners_completed}</td>
-              <td className="py-2 pr-4">{row.completion_rate}%</td>
-              <td className="py-2 pr-4">
+            <tr className="border-t border-border hover:bg-secondary" key={`${row.parish_id}-${row.course_id}`}>
+              <td className="px-3.5 py-3 text-[13px] font-semibold">{row.parish_name}</td>
+              <td className="px-3.5 py-3 text-[13px]">{row.course_title}</td>
+              <td className="px-3.5 py-3 text-[13px]">{row.enrollment_count}</td>
+              <td className="px-3.5 py-3 text-[13px]">{row.learners_started}</td>
+              <td className="px-3.5 py-3 text-[13px]">{row.learners_completed}</td>
+              <td className="px-3.5 py-3">
+                <div className="flex items-center gap-2">
+                  <ProgressBar
+                    className="w-16"
+                    value={row.completion_rate}
+                    variant={row.completion_rate >= 75 ? "success" : row.completion_rate >= 40 ? "default" : "warning"}
+                  />
+                  <span className="text-[12px] text-muted-foreground">{row.completion_rate}%</span>
+                </div>
+              </td>
+              <td className="px-3.5 py-3 text-right">
                 <Button
                   onClick={() => setSelectedPair({ parishId: row.parish_id, courseId: row.course_id })}
-                  size="sm"
+                  size="xs"
                   type="button"
                   variant="secondary"
                 >
@@ -176,57 +192,88 @@ export function AdminEngagementReport({ parishes, courses }: { parishes: Diocese
         </tbody>
       </table>
 
-      {(startDate || endDate) ? (
-        <div className="space-y-2 rounded-md border border-border p-3">
-          <h3 className="text-sm font-medium">Trend history</h3>
-          {trends.length > 0 ? (
-            <table className="w-full text-left text-sm">
-              <thead className="text-muted-foreground">
-                <tr>
-                  <th className="py-2 pr-4 font-medium">Period (YYYY-MM)</th>
-                  <th className="py-2 pr-4 font-medium">Started</th>
-                  <th className="py-2 pr-4 font-medium">Completed</th>
-                  <th className="py-2 pr-4 font-medium">Completion rate</th>
+      {/* Footer */}
+      <div className="flex items-center justify-between rounded-b-lg border-t border-border bg-secondary px-5 py-3">
+        <span className="text-xs text-muted-foreground">
+          {rows.length} engagement records
+        </span>
+      </div>
+
+      {/* Trend history */}
+      {(startDate || endDate) && trends.length > 0 ? (
+        <div className="mx-5 mt-4 rounded-lg border border-border">
+          <div className="border-b border-border px-4 py-3">
+            <h3 className="text-[13px] font-bold">Trend history</h3>
+          </div>
+          <table className="w-full text-left">
+            <thead>
+              <tr>
+                <th className="px-3.5 py-2.5 text-[10.5px] font-bold uppercase tracking-widest text-muted-foreground">Period</th>
+                <th className="px-3.5 py-2.5 text-[10.5px] font-bold uppercase tracking-widest text-muted-foreground">Started</th>
+                <th className="px-3.5 py-2.5 text-[10.5px] font-bold uppercase tracking-widest text-muted-foreground">Completed</th>
+                <th className="px-3.5 py-2.5 text-[10.5px] font-bold uppercase tracking-widest text-muted-foreground">Completion</th>
+              </tr>
+            </thead>
+            <tbody>
+              {trends.map((trend) => (
+                <tr className="border-t border-border" key={trend.period}>
+                  <td className="px-3.5 py-2.5 text-[13px] font-semibold">{trend.period}</td>
+                  <td className="px-3.5 py-2.5 text-[13px]">{trend.learners_started}</td>
+                  <td className="px-3.5 py-2.5 text-[13px]">{trend.learners_completed}</td>
+                  <td className="px-3.5 py-2.5">
+                    <div className="flex items-center gap-2">
+                      <ProgressBar className="w-16" value={trend.completion_rate} />
+                      <span className="text-[12px] text-muted-foreground">{trend.completion_rate}%</span>
+                    </div>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {trends.map((trend) => (
-                  <tr className="border-t" key={trend.period}>
-                    <td className="py-2 pr-4">{trend.period}</td>
-                    <td className="py-2 pr-4">{trend.learners_started}</td>
-                    <td className="py-2 pr-4">{trend.learners_completed}</td>
-                    <td className="py-2 pr-4">{trend.completion_rate}%</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <p className="text-sm text-muted-foreground">No trend data found for this date range.</p>
-          )}
+              ))}
+            </tbody>
+          </table>
         </div>
       ) : null}
 
+      {(startDate || endDate) && trends.length === 0 ? (
+        <p className="px-5 py-3 text-[13px] text-muted-foreground">No trend data found for this date range.</p>
+      ) : null}
+
+      {/* Learner drill-down */}
       {selectedPair ? (
-        <div className="space-y-2 rounded-md border border-border p-3">
-          <h3 className="text-sm font-medium">Learner progress drill-down</h3>
-          <table className="w-full text-left text-sm">
-            <thead className="text-muted-foreground">
+        <div className="mx-5 mt-4 rounded-lg border border-border">
+          <div className="flex items-center justify-between border-b border-border px-4 py-3">
+            <h3 className="text-[13px] font-bold">Learner progress drill-down</h3>
+            <Button onClick={() => setSelectedPair(null)} size="xs" type="button" variant="ghost">
+              Close
+            </Button>
+          </div>
+          <table className="w-full text-left">
+            <thead>
               <tr>
-                <th className="py-2 pr-4 font-medium">User</th>
-                <th className="py-2 pr-4 font-medium">Enrolled</th>
-                <th className="py-2 pr-4 font-medium">Completed lessons</th>
-                <th className="py-2 pr-4 font-medium">Total lessons</th>
-                <th className="py-2 pr-4 font-medium">Progress</th>
+                <th className="px-3.5 py-2.5 text-[10.5px] font-bold uppercase tracking-widest text-muted-foreground">User</th>
+                <th className="px-3.5 py-2.5 text-[10.5px] font-bold uppercase tracking-widest text-muted-foreground">Enrolled</th>
+                <th className="px-3.5 py-2.5 text-[10.5px] font-bold uppercase tracking-widest text-muted-foreground">Lessons</th>
+                <th className="px-3.5 py-2.5 text-[10.5px] font-bold uppercase tracking-widest text-muted-foreground">Progress</th>
               </tr>
             </thead>
             <tbody>
               {learners.map((learner) => (
-                <tr className="border-t" key={learner.clerk_user_id}>
-                  <td className="py-2 pr-4 font-mono text-xs">{learner.clerk_user_id}</td>
-                  <td className="py-2 pr-4">{new Date(learner.enrolled_at).toLocaleDateString()}</td>
-                  <td className="py-2 pr-4">{learner.completed_lessons}</td>
-                  <td className="py-2 pr-4">{learner.total_lessons}</td>
-                  <td className="py-2 pr-4">{learner.progress_percent}%</td>
+                <tr className="border-t border-border" key={learner.clerk_user_id}>
+                  <td className="px-3.5 py-2.5 font-mono text-[12px]">{learner.clerk_user_id}</td>
+                  <td className="px-3.5 py-2.5 text-[13px]">{new Date(learner.enrolled_at).toLocaleDateString()}</td>
+                  <td className="px-3.5 py-2.5 text-[13px]">
+                    {learner.completed_lessons}/{learner.total_lessons}
+                  </td>
+                  <td className="px-3.5 py-2.5">
+                    <div className="flex items-center gap-2">
+                      <ProgressBar
+                        className="w-20"
+                        value={learner.progress_percent}
+                        variant={learner.progress_percent === 100 ? "success" : "default"}
+                      />
+                      <span className="text-[12px] text-muted-foreground">{learner.progress_percent}%</span>
+                      {learner.progress_percent === 100 && <Badge variant="success">Done</Badge>}
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>

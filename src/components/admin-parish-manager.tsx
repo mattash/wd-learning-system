@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import type { DioceseParishRow } from "@/lib/repositories/diocese-admin";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -19,6 +20,7 @@ interface ParishDraft {
 
 export function AdminParishManager({ parishes }: { parishes: DioceseParishRow[] }) {
   const router = useRouter();
+  const [showCreateForm, setShowCreateForm] = useState(false);
   const [newName, setNewName] = useState("");
   const [newSlug, setNewSlug] = useState("");
   const [newAllowSelfSignup, setNewAllowSelfSignup] = useState(true);
@@ -56,6 +58,7 @@ export function AdminParishManager({ parishes }: { parishes: DioceseParishRow[] 
     setNewName("");
     setNewSlug("");
     setNewAllowSelfSignup(true);
+    setShowCreateForm(false);
     router.refresh();
   }
 
@@ -111,39 +114,58 @@ export function AdminParishManager({ parishes }: { parishes: DioceseParishRow[] 
   });
 
   return (
-    <div className="space-y-4">
-      <div className="grid gap-2 rounded-md border border-border p-3 md:grid-cols-4">
-        <Input onChange={(e) => setNewName(e.target.value)} placeholder="New parish name" value={newName} />
-        <Input onChange={(e) => setNewSlug(e.target.value)} placeholder="new-parish-slug" value={newSlug} />
-        <label className="flex items-center gap-2 text-sm">
-          <Checkbox checked={newAllowSelfSignup} onChange={(e) => setNewAllowSelfSignup(e.target.checked)} />
-          Allow self-signup
-        </label>
-        <Button onClick={createParish} type="button">
-          Create parish
-        </Button>
-      </div>
+    <div>
+      {/* Inline create form */}
+      {showCreateForm && (
+        <div className="border-b border-border bg-brand-subtle p-4">
+          <div className="mb-3 text-[13px] font-bold">New parish</div>
+          <div className="grid grid-cols-1 items-end gap-2 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_auto_auto]">
+            <div>
+              <label className="mb-1 block text-[11px] font-semibold text-muted-foreground">Name</label>
+              <Input className="h-[34px] text-[13px]" onChange={(e) => setNewName(e.target.value)} placeholder="Parish name" value={newName} />
+            </div>
+            <div>
+              <label className="mb-1 block text-[11px] font-semibold text-muted-foreground">Slug</label>
+              <Input className="h-[34px] text-[13px]" onChange={(e) => setNewSlug(e.target.value)} placeholder="parish-slug" value={newSlug} />
+            </div>
+            <label className="flex items-center gap-2 pb-0.5 text-[13px] cursor-pointer">
+              <Checkbox checked={newAllowSelfSignup} onChange={(e) => setNewAllowSelfSignup(e.target.checked)} />
+              Self-signup
+            </label>
+            <div className="flex gap-1.5">
+              <Button onClick={createParish} size="sm" type="button">Create</Button>
+              <Button onClick={() => setShowCreateForm(false)} size="sm" type="button" variant="ghost">Cancel</Button>
+            </div>
+          </div>
+        </div>
+      )}
 
-      <div className="flex items-center gap-2">
-        <span className="text-sm text-muted-foreground">Status:</span>
-        <Select
-          onChange={(e) => setStatusFilter(e.target.value as "all" | "active" | "archived")}
-          value={statusFilter}
-        >
-          <option value="all">All</option>
-          <option value="active">Active</option>
-          <option value="archived">Archived</option>
-        </Select>
-      </div>
+      {!showCreateForm && (
+        <div className="flex items-center justify-between border-b border-border px-5 py-3">
+          <div className="flex items-center gap-2">
+            <Select
+              className="h-[34px] w-[140px] text-[13px]"
+              onChange={(e) => setStatusFilter(e.target.value as "all" | "active" | "archived")}
+              value={statusFilter}
+            >
+              <option value="all">All statuses</option>
+              <option value="active">Active</option>
+              <option value="archived">Archived</option>
+            </Select>
+          </div>
+          <Button onClick={() => setShowCreateForm(true)} size="sm" type="button">+ Add parish</Button>
+        </div>
+      )}
 
-      <table className="w-full text-left text-sm">
-        <thead className="text-muted-foreground">
+      {/* Parish table */}
+      <table className="w-full text-left">
+        <thead>
           <tr>
-            <th className="py-2 pr-4 font-medium">Parish</th>
-            <th className="py-2 pr-4 font-medium">Slug</th>
-            <th className="py-2 pr-4 font-medium">Self-signup</th>
-            <th className="py-2 pr-4 font-medium">Status</th>
-            <th className="py-2 pr-4 font-medium">Actions</th>
+            <th className="px-3.5 py-2.5 text-[10.5px] font-bold uppercase tracking-widest text-muted-foreground">Parish</th>
+            <th className="px-3.5 py-2.5 text-[10.5px] font-bold uppercase tracking-widest text-muted-foreground">Slug</th>
+            <th className="px-3.5 py-2.5 text-[10.5px] font-bold uppercase tracking-widest text-muted-foreground">Self-signup</th>
+            <th className="px-3.5 py-2.5 text-[10.5px] font-bold uppercase tracking-widest text-muted-foreground">Status</th>
+            <th className="px-3.5 py-2.5 text-right text-[10.5px] font-bold uppercase tracking-widest text-muted-foreground">Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -151,25 +173,27 @@ export function AdminParishManager({ parishes }: { parishes: DioceseParishRow[] 
             const draft = drafts[parish.id];
             const isArchived = Boolean(draft?.archivedAt ?? parish.archived_at);
             return (
-              <tr className="border-t" key={parish.id}>
-                <td className="py-2 pr-4">
+              <tr className="border-t border-border hover:bg-secondary" key={parish.id}>
+                <td className="px-3.5 py-3">
                   <Input
+                    className="h-[30px] text-[13px]"
                     onChange={(e) =>
                       setDrafts((prev) => ({ ...prev, [parish.id]: { ...prev[parish.id], name: e.target.value } }))
                     }
                     value={draft?.name ?? parish.name}
                   />
                 </td>
-                <td className="py-2 pr-4">
+                <td className="px-3.5 py-3">
                   <Input
+                    className="h-[30px] font-mono text-[12px]"
                     onChange={(e) =>
                       setDrafts((prev) => ({ ...prev, [parish.id]: { ...prev[parish.id], slug: e.target.value } }))
                     }
                     value={draft?.slug ?? parish.slug}
                   />
                 </td>
-                <td className="py-2 pr-4">
-                  <label className="flex items-center gap-2 text-sm">
+                <td className="px-3.5 py-3">
+                  <label className="flex items-center gap-2 text-[13px] cursor-pointer">
                     <Checkbox
                       checked={draft?.allowSelfSignup ?? parish.allow_self_signup}
                       onChange={(e) =>
@@ -179,24 +203,30 @@ export function AdminParishManager({ parishes }: { parishes: DioceseParishRow[] 
                         }))
                       }
                     />
-                    Enabled
+                    {(draft?.allowSelfSignup ?? parish.allow_self_signup) ? "Enabled" : "Disabled"}
                   </label>
                 </td>
-                <td className="py-2 pr-4">{isArchived ? "Archived" : "Active"}</td>
-                <td className="py-2 pr-4">
-                  <div className="flex gap-2">
-                    <Button onClick={() => saveParish(parish.id)} size="sm" type="button" variant="secondary">
+                <td className="px-3.5 py-3">
+                  {isArchived ? (
+                    <Badge variant="warning">Archived</Badge>
+                  ) : (
+                    <Badge variant="success">Active</Badge>
+                  )}
+                </td>
+                <td className="px-3.5 py-3 text-right">
+                  <div className="flex justify-end gap-1.5">
+                    <Button onClick={() => saveParish(parish.id)} size="xs" type="button" variant="secondary">
                       Save
                     </Button>
                     <Button
                       onClick={() => setArchived(parish.id, !isArchived)}
-                      size="sm"
+                      size="xs"
                       type="button"
-                      variant="outline"
+                      variant="ghost"
                     >
                       {isArchived ? "Restore" : "Archive"}
                     </Button>
-                    <Button onClick={() => deleteParish(parish.id)} size="sm" type="button" variant="destructive">
+                    <Button onClick={() => deleteParish(parish.id)} size="xs" type="button" variant="destructive">
                       Delete
                     </Button>
                   </div>
@@ -207,7 +237,14 @@ export function AdminParishManager({ parishes }: { parishes: DioceseParishRow[] 
         </tbody>
       </table>
 
-      {message ? <p className="text-sm text-muted-foreground">{message}</p> : null}
+      {/* Footer */}
+      <div className="flex items-center justify-between rounded-b-lg border-t border-border bg-secondary px-5 py-3">
+        <span className="text-xs text-muted-foreground">
+          Showing {filteredParishes.length} of {parishes.length} parishes
+        </span>
+      </div>
+
+      {message ? <p className="px-5 py-3 text-[13px] text-muted-foreground">{message}</p> : null}
     </div>
   );
 }

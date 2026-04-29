@@ -3,7 +3,9 @@
 import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -289,16 +291,30 @@ export function AdminUserDirectoryManager({
     }
   }
 
+  function getUserInitials(user: UserDirectoryRow): string {
+    if (user.display_name) {
+      return user.display_name
+        .split(" ")
+        .map((part) => part[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2);
+    }
+    return (user.email?.[0] ?? "?").toUpperCase();
+  }
+
   return (
-    <div className="space-y-4">
-      <div className="grid gap-2 rounded-md border border-border p-3 md:grid-cols-3 lg:grid-cols-6">
+    <div>
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-border px-5 py-3">
         <Input
+          className="h-[34px] w-[200px] text-[13px]"
           onChange={(e) => setFilters((prev) => ({ ...prev, q: e.target.value }))}
-          placeholder="Search name, email, or Clerk ID"
+          placeholder="Search users..."
           value={filters.q}
         />
-
         <Select
+          className="h-[34px] w-[140px] text-[13px]"
           onChange={(e) =>
             setFilters((prev) => ({
               ...prev,
@@ -308,11 +324,14 @@ export function AdminUserDirectoryManager({
           value={filters.onboarding}
         >
           <option value="all">All onboarding</option>
-          <option value="yes">Onboarded only</option>
+          <option value="yes">Onboarded</option>
           <option value="no">Not onboarded</option>
         </Select>
-
-        <Select onChange={(e) => setFilters((prev) => ({ ...prev, parishId: e.target.value }))} value={filters.parishId}>
+        <Select
+          className="h-[34px] w-[140px] text-[13px]"
+          onChange={(e) => setFilters((prev) => ({ ...prev, parishId: e.target.value }))}
+          value={filters.parishId}
+        >
           <option value="all">All parishes</option>
           {parishes.map((parish) => (
             <option key={parish.id} value={parish.id}>
@@ -320,8 +339,8 @@ export function AdminUserDirectoryManager({
             </option>
           ))}
         </Select>
-
         <Select
+          className="h-[34px] w-[140px] text-[13px]"
           onChange={(e) =>
             setFilters((prev) => ({
               ...prev,
@@ -335,8 +354,8 @@ export function AdminUserDirectoryManager({
           <option value="instructor">Instructors</option>
           <option value="student">Students</option>
         </Select>
-
         <Select
+          className="h-[34px] w-[140px] text-[13px]"
           onChange={(e) =>
             setFilters((prev) => ({
               ...prev,
@@ -345,68 +364,90 @@ export function AdminUserDirectoryManager({
           }
           value={filters.dioceseAdmin}
         >
-          <option value="all">All diocesan access</option>
-          <option value="yes">Diocese admins only</option>
-          <option value="no">Non-diocese admins</option>
+          <option value="all">All access</option>
+          <option value="yes">Diocese admins</option>
+          <option value="no">Non-admins</option>
         </Select>
-
-        <div className="flex gap-2">
-          <Button onClick={applyFilters} type="button" variant="secondary">
-            Apply
-          </Button>
-          <Button onClick={clearFilters} type="button" variant="ghost">
-            Reset
-          </Button>
-        </div>
+        <Button onClick={applyFilters} size="sm" type="button" variant="secondary">
+          Apply
+        </Button>
+        <Button onClick={clearFilters} size="sm" type="button" variant="ghost">
+          Reset
+        </Button>
       </div>
 
-      <p className="text-sm text-muted-foreground">
-        {loading ? "Loading users..." : `${users.length} users shown`}
-        {activeFilterCount > 0 ? ` (${activeFilterCount} filters active)` : ""}
-      </p>
-
-      <table className="w-full text-left text-sm">
-        <thead className="text-muted-foreground">
+      {/* User table */}
+      <table className="w-full text-left">
+        <thead>
           <tr>
-            <th className="py-2 pr-4 font-medium">Name</th>
-            <th className="py-2 pr-4 font-medium">Email</th>
-            <th className="py-2 pr-4 font-medium">Clerk user ID</th>
-            <th className="py-2 pr-4 font-medium">Onboarded</th>
-            <th className="py-2 pr-4 font-medium">Diocese admin</th>
-            <th className="py-2 pr-4 font-medium">Parish memberships</th>
-            <th className="py-2 pr-4 font-medium">Actions</th>
+            <th className="px-3.5 py-2.5 text-[10.5px] font-bold uppercase tracking-widest text-muted-foreground">User</th>
+            <th className="px-3.5 py-2.5 text-[10.5px] font-bold uppercase tracking-widest text-muted-foreground">Status</th>
+            <th className="px-3.5 py-2.5 text-[10.5px] font-bold uppercase tracking-widest text-muted-foreground">Parishes</th>
+            <th className="px-3.5 py-2.5 text-[10.5px] font-bold uppercase tracking-widest text-muted-foreground">Access</th>
+            <th className="px-3.5 py-2.5 text-right text-[10.5px] font-bold uppercase tracking-widest text-muted-foreground">Actions</th>
           </tr>
         </thead>
         <tbody>
           {users.map((user) => (
-            <tr className="border-t align-top" key={user.clerk_user_id}>
-              <td className="py-2 pr-4">{user.display_name ?? "—"}</td>
-              <td className="py-2 pr-4">{user.email ?? "—"}</td>
-              <td className="py-2 pr-4 font-mono text-xs">{user.clerk_user_id}</td>
-              <td className="py-2 pr-4">{user.onboarding_completed_at ? "Yes" : "No"}</td>
-              <td className="py-2 pr-4">{user.is_diocese_admin ? "Yes" : "No"}</td>
-              <td className="py-2 pr-4">
-                {user.memberships.length > 0 ? (
-                  <ul className="space-y-1">
-                    {user.memberships.map((membership) => (
-                      <li key={`${user.clerk_user_id}-${membership.parish_id}`}>
-                        {membership.parish_name} ({membership.role})
-                      </li>
-                    ))}
-                  </ul>
+            <tr className="border-t border-border hover:bg-secondary" key={user.clerk_user_id}>
+              <td className="px-3.5 py-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-muted text-[11px] font-bold text-primary">
+                    {getUserInitials(user)}
+                  </div>
+                  <div>
+                    <div className="text-[13.5px] font-semibold">{user.display_name ?? "Unnamed"}</div>
+                    <div className="text-xs text-muted-foreground">{user.email ?? user.clerk_user_id}</div>
+                  </div>
+                </div>
+              </td>
+              <td className="px-3.5 py-3">
+                {user.onboarding_completed_at ? (
+                  <Badge variant="success">Onboarded</Badge>
                 ) : (
-                  "—"
+                  <Badge variant="warning">Pending</Badge>
                 )}
               </td>
-              <td className="py-2 pr-4">
-                <Button onClick={() => openEditor(user)} size="sm" type="button">
-                  Edit profile
+              <td className="px-3.5 py-3">
+                {user.memberships.length > 0 ? (
+                  <div className="flex flex-wrap gap-1">
+                    {user.memberships.map((membership) => (
+                      <Badge key={`${user.clerk_user_id}-${membership.parish_id}`} variant="parish">
+                        {membership.parish_name}
+                      </Badge>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-xs text-muted-foreground">None</span>
+                )}
+              </td>
+              <td className="px-3.5 py-3">
+                <div className="flex flex-wrap gap-1">
+                  {user.is_diocese_admin && <Badge variant="role">Diocese Admin</Badge>}
+                  {user.memberships.map((membership) => (
+                    <Badge key={`${user.clerk_user_id}-${membership.parish_id}-role`} variant="default">
+                      {membership.role}
+                    </Badge>
+                  ))}
+                </div>
+              </td>
+              <td className="px-3.5 py-3 text-right">
+                <Button onClick={() => openEditor(user)} size="xs" type="button" variant="secondary">
+                  Edit
                 </Button>
               </td>
             </tr>
           ))}
         </tbody>
       </table>
+
+      {/* Footer */}
+      <div className="flex items-center justify-between rounded-b-lg border-t border-border bg-secondary px-5 py-3">
+        <span className="text-xs text-muted-foreground">
+          {loading ? "Loading users..." : `${users.length} users`}
+          {activeFilterCount > 0 ? ` \u00b7 ${activeFilterCount} filters active` : ""}
+        </span>
+      </div>
 
       <Dialog
         onOpenChange={(open) => {
@@ -420,71 +461,55 @@ export function AdminUserDirectoryManager({
           {editingUser && editDraft ? (
             <>
               <DialogHeader>
-                <DialogTitle>Edit profile</DialogTitle>
+                <DialogTitle>Edit user</DialogTitle>
                 <DialogDescription>
-                  Update profile details and manage parish memberships for {editingUser.clerk_user_id}.
+                  Update profile and access for {editingUser.display_name ?? editingUser.clerk_user_id}.
                 </DialogDescription>
               </DialogHeader>
 
               <div className="grid gap-3 sm:grid-cols-2">
-                <label className="grid gap-1 text-sm">
-                  <span className="text-muted-foreground">Display name</span>
+                <div>
+                  <label className="mb-1 block text-[11px] font-semibold text-muted-foreground">Display name</label>
                   <Input
+                    className="h-[34px] text-[13px]"
                     onChange={(e) =>
                       setEditDraft((prev) =>
-                        prev
-                          ? {
-                              ...prev,
-                              displayName: e.target.value,
-                            }
-                          : prev,
+                        prev ? { ...prev, displayName: e.target.value } : prev,
                       )
                     }
                     value={editDraft.displayName}
                   />
-                </label>
-
-                <label className="grid gap-1 text-sm">
-                  <span className="text-muted-foreground">Email</span>
+                </div>
+                <div>
+                  <label className="mb-1 block text-[11px] font-semibold text-muted-foreground">Email</label>
                   <Input
+                    className="h-[34px] text-[13px]"
                     onChange={(e) =>
                       setEditDraft((prev) =>
-                        prev
-                          ? {
-                              ...prev,
-                              email: e.target.value,
-                            }
-                          : prev,
+                        prev ? { ...prev, email: e.target.value } : prev,
                       )
                     }
                     value={editDraft.email}
                   />
-                </label>
+                </div>
               </div>
 
-              <label className="flex items-center gap-2 text-sm">
-                <input
+              <label className="flex items-center gap-2.5 text-[13px] cursor-pointer">
+                <Checkbox
                   checked={editDraft.isDioceseAdmin}
-                  className="h-4 w-4"
                   onChange={(e) =>
                     setEditDraft((prev) =>
-                      prev
-                        ? {
-                            ...prev,
-                            isDioceseAdmin: e.target.checked,
-                          }
-                        : prev,
+                      prev ? { ...prev, isDioceseAdmin: e.target.checked } : prev,
                     )
                   }
-                  type="checkbox"
                 />
                 Diocese admin access
               </label>
 
               <div className="space-y-3 rounded-md border border-border p-3">
                 <div>
-                  <h3 className="text-sm font-medium">Parish memberships</h3>
-                  <p className="text-xs text-muted-foreground">Set or remove each parish membership and role.</p>
+                  <h3 className="text-[13px] font-bold">Parish memberships</h3>
+                  <p className="text-[11px] text-muted-foreground">Set or remove each parish membership and role.</p>
                 </div>
 
                 {editDraft.memberships.length > 0 ? (
@@ -492,10 +517,11 @@ export function AdminUserDirectoryManager({
                     {editDraft.memberships.map((membership) => (
                       <div className="grid gap-2 rounded-md border border-border p-2 sm:grid-cols-[1fr_auto_auto] sm:items-center" key={membership.parishId}>
                         <div>
-                          <p className="font-medium">{parishNameById.get(membership.parishId) ?? membership.parishId}</p>
-                          <p className="font-mono text-xs text-muted-foreground">{membership.parishId}</p>
+                          <p className="text-[13px] font-semibold">{parishNameById.get(membership.parishId) ?? membership.parishId}</p>
+                          <p className="font-mono text-[11px] text-muted-foreground">{membership.parishId}</p>
                         </div>
                         <Select
+                          className="h-[30px] text-[12px]"
                           onChange={(e) => setMembershipRole(membership.parishId, e.target.value as ParishRole)}
                           value={membership.role}
                         >
@@ -503,18 +529,18 @@ export function AdminUserDirectoryManager({
                           <option value="instructor">instructor</option>
                           <option value="parish_admin">parish_admin</option>
                         </Select>
-                        <Button onClick={() => removeMembership(membership.parishId)} type="button" variant="ghost">
+                        <Button onClick={() => removeMembership(membership.parishId)} size="xs" type="button" variant="destructive-outline">
                           Remove
                         </Button>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">No parish memberships assigned.</p>
+                  <p className="text-[13px] text-muted-foreground">No parish memberships assigned.</p>
                 )}
 
                 <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
-                  <Select onChange={(e) => setPendingParishId(e.target.value)} value={pendingParishId}>
+                  <Select className="h-[34px] text-[13px]" onChange={(e) => setPendingParishId(e.target.value)} value={pendingParishId}>
                     <option value="">Select parish to add</option>
                     {availableParishesForAdd.map((parish) => (
                       <option key={parish.id} value={parish.id}>
@@ -522,21 +548,21 @@ export function AdminUserDirectoryManager({
                       </option>
                     ))}
                   </Select>
-                  <Button disabled={!pendingParishId} onClick={addMembership} type="button" variant="secondary">
+                  <Button disabled={!pendingParishId} onClick={addMembership} size="sm" type="button" variant="secondary">
                     Add parish
                   </Button>
                 </div>
 
                 {availableParishesForAdd.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">All parishes are already assigned to this user.</p>
+                  <p className="text-[11px] text-muted-foreground">All parishes are already assigned to this user.</p>
                 ) : null}
               </div>
 
               <DialogFooter>
-                <Button onClick={closeEditor} type="button" variant="ghost">
+                <Button onClick={closeEditor} size="sm" type="button" variant="ghost">
                   Cancel
                 </Button>
-                <Button disabled={saving} onClick={() => void saveEditorChanges()} type="button">
+                <Button disabled={saving} onClick={() => void saveEditorChanges()} size="sm" type="button">
                   {saving ? "Saving..." : "Save changes"}
                 </Button>
               </DialogFooter>
@@ -545,7 +571,7 @@ export function AdminUserDirectoryManager({
         </DialogContent>
       </Dialog>
 
-      {message ? <p className="text-sm text-muted-foreground">{message}</p> : null}
+      {message ? <p className="px-5 py-3 text-[13px] text-muted-foreground">{message}</p> : null}
     </div>
   );
 }
