@@ -22,7 +22,6 @@ export interface AiThumbnailOptions {
 }
 
 export interface AiSubject {
-  courseName: string;
   courseTitle: string;
   lessonNumber: number;
   lessonTitle: string;
