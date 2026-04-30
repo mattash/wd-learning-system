@@ -291,8 +291,12 @@ async function importContent(
     aiSubject?: AiSubject,
     lessonTextPlacement?: AiTextPlacement,
   ): Promise<string | null> {
-    if (isAiThumbnailUrl(thumbnailUrl)) {
-      if (!aiSubject) throw new Error("AI thumbnail requires course context.");
+    if (isAiThumbnailUrl(thumbnailUrl) || aiSubject) {
+      if (!aiSubject) {
+        throw new Error(
+          `thumbnail_url: "ai://" requires ai_thumbnail: true at the course or lesson level.`,
+        );
+      }
       return resolveAiThumbnail(aiSubject, prefix, {
         ...aiOpts,
         textPlacement: lessonTextPlacement ?? aiOpts.textPlacement,
@@ -371,7 +375,9 @@ async function importContent(
 
       // Build lesson-level AI subject (carries course style + per-lesson overrides)
       const lessonAiSubject: AiSubject | undefined =
-        courseInput.ai_thumbnail || lessonInput.ai_thumbnail
+        courseInput.ai_thumbnail ||
+        lessonInput.ai_thumbnail ||
+        isAiThumbnailUrl(lessonInput.thumbnail_url)
           ? {
               courseTitle: courseInput.title,
               lessonNumber: lessonIndex + 1,
