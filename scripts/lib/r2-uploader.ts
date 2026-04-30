@@ -5,6 +5,8 @@ import { randomUUID } from "node:crypto";
 
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
+let _r2Client: S3Client | null = null;
+
 function getRequiredEnv(name: string): string {
   const value = process.env[name];
   if (!value) {
@@ -14,7 +16,10 @@ function getRequiredEnv(name: string): string {
 }
 
 export function getR2Client(): S3Client {
-  return new S3Client({
+  if (_r2Client) {
+    return _r2Client;
+  }
+  _r2Client = new S3Client({
     region: getRequiredEnv("R2_REGION"),
     endpoint: getRequiredEnv("R2_ENDPOINT"),
     forcePathStyle: true,
@@ -23,6 +28,7 @@ export function getR2Client(): S3Client {
       secretAccessKey: getRequiredEnv("R2_SECRET_ACCESS_KEY"),
     },
   });
+  return _r2Client;
 }
 
 function getPublicBaseUrl(): string {

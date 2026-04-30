@@ -533,7 +533,10 @@ async function main() {
       for (const [li, lesson] of mod.lessons.entries()) {
         totalLessons++;
         totalQuestions += lesson.questions.length;
-        const aiNote = lesson.ai_thumbnail ? " [AI thumbnail]" : "";
+        const aiNote =
+          lesson.ai_thumbnail || isAiThumbnailUrl(lesson.thumbnail_url)
+            ? " [AI thumbnail]"
+            : "";
         console.log(`    Lesson ${li + 1}: ${lesson.title}${aiNote}`);
       }
     }
