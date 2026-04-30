@@ -1,13 +1,7 @@
-import { writeFile, mkdir } from "node:fs/promises";
-import { existsSync } from "node:fs";
-import path from "node:path";
 import { randomUUID } from "node:crypto";
 
-import {
-  resolveAndUploadThumbnail,
-} from "./r2-uploader";
+import { uploadBufferToR2 } from "./r2-uploader";
 
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const OPENAI_IMAGES_URL = "https://api.openai.com/v1/images/generations";
 
 // ─── Style matrix ─────────────────────────────────────────────────────────────
@@ -100,7 +94,9 @@ export async function generateAiThumbnail(
   params: AiSubject,
   opts: AiThumbnailOptions,
 ): Promise<{ imageBuffer: Buffer; contentType: string }> {
-  if (!OPENAI_API_KEY) {
+  // Read lazily so dotenv has loaded before this is called
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
     throw new Error(
       "OPENAI_API_KEY is not set. Add it to .env.local to enable AI thumbnail generation.",
     );
@@ -116,7 +112,7 @@ export async function generateAiThumbnail(
     const response = await fetch(OPENAI_IMAGES_URL, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
+        Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ model, prompt, n: 1, size: "1024x1024" }),
@@ -187,37 +183,7 @@ export async function resolveAiThumbnail(
     .slice(0, 60);
   const key = `${prefix}/${randomUUID()}-${safeBaseName}${ext}`;
 
-  // Upload to R2 using the same client setup as r2-uploader
-  const { PutObjectCommand, S3Client } = await import("@aws-sdk/client-s3");
-
-  const getEnv = (n: string) => {
-    const v = process.env[n];
-    if (!v) throw new Error(`Missing env var: ${n}`);
-    return v.trim();
-  };
-
-  const client = new S3Client({
-    region: getEnv("R2_REGION") ?? "auto",
-    endpoint: getEnv("R2_ENDPOINT"),
-    forcePathStyle: true,
-    credentials: {
-      accessKeyId: getEnv("R2_ACCESS_KEY_ID"),
-      secretAccessKey: getEnv("R2_SECRET_ACCESS_KEY"),
-    },
-  });
-
-  await client.send(
-    new PutObjectCommand({
-      Bucket: getEnv("R2_BUCKET"),
-      Key: key,
-      Body: imageBuffer,
-      ContentType: contentType,
-      CacheControl: "public, max-age=31536000, immutable",
-    }),
-  );
-
-  const baseUrl = getEnv("R2_PUBLIC_BASE_URL").replace(/\/+$/, "");
-  const publicUrl = `${baseUrl}/${key.split("/").map(encodeURIComponent).join("/")}`;
+  const publicUrl = await uploadBufferToR2(imageBuffer, key, contentType);
   console.log(`  ↑ AI thumbnail generated → ${publicUrl}`);
   return publicUrl;
 }

@@ -371,15 +371,16 @@ async function importContent(
       console.log(`  Creating lesson ${lessonIndex + 1}/${moduleInput.lessons.length}: ${lessonInput.title}`);
 
       // Build lesson-level AI subject (carries course style + per-lesson overrides)
-      const lessonAiSubject: AiSubject | undefined = courseInput.ai_thumbnail
-        ? {
-            courseName: courseInput.title,
-            courseTitle: courseInput.title,
-            lessonNumber: lessonIndex + 1,
-            lessonTitle: lessonInput.title,
-            subject: lessonInput.ai_subject ?? undefined,
-          }
-        : undefined;
+      const lessonAiSubject: AiSubject | undefined =
+        courseInput.ai_thumbnail || lessonInput.ai_thumbnail
+          ? {
+              courseName: courseInput.title,
+              courseTitle: courseInput.title,
+              lessonNumber: lessonIndex + 1,
+              lessonTitle: lessonInput.title,
+              subject: lessonInput.ai_subject ?? undefined,
+            }
+          : undefined;
 
       const lessonThumbnailUrl = await resolveThumbnail(
         lessonInput.thumbnail_url,

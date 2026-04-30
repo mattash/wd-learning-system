@@ -13,9 +13,9 @@ function getRequiredEnv(name: string): string {
   return value.trim();
 }
 
-function getR2Client(): S3Client {
+export function getR2Client(): S3Client {
   return new S3Client({
-    region: getRequiredEnv("R2_REGION") || "auto",
+    region: getRequiredEnv("R2_REGION"),
     endpoint: getRequiredEnv("R2_ENDPOINT"),
     forcePathStyle: true,
     credentials: {
@@ -59,6 +59,28 @@ export async function validateExternalUrl(
     return { ok: false, error: message };
   }
 }
+
+// ─── Upload a buffer to R2 ────────────────────────────────────────────────────
+
+export async function uploadBufferToR2(
+  buffer: Buffer,
+  key: string,
+  contentType: string,
+): Promise<string> {
+  const client = getR2Client();
+  await client.send(
+    new PutObjectCommand({
+      Bucket: getRequiredEnv("R2_BUCKET"),
+      Key: key,
+      Body: buffer,
+      ContentType: contentType,
+      CacheControl: "public, max-age=31536000, immutable",
+    }),
+  );
+  return `${getPublicBaseUrl()}/${encodePath(key)}`;
+}
+
+// ─── Resolve and upload thumbnail URL ──────────────────────────────────────────
 
 export async function resolveAndUploadThumbnail(
   thumbnailUrl: string | null,
@@ -107,18 +129,7 @@ export async function resolveAndUploadThumbnail(
       .slice(0, 60);
     const key = `${prefix}/${randomUUID()}-${safeBaseName}${ext}`;
 
-    const client = getR2Client();
-    await client.send(
-      new PutObjectCommand({
-        Bucket: getRequiredEnv("R2_BUCKET"),
-        Key: key,
-        Body: fileBuffer,
-        ContentType: contentType,
-        CacheControl: "public, max-age=31536000, immutable",
-      }),
-    );
-
-    const publicUrl = `${getPublicBaseUrl()}/${encodePath(key)}`;
+    const publicUrl = await uploadBufferToR2(fileBuffer, key, contentType);
     console.log(`  ↑ uploaded thumbnail → ${publicUrl}`);
     return publicUrl;
   }
