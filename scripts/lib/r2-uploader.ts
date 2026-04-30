@@ -37,24 +37,55 @@ function encodePath(rawPath: string): string {
     .join("/");
 }
 
+export async function validateExternalUrl(
+  url: string,
+  timeoutMs = 5000,
+): Promise<{ ok: boolean; status?: number; error?: string }> {
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const response = await fetch(url, {
+      method: "HEAD",
+      signal: controller.signal,
+      redirect: "follow",
+    });
+    clearTimeout(timer);
+    return { ok: response.ok, status: response.status };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (message.includes("aborted")) {
+      return { ok: false, error: `timed out after ${timeoutMs}ms` };
+    }
+    return { ok: false, error: message };
+  }
+}
+
 export async function resolveAndUploadThumbnail(
   thumbnailUrl: string | null,
   prefix: string,
   fallbackBaseName: string,
+  options?: { strict?: boolean },
 ): Promise<string | null> {
   if (!thumbnailUrl) return null;
 
-  // Already an external HTTPS URL — return as-is
-  if (thumbnailUrl.startsWith("https://") || thumbnailUrl.startsWith("http://")) {
+  const isExternal =
+    thumbnailUrl.startsWith("https://") || thumbnailUrl.startsWith("http://");
+
+  if (isExternal) {
+    if (options?.strict) {
+      const result = await validateExternalUrl(thumbnailUrl);
+      if (!result.ok) {
+        throw new Error(
+          `External thumbnail URL is inaccessible (${result.status ?? result.error}): ${thumbnailUrl}`,
+        );
+      }
+    }
     return thumbnailUrl;
   }
 
-  // Local app path — try to resolve relative to project root
   if (thumbnailUrl.startsWith("/")) {
     const projectRoot = path.resolve(process.cwd());
-    // Try public directory first (standard Next.js static assets)
     let localPath = path.join(projectRoot, "public", thumbnailUrl);
-    // Also try absolute paths if provided as such
     if (!existsSync(localPath)) {
       localPath = thumbnailUrl;
     }
@@ -92,7 +123,6 @@ export async function resolveAndUploadThumbnail(
     return publicUrl;
   }
 
-  // Unknown scheme — return as-is (let validation catch it)
   return thumbnailUrl;
 }
 

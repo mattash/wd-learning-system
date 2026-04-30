@@ -225,7 +225,10 @@ async function insertSingle<T>(
   return data;
 }
 
-async function importContent(content: ContentImport): Promise<ImportSummary> {
+async function importContent(
+  content: ContentImport,
+  options?: { strict?: boolean },
+): Promise<ImportSummary> {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -247,6 +250,7 @@ async function importContent(content: ContentImport): Promise<ImportSummary> {
     courseInput.thumbnail_url,
     "course-thumbnails",
     courseInput.title,
+    options,
   );
 
   const course = await insertSingle<CourseRow>(
@@ -276,6 +280,7 @@ async function importContent(content: ContentImport): Promise<ImportSummary> {
       moduleInput.thumbnail_url,
       "module-thumbnails",
       moduleInput.title,
+      options,
     );
 
     const moduleRow = await insertSingle<ModuleRow>(
@@ -305,6 +310,7 @@ async function importContent(content: ContentImport): Promise<ImportSummary> {
         lessonInput.thumbnail_url,
         "lesson-thumbnails",
         lessonInput.title,
+        options,
       );
 
       const lesson = await insertSingle<LessonRow>(
@@ -392,13 +398,13 @@ function printSummary(summary: ImportSummary) {
 
 async function main() {
   const filePathArg = process.argv[2];
+  const strict = process.argv.includes("--strict");
 
   if (!filePathArg) {
-    throw new Error("Usage: npm run content:import -- <path-to-course.yaml|json>");
+    throw new Error("Usage: npm run content:import -- <path-to-course.yaml|json> [--strict]");
   }
 
   const projectRoot = getProjectRoot();
-  // .env.local is optional in dev; continue without it and let the env-check below fire
   loadDotenv({ path: path.join(projectRoot, ".env.local") });
 
   const inputPath = path.resolve(process.cwd(), filePathArg);
@@ -413,9 +419,10 @@ async function main() {
   const parsedContent = parseInput(inputPath, rawContent);
   const content = contentImportSchema.parse(parsedContent);
 
+  const options = { strict };
   let summary: ImportSummary | undefined;
   try {
-    summary = await importContent(content);
+    summary = await importContent(content, options);
     printSummary(summary);
   } catch (err) {
     // Best-effort cleanup: delete the partially-created course so retry is clean
