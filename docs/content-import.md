@@ -128,21 +128,94 @@ R2_REGION=auto
 
 Place these in `.env.local` at the project root — the CLI loads them via `dotenv`.
 
-## Phase 3: AI thumbnail generation
+## Phase 3: AI thumbnail generation (GPT Image 2.0)
 
-*Planned — not yet implemented.*
+The importer can generate thumbnails via [OpenAI's GPT Image 2.0 model](https://platform.openai.com/docs/guides/image-generation) when `ai_thumbnail: true` is set at the course level. The model renders text directly into images with consistent visual styling across all lessons in a course.
 
-Future versions may support `ai_thumbnail: true` on courses/modules/lessons, which would:
-1. Generate an image via OpenAI DALL·E or Resend's image API
-2. Upload the generated image to R2
-3. Store the R2 URL in `thumbnail_url`
+### Enabling AI thumbnails
 
-When implemented, usage would look like:
+**YAML (course-level)** — applies to all lessons unless overridden:
 
 ```yaml
 course:
   title: "Foundations of Faith"
-  ai_thumbnail: true   # generate image automatically
+  ai_thumbnail: true
+  ai_palette: vivid            # light | dark | vivid (default: vivid)
+  ai_style: flat-illustration  # flat-illustration | documentary | editorial (default: flat-illustration)
+  ai_text_placement: bottom-center  # bottom-center | top-center | left-vertical | right-vertical (default: bottom-center)
+  ai_style_notes: "Armenian Cross geometry in background"  # optional extra direction
+```
+
+**YAML (lesson-level)** — overrides for a specific lesson:
+
+```yaml
+lessons:
+  - title: "The Holy Trinity"
+    ai_thumbnail: true
+    ai_subject: "triquetra knot illuminated by golden light"
+    ai_text_placement: top-center
+```
+
+**CLI flags** — set defaults for all AI thumbnails in the import:
+
+```bash
+npm run content:import -- scripts/course.yaml \
+  --ai-palette dark \
+  --ai-style editorial \
+  --ai-text-placement bottom-center
+```
+
+CLI flags are overridden by YAML course-level values, which are overridden by lesson-level values.
+
+**Environment variable:**
+
+```bash
+OPENAI_API_KEY=sk-proj-...   # add to .env.local
+```
+
+### Style matrix
+
+| Palette | Description |
+|---|---|
+| `light` | Warm cream/parchment background, muted jewel-tone accents in deep teal and burgundy, soft natural lighting |
+| `dark` | Deep navy/charcoal background, gold and cream accents, dramatic contrast |
+| `vivid` | Saturated bold colors — royal blue, crimson, gold — high energy yet respectful |
+
+| Artistic style | Description |
+|---|---|
+| `flat-illustration` | Iconographic, clean geometric edges, Armenian religious art influence, symbolic imagery, strong shapes |
+| `documentary` | Photorealistic, rich depth, naturalistic lighting, textured surfaces, warm and reverent |
+| `editorial` | Bold graphic layout, layered composition, magazine-style spacing, strong hierarchy |
+
+| Text placement | Effect |
+|---|---|
+| `bottom-center` | Course name and lesson title on a semi-transparent dark bar along the bottom edge, horizontally centered |
+| `top-center` | Same at top edge |
+| `left-vertical` | Course name stacked above lesson title on the left edge, white text on semi-transparent background |
+| `right-vertical` | Same on the right edge |
+
+### How it works
+
+1. At import start, the course-level `ai_palette` + `ai_style` + `ai_text_placement` is resolved once and used as the consistent style for all AI-generated thumbnails in that course.
+2. For each lesson with `thumbnail_url: "ai://"` or `ai_thumbnail: true`, the importer calls the OpenAI GPT Image 2.0 API with a prompt built from:
+   - Course title, lesson number, and lesson title
+   - Palette description (colors, lighting)
+   - Artistic style description
+   - Text placement instruction (instructs the model to render text in the specified location)
+   - Optional `ai_subject` override describing what to depict
+   - Optional `ai_style_notes` for extra direction
+3. The generated image (PNG) is uploaded to Cloudflare R2 under the appropriate prefix (`course-thumbnails/`, `lesson-thumbnails/`).
+4. The R2 CDN URL is stored as `thumbnail_url` in the database.
+
+### Example prompt (GPT Image 2.0)
+
+```
+"Foundations of Faith" — Lesson 2: The Holy Trinity.
+Subject to depict: triquetra knot illuminated by golden light.
+Style: Saturated bold colors — royal blue, crimson, gold — high energy yet respectful, clean visual impact. Flat iconographic illustration. Clean geometric edges. Symbolic religious imagery (Armenian art influence). No photorealism. Strong shapes, minimal shading.
+Text placement: Course name and lesson title rendered as bold text on a semi-transparent dark bar at the bottom edge of the thumbnail, horizontally centered. No other text.
+No logos, no watermarks, no photographs of real people.
+Square aspect ratio (1:1).
 ```
 
 ## Troubleshooting
