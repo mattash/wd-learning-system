@@ -8,6 +8,14 @@ import { config as loadDotenv } from "dotenv";
 import { z } from "zod";
 
 import { resolveAndUploadThumbnail } from "./lib/r2-uploader";
+import {
+  resolveAiThumbnail,
+  isAiThumbnailUrl,
+  type AiSubject,
+  type AiPalette,
+  type AiStyle,
+  type AiTextPlacement,
+} from "./lib/ai-thumbnails";
 
 type CourseRow = {
   id: string;
@@ -74,15 +82,20 @@ const optionalUrlSchema = z
   .nullish()
   .transform((value) => {
     if (!value || value.length === 0) return null;
-    // Accept app-relative paths (starting with /) or absolute URLs
-    if (value.startsWith("/") || value.startsWith("https://") || value.startsWith("http://")) {
+    // Accept app-relative paths, AI generation marker, and absolute URLs
+    if (
+      value.startsWith("/") ||
+      value.startsWith("https://") ||
+      value.startsWith("http://") ||
+      value.startsWith("ai://")
+    ) {
       return value;
     }
     // Reject javascript:, data:, blob: and other dangerous schemes
     if (SAFE_URL_REGEX.test(value)) {
       throw new z.ZodError([{
         code: z.ZodIssueCode.custom,
-        message: `Invalid URL scheme: '${value}'. Only '/', 'http://', and 'https://' are allowed.`,
+        message: `Invalid URL scheme: '${value}'. Only '/', 'ai://', 'http://', and 'https://' are allowed.`,
         path: [],
       }]);
     }
@@ -120,6 +133,12 @@ const lessonSchema = z
     document_page_end: z.number().int().min(1).nullish().transform((value) => value ?? null),
     passing_score: z.number().int().min(0).max(100).default(80),
     questions: z.array(questionSchema).default([]),
+    // AI thumbnail generation
+    ai_thumbnail: z.boolean().default(false),
+    ai_subject: optionalNullableStringSchema,
+    ai_text_placement: z
+      .enum(["bottom-center", "top-center", "left-vertical", "right-vertical"])
+      .optional(),
   })
   .strict()
   .superRefine((value, ctx) => {
@@ -171,6 +190,16 @@ const contentImportSchema = z
         published: z.boolean().default(false),
         scope: z.enum(["DIOCESE", "PARISH"]),
         modules: z.array(moduleSchema).default([]),
+        // AI thumbnail generation
+        ai_thumbnail: z.boolean().default(false),
+        ai_palette: z.enum(["light", "dark", "vivid"]).optional(),
+        ai_style: z
+          .enum(["flat-illustration", "documentary", "editorial"])
+          .optional(),
+        ai_text_placement: z
+          .enum(["bottom-center", "top-center", "left-vertical", "right-vertical"])
+          .optional(),
+        ai_style_notes: optionalNullableStringSchema,
       })
       .strict(),
   })
@@ -227,7 +256,7 @@ async function insertSingle<T>(
 
 async function importContent(
   content: ContentImport,
-  options?: { strict?: boolean },
+  options?: { strict?: boolean; aiPalette?: AiPalette; aiStyle?: AiStyle; aiTextPlacement?: AiTextPlacement },
 ): Promise<ImportSummary> {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -246,11 +275,47 @@ async function importContent(
   const courseInput = content.course;
   console.log(`Creating course: ${courseInput.title}`);
 
-  const courseThumbnailUrl = await resolveAndUploadThumbnail(
+  // Build AI thumbnail options from YAML fields (course-level) with CLI flags as fallback
+  const aiOpts = {
+    palette: (courseInput.ai_palette ?? options?.aiPalette) ?? "vivid",
+    style: (courseInput.ai_style ?? options?.aiStyle) ?? "flat-illustration",
+    textPlacement:
+      (courseInput.ai_text_placement ?? options?.aiTextPlacement) ?? "bottom-center",
+    styleNotes: courseInput.ai_style_notes ?? undefined,
+  };
+
+  async function resolveThumbnail(
+    thumbnailUrl: string | null,
+    prefix: string,
+    fallbackBaseName: string,
+    aiSubject?: AiSubject,
+    lessonTextPlacement?: AiTextPlacement,
+  ): Promise<string | null> {
+    if (isAiThumbnailUrl(thumbnailUrl)) {
+      if (!aiSubject) throw new Error("AI thumbnail requires course context.");
+      return resolveAiThumbnail(aiSubject, prefix, {
+        ...aiOpts,
+        textPlacement: lessonTextPlacement ?? aiOpts.textPlacement,
+      });
+    }
+    return resolveAndUploadThumbnail(thumbnailUrl, prefix, fallbackBaseName, options);
+  }
+
+  // Generate course-level AI subject (used for all lesson thumbnails in this course)
+  const courseAiSubject: AiSubject | undefined = courseInput.ai_thumbnail
+    ? {
+        courseName: courseInput.title,
+        courseTitle: courseInput.title,
+        lessonNumber: 0,
+        lessonTitle: "Course Overview",
+      }
+    : undefined;
+
+  const courseThumbnailUrl = await resolveThumbnail(
     courseInput.thumbnail_url,
     "course-thumbnails",
     courseInput.title,
-    options,
+    courseAiSubject,
   );
 
   const course = await insertSingle<CourseRow>(
@@ -276,11 +341,10 @@ async function importContent(
   for (const [moduleIndex, moduleInput] of courseInput.modules.entries()) {
     console.log(`Creating module ${moduleIndex + 1}/${courseInput.modules.length}: ${moduleInput.title}`);
 
-    const moduleThumbnailUrl = await resolveAndUploadThumbnail(
+    const moduleThumbnailUrl = await resolveThumbnail(
       moduleInput.thumbnail_url,
       "module-thumbnails",
       moduleInput.title,
-      options,
     );
 
     const moduleRow = await insertSingle<ModuleRow>(
@@ -306,11 +370,23 @@ async function importContent(
     for (const [lessonIndex, lessonInput] of moduleInput.lessons.entries()) {
       console.log(`  Creating lesson ${lessonIndex + 1}/${moduleInput.lessons.length}: ${lessonInput.title}`);
 
-      const lessonThumbnailUrl = await resolveAndUploadThumbnail(
+      // Build lesson-level AI subject (carries course style + per-lesson overrides)
+      const lessonAiSubject: AiSubject | undefined = courseInput.ai_thumbnail
+        ? {
+            courseName: courseInput.title,
+            courseTitle: courseInput.title,
+            lessonNumber: lessonIndex + 1,
+            lessonTitle: lessonInput.title,
+            subject: lessonInput.ai_subject ?? undefined,
+          }
+        : undefined;
+
+      const lessonThumbnailUrl = await resolveThumbnail(
         lessonInput.thumbnail_url,
         "lesson-thumbnails",
         lessonInput.title,
-        options,
+        lessonAiSubject,
+        lessonInput.ai_text_placement ?? undefined,
       );
 
       const lesson = await insertSingle<LessonRow>(
@@ -400,8 +476,18 @@ async function main() {
   const filePathArg = process.argv[2];
   const strict = process.argv.includes("--strict");
 
+  const parseAiFlag = (name: string): string | undefined => {
+    const idx = process.argv.indexOf(`--ai-${name}`);
+    return idx >= 0 ? process.argv[idx + 1] : undefined;
+  };
+  const aiPalette = parseAiFlag("palette") as AiPalette | undefined;
+  const aiStyle = parseAiFlag("style") as AiStyle | undefined;
+  const aiTextPlacement = parseAiFlag("text-placement") as AiTextPlacement | undefined;
+
   if (!filePathArg) {
-    throw new Error("Usage: npm run content:import -- <path-to-course.yaml|json> [--strict]");
+    throw new Error(
+      "Usage: npm run content:import -- <path> [--strict] [--ai-palette <light|dark|vivid>] [--ai-style <flat-illustration|documentary|editorial>] [--ai-text-placement <bottom-center|top-center|left-vertical|right-vertical>]",
+    );
   }
 
   const projectRoot = getProjectRoot();
@@ -419,7 +505,7 @@ async function main() {
   const parsedContent = parseInput(inputPath, rawContent);
   const content = contentImportSchema.parse(parsedContent);
 
-  const options = { strict };
+  const options = { strict, aiPalette, aiStyle, aiTextPlacement };
   let summary: ImportSummary | undefined;
   try {
     summary = await importContent(content, options);
