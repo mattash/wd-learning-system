@@ -108,39 +108,60 @@ export async function generateAiThumbnail(
 
   const prompt = buildPrompt({ subject: params, ...opts });
 
-  const response = await fetch(OPENAI_IMAGES_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${OPENAI_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "gpt-image-2",
-      prompt,
-      n: 1,
-      size: "1024x1024",
-      response_format: "png",
-    }),
-  });
+  // Try gpt-image-2 first; fall back to gpt-image-1 if org not verified (403)
+  const modelsToTry = ["gpt-image-2", "gpt-image-1"] as const;
+  let lastError = "";
 
-  if (!response.ok) {
+  for (const model of modelsToTry) {
+    const response = await fetch(OPENAI_IMAGES_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ model, prompt, n: 1, size: "1024x1024" }),
+    });
+
+    if (response.ok) {
+      const data = (await response.json()) as {
+        data: Array<{ b64_json?: string; url?: string }>;
+      };
+
+      const item = data.data?.[0];
+      if (!item) {
+        throw new Error("OpenAI returned no image data in response.");
+      }
+
+      if (item.b64_json) {
+        const buffer = Buffer.from(item.b64_json, "base64");
+        console.log(`  [AI] Generated thumbnail with model: ${model}`);
+        return { imageBuffer: buffer, contentType: "image/png" };
+      }
+
+      if (item.url) {
+        const imageResponse = await fetch(item.url);
+        if (!imageResponse.ok) {
+          throw new Error(`Failed to fetch generated image: ${imageResponse.status}`);
+        }
+        const buffer = Buffer.from(await imageResponse.arrayBuffer());
+        console.log(`  [AI] Generated thumbnail with model: ${model}`);
+        return { imageBuffer: buffer, contentType: "image/png" };
+      }
+
+      throw new Error("OpenAI returned no usable image data (no b64_json or url).");
+    }
+
     const errorBody = await response.text();
-    throw new Error(
-      `OpenAI images API error ${response.status}: ${errorBody}`,
-    );
+    lastError = `OpenAI images API error ${response.status}: ${errorBody}`;
+
+    // Only retry with gpt-image-1 if gpt-image-2 returned a 403 (org not verified)
+    if (response.status !== 403) {
+      throw new Error(lastError);
+    }
+    // else: try next model
   }
 
-  const data = (await response.json()) as {
-    data: Array<{ b64_json?: string; url?: string }>;
-  };
-
-  const b64 = data.data?.[0]?.b64_json;
-  if (!b64) {
-    throw new Error("OpenAI returned no image data in response.");
-  }
-
-  const buffer = Buffer.from(b64, "base64");
-  return { imageBuffer: buffer, contentType: "image/png" };
+  throw new Error(`All image models failed. Last error: ${lastError}`);
 }
 
 // ─── Resolve with AI generation fallback ──────────────────────────────────────

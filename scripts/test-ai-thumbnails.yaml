@@ -1,0 +1,20 @@
+# Minimal test course for AI thumbnail generation
+# Title is intentionally different from any existing course to avoid conflicts
+course:
+  title: "AI Thumbnail Test — Trinity"
+  description: "Minimal test course to verify AI thumbnail generation pipeline."
+  scope: PARISH
+  published: false
+  ai_thumbnail: true
+  ai_palette: vivid
+  ai_style: flat-illustration
+  ai_text_placement: bottom-center
+
+  modules:
+    - title: "Test Module 1"
+      lessons:
+        - title: "Test Lesson Alpha"
+          content_type: VIDEO
+          youtube_video_id: "M8RREaZyL5Q"
+          thumbnail_url: "ai://"
+          ai_subject: "triquetra knot illuminated by golden light"

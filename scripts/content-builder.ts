@@ -475,6 +475,7 @@ function printSummary(summary: ImportSummary) {
 async function main() {
   const filePathArg = process.argv[2];
   const strict = process.argv.includes("--strict");
+  const dryRun = process.argv.includes("--dry-run");
 
   const parseAiFlag = (name: string): string | undefined => {
     const idx = process.argv.indexOf(`--ai-${name}`);
@@ -486,7 +487,7 @@ async function main() {
 
   if (!filePathArg) {
     throw new Error(
-      "Usage: npm run content:import -- <path> [--strict] [--ai-palette <light|dark|vivid>] [--ai-style <flat-illustration|documentary|editorial>] [--ai-text-placement <bottom-center|top-center|left-vertical|right-vertical>]",
+      "Usage: npm run content:import -- <path> [--strict] [--dry-run] [--ai-palette <light|dark|vivid>] [--ai-style <flat-illustration|documentary|editorial>] [--ai-text-placement <bottom-center|top-center|left-vertical|right-vertical>]",
     );
   }
 
@@ -504,6 +505,35 @@ async function main() {
 
   const parsedContent = parseInput(inputPath, rawContent);
   const content = contentImportSchema.parse(parsedContent);
+
+  if (dryRun) {
+    console.log(green("\n=== DRY RUN — no database writes or uploads will occur ===\n"));
+    console.log(`Course:        ${content.course.title}`);
+    console.log(`Scope:         ${content.course.scope}`);
+    console.log(`Published:     ${content.course.published}`);
+    console.log(`AI thumbnails: ${content.course.ai_thumbnail ? "enabled" : "disabled"}`);
+    if (content.course.ai_thumbnail) {
+      console.log(
+        `AI style:      ${content.course.ai_palette ?? aiPalette ?? "vivid"} / ${content.course.ai_style ?? aiStyle ?? "flat-illustration"} / ${content.course.ai_text_placement ?? aiTextPlacement ?? "bottom-center"}`,
+      );
+    }
+    console.log("");
+    let totalLessons = 0;
+    let totalQuestions = 0;
+    for (const [mi, mod] of content.course.modules.entries()) {
+      console.log(`  [Module ${mi + 1}] ${mod.title}`);
+      for (const [li, lesson] of mod.lessons.entries()) {
+        totalLessons++;
+        totalQuestions += lesson.questions.length;
+        const aiNote = lesson.ai_thumbnail ? " [AI thumbnail]" : "";
+        console.log(`    Lesson ${li + 1}: ${lesson.title}${aiNote}`);
+      }
+    }
+    console.log("");
+    console.log(`Total: ${content.course.modules.length} modules, ${totalLessons} lessons, ${totalQuestions} questions`);
+    console.log(green("\n=== DRY RUN complete — no changes made ===\n"));
+    return;
+  }
 
   const options = { strict, aiPalette, aiStyle, aiTextPlacement };
   let summary: ImportSummary | undefined;
