@@ -7,6 +7,8 @@ import { createClient, type PostgrestError } from "@supabase/supabase-js";
 import { config as loadDotenv } from "dotenv";
 import { z } from "zod";
 
+import { resolveAndUploadThumbnail } from "./lib/r2-uploader";
+
 type CourseRow = {
   id: string;
   title: string;
@@ -241,13 +243,19 @@ async function importContent(content: ContentImport): Promise<ImportSummary> {
   const courseInput = content.course;
   console.log(`Creating course: ${courseInput.title}`);
 
+  const courseThumbnailUrl = await resolveAndUploadThumbnail(
+    courseInput.thumbnail_url,
+    "course-thumbnails",
+    courseInput.title,
+  );
+
   const course = await insertSingle<CourseRow>(
     supabase
       .from("courses")
       .insert({
         title: courseInput.title,
         description: courseInput.description,
-        thumbnail_url: courseInput.thumbnail_url,
+        thumbnail_url: courseThumbnailUrl,
         published: courseInput.published,
         scope: courseInput.scope,
       })
@@ -264,6 +272,12 @@ async function importContent(content: ContentImport): Promise<ImportSummary> {
   for (const [moduleIndex, moduleInput] of courseInput.modules.entries()) {
     console.log(`Creating module ${moduleIndex + 1}/${courseInput.modules.length}: ${moduleInput.title}`);
 
+    const moduleThumbnailUrl = await resolveAndUploadThumbnail(
+      moduleInput.thumbnail_url,
+      "module-thumbnails",
+      moduleInput.title,
+    );
+
     const moduleRow = await insertSingle<ModuleRow>(
       supabase
         .from("modules")
@@ -271,7 +285,7 @@ async function importContent(content: ContentImport): Promise<ImportSummary> {
           course_id: course.id,
           title: moduleInput.title,
           descriptor: moduleInput.descriptor,
-          thumbnail_url: moduleInput.thumbnail_url,
+          thumbnail_url: moduleThumbnailUrl,
           sort_order: moduleIndex,
         })
         .select("id,title")
@@ -287,6 +301,12 @@ async function importContent(content: ContentImport): Promise<ImportSummary> {
     for (const [lessonIndex, lessonInput] of moduleInput.lessons.entries()) {
       console.log(`  Creating lesson ${lessonIndex + 1}/${moduleInput.lessons.length}: ${lessonInput.title}`);
 
+      const lessonThumbnailUrl = await resolveAndUploadThumbnail(
+        lessonInput.thumbnail_url,
+        "lesson-thumbnails",
+        lessonInput.title,
+      );
+
       const lesson = await insertSingle<LessonRow>(
         supabase
           .from("lessons")
@@ -294,7 +314,7 @@ async function importContent(content: ContentImport): Promise<ImportSummary> {
             module_id: moduleRow.id,
             title: lessonInput.title,
             descriptor: lessonInput.descriptor,
-            thumbnail_url: lessonInput.thumbnail_url,
+            thumbnail_url: lessonThumbnailUrl,
             content_type: lessonInput.content_type,
             youtube_video_id: lessonInput.content_type === "VIDEO" ? lessonInput.youtube_video_id : null,
             document_url: lessonInput.content_type === "DOCUMENT" ? lessonInput.document_url : null,
