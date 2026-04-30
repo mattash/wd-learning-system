@@ -478,13 +478,20 @@ async function main() {
   const strict = process.argv.includes("--strict");
   const dryRun = process.argv.includes("--dry-run");
 
-  const parseAiFlag = (name: string): string | undefined => {
+  const parseAiFlag = (name: string, validValues: string[]): string | undefined => {
     const idx = process.argv.indexOf(`--ai-${name}`);
-    return idx >= 0 ? process.argv[idx + 1] : undefined;
+    if (idx < 0) return undefined;
+    const value = process.argv[idx + 1];
+    if (!validValues.includes(value)) {
+      throw new Error(
+        `Invalid --ai-${name}: '${value}'. Must be one of: ${validValues.join(", ")}`,
+      );
+    }
+    return value;
   };
-  const aiPalette = parseAiFlag("palette") as AiPalette | undefined;
-  const aiStyle = parseAiFlag("style") as AiStyle | undefined;
-  const aiTextPlacement = parseAiFlag("text-placement") as AiTextPlacement | undefined;
+  const aiPalette = parseAiFlag("palette", ["light", "dark", "vivid"]) as AiPalette | undefined;
+  const aiStyle = parseAiFlag("style", ["flat-illustration", "documentary", "editorial"]) as AiStyle | undefined;
+  const aiTextPlacement = parseAiFlag("text-placement", ["bottom-center", "top-center", "left-vertical", "right-vertical"]) as AiTextPlacement | undefined;
 
   if (!filePathArg) {
     throw new Error(
