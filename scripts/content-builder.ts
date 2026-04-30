@@ -291,7 +291,7 @@ async function importContent(
     aiSubject?: AiSubject,
     lessonTextPlacement?: AiTextPlacement,
   ): Promise<string | null> {
-    if (isAiThumbnailUrl(thumbnailUrl) || aiSubject) {
+    if (isAiThumbnailUrl(thumbnailUrl) || (aiSubject && !thumbnailUrl)) {
       if (!aiSubject) {
         throw new Error(
           `thumbnail_url: "ai://" requires ai_thumbnail: true at the course or lesson level.`,

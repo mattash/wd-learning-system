@@ -22,5 +22,10 @@ course:
         - title: "Test Lesson Beta"
           content_type: VIDEO
           youtube_video_id: "iTZNwx7aZ2A"
-          # AI generated with course defaults
+          # AI generated with course defaults (no explicit thumbnail_url)
           thumbnail_url: "ai://"
+        - title: "Test Lesson Gamma"
+          content_type: VIDEO
+          youtube_video_id: "bwerFK9aJ9A"
+          # Explicit thumbnail — should NOT be overridden by course.ai_thumbnail: true
+          thumbnail_url: "/custom.png"
