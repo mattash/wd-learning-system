@@ -520,10 +520,13 @@ async function main() {
 
   if (dryRun) {
     console.log(green("\n=== DRY RUN — no database writes or uploads will occur ===\n"));
-    console.log(`Course:        ${content.course.title}`);
+    const courseAiNote = content.course.ai_thumbnail || isAiThumbnailUrl(content.course.thumbnail_url)
+      ? " [AI thumbnail]"
+      : "";
+    console.log(`Course:        ${content.course.title}${courseAiNote}`);
     console.log(`Scope:         ${content.course.scope}`);
     console.log(`Published:     ${content.course.published}`);
-    console.log(`AI thumbnails: ${content.course.ai_thumbnail ? "enabled" : "disabled"}`);
+    console.log(`AI thumbnails: ${content.course.ai_thumbnail || isAiThumbnailUrl(content.course.thumbnail_url) ? "enabled" : "disabled"}`);
     if (content.course.ai_thumbnail) {
       console.log(
         `AI style:      ${content.course.ai_palette ?? aiPalette ?? "vivid"} / ${content.course.ai_style ?? aiStyle ?? "flat-illustration"} / ${content.course.ai_text_placement ?? aiTextPlacement ?? "bottom-center"}`,

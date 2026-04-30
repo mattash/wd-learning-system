@@ -1,14 +1,15 @@
-# Minimal test course for AI thumbnail generation
-# Title is intentionally different from any existing course to avoid conflicts
+# Test course for AI thumbnail generation (courses and lessons)
+# Title intentionally distinct from any existing course
 course:
-  title: "AI Thumbnail Test — Trinity"
-  description: "Minimal test course to verify AI thumbnail generation pipeline."
+  title: "AI Thumbnail Test — Courses & Lessons"
+  description: "Tests AI thumbnail generation at both course and lesson level."
   scope: PARISH
   published: false
   ai_thumbnail: true
   ai_palette: vivid
   ai_style: flat-illustration
   ai_text_placement: bottom-center
+  thumbnail_url: "ai://"
 
   modules:
     - title: "Test Module 1"
@@ -18,3 +19,8 @@ course:
           youtube_video_id: "M8RREaZyL5Q"
           thumbnail_url: "ai://"
           ai_subject: "triquetra knot illuminated by golden light"
+        - title: "Test Lesson Beta"
+          content_type: VIDEO
+          youtube_video_id: "iTZNwx7aZ2A"
+          # AI generated with course defaults
+          thumbnail_url: "ai://"
