@@ -20,9 +20,14 @@ vi.mock("@/lib/repositories/certificates", () => ({
   checkAndIssueCertificate: vi.fn(),
 }));
 
+vi.mock("@/lib/parish-communications/notifications", () => ({
+  notifyCourseCompletion: vi.fn().mockResolvedValue(undefined),
+}));
+
 import { requireAuth, requireParishRole } from "@/lib/authz";
 import { isUserEnrolledForLesson, getCourseIdForLesson } from "@/lib/repositories/lessons";
 import { checkAndIssueCertificate } from "@/lib/repositories/certificates";
+import { notifyCourseCompletion } from "@/lib/parish-communications/notifications";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import { POST } from "@/app/api/quiz-attempt/route";
 
@@ -36,7 +41,7 @@ describe("POST /api/quiz-attempt", () => {
       role: "student",
     });
     vi.mocked(isUserEnrolledForLesson).mockResolvedValue(true);
-    vi.mocked(getCourseIdForLesson).mockResolvedValue("22222222-2222-4222-8222-222222222222");
+    vi.mocked(getCourseIdForLesson).mockResolvedValue(null);
     vi.mocked(checkAndIssueCertificate).mockResolvedValue(null);
   });
 
@@ -145,5 +150,88 @@ describe("POST /api/quiz-attempt", () => {
 
     expect(response.status).toBe(403);
     await expect(response.json()).resolves.toEqual({ error: "Enrollment required for this lesson" });
+  });
+
+  it("issues certificate and triggers notification when course is completed", async () => {
+    vi.mocked(getCourseIdForLesson).mockResolvedValue("course-1");
+    vi.mocked(checkAndIssueCertificate).mockResolvedValue({
+      certificate: { id: "cert-new", clerk_user_id: "user-1", parish_id: "11111111-1111-4111-8111-111111111111", course_id: "course-1", issued_at: "2026-05-01", download_url: null },
+      newlyIssued: true,
+    });
+
+    const insert = vi.fn(async () => ({ error: null }));
+    const order = vi.fn(async () => ok([{ correct_option_index: 1 }]));
+    const eq = vi.fn(() => ({ order }));
+    const select = vi.fn(() => ({ eq }));
+
+    vi.mocked(getSupabaseAdminClient).mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "questions") return { select };
+        if (table === "quiz_attempts") return { insert };
+        throw new Error(`Unexpected table ${table}`);
+      }),
+    } as never);
+
+    const response = await POST(
+      new Request("http://localhost/api/quiz-attempt", {
+        method: "POST",
+        body: JSON.stringify({
+          lessonId: "22222222-2222-4222-8222-222222222222",
+          parishId: "11111111-1111-4111-8111-111111111111",
+          answers: [1],
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    const json = await response.json();
+    expect(json).toMatchObject({ ok: true, score: 100, total: 1, certificateId: "cert-new" });
+    expect(checkAndIssueCertificate).toHaveBeenCalledWith({
+      clerkUserId: "user-1",
+      parishId: "11111111-1111-4111-8111-111111111111",
+      courseId: "course-1",
+    });
+    expect(notifyCourseCompletion).toHaveBeenCalledWith({
+      clerkUserId: "user-1",
+      parishId: "11111111-1111-4111-8111-111111111111",
+      courseId: "course-1",
+    });
+  });
+
+  it("does not trigger notification when certificate already existed", async () => {
+    vi.mocked(getCourseIdForLesson).mockResolvedValue("course-1");
+    vi.mocked(checkAndIssueCertificate).mockResolvedValue({
+      certificate: { id: "cert-old", clerk_user_id: "user-1", parish_id: "11111111-1111-4111-8111-111111111111", course_id: "course-1", issued_at: "2026-04-01", download_url: null },
+      newlyIssued: false,
+    });
+
+    const insert = vi.fn(async () => ({ error: null }));
+    const order = vi.fn(async () => ok([{ correct_option_index: 1 }]));
+    const eq = vi.fn(() => ({ order }));
+    const select = vi.fn(() => ({ eq }));
+
+    vi.mocked(getSupabaseAdminClient).mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "questions") return { select };
+        if (table === "quiz_attempts") return { insert };
+        throw new Error(`Unexpected table ${table}`);
+      }),
+    } as never);
+
+    const response = await POST(
+      new Request("http://localhost/api/quiz-attempt", {
+        method: "POST",
+        body: JSON.stringify({
+          lessonId: "22222222-2222-4222-8222-222222222222",
+          parishId: "11111111-1111-4111-8111-111111111111",
+          answers: [1],
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    const json = await response.json();
+    expect(json).toMatchObject({ ok: true, certificateId: "cert-old" });
+    expect(notifyCourseCompletion).not.toHaveBeenCalled();
   });
 });

@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { requireDioceseAdmin } from "@/lib/authz";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
+import { notifyEnrollmentConfirmed } from "@/lib/parish-communications/notifications";
 
 const createEnrollmentSchema = z.object({
   parishId: z.string().uuid(),
@@ -63,6 +64,13 @@ export async function POST(req: Request) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
+
+  // Send enrollment confirmation email (non-blocking)
+  notifyEnrollmentConfirmed({
+    clerkUserId: payload.clerkUserId,
+    parishId: payload.parishId,
+    courseId: payload.courseId,
+  }).catch((err) => console.error("[notifications] diocese enrollment confirmed email failed:", err));
 
   return NextResponse.json({ enrollment: data }, { status: 201 });
 }

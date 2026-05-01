@@ -8,6 +8,7 @@ import { getCourseIdForLesson, isUserEnrolledForLesson } from "@/lib/repositorie
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import { quizSubmissionSchema } from "@/lib/validation/quiz";
 import { checkAndIssueCertificate } from "@/lib/repositories/certificates";
+import { notifyCourseCompletion } from "@/lib/parish-communications/notifications";
 
 export async function POST(req: Request) {
   const clerkUserId = await requireAuth();
@@ -72,8 +73,13 @@ export async function POST(req: Request) {
   const courseId = await getCourseIdForLesson(payload.lessonId);
   let certificateId: string | null = null;
   if (courseId) {
-    const cert = await checkAndIssueCertificate({ clerkUserId, parishId, courseId });
-    certificateId = cert?.id ?? null;
+    const result = await checkAndIssueCertificate({ clerkUserId, parishId, courseId });
+    certificateId = result?.certificate.id ?? null;
+    if (result?.newlyIssued) {
+      notifyCourseCompletion({ clerkUserId, parishId, courseId }).catch(
+        (err) => console.error("[notifications] course completion email failed:", err),
+      );
+    }
   }
 
   return NextResponse.json({ ok: true, score: grade.score, total: grade.total, certificateId });
