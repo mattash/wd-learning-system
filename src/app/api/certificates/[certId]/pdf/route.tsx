@@ -50,7 +50,7 @@ export async function GET(
   // Generate PDF
   const pdfBuffer = await renderToBuffer(<CertificateDocument data={data} />);
 
-  return new NextResponse(pdfBuffer, {
+  return new NextResponse(new Uint8Array(pdfBuffer), {
     headers: {
       "Content-Type": "application/pdf",
       "Content-Disposition": `inline; filename="certificate-${certId}.pdf"`,
