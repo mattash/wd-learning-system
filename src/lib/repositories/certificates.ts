@@ -48,7 +48,7 @@ export async function checkAndIssueCertificate({
   clerkUserId: string;
   parishId: string;
   courseId: string;
-}): Promise<CertificateRecord | null> {
+}): Promise<{ certificate: CertificateRecord; newlyIssued: boolean } | null> {
   if (isE2ESmokeMode()) return null;
 
   const supabase = getSupabaseAdminClient();
@@ -62,7 +62,7 @@ export async function checkAndIssueCertificate({
     .eq("course_id", courseId)
     .maybeSingle();
 
-  if (existing) return existing as CertificateRecord;
+  if (existing) return { certificate: existing as CertificateRecord, newlyIssued: false };
 
   // Verify all lessons in course are completed
   const { data: modules } = await supabase
@@ -107,7 +107,7 @@ export async function checkAndIssueCertificate({
     .single();
 
   if (error) return null;
-  return cert as CertificateRecord;
+  return { certificate: cert as CertificateRecord, newlyIssued: true };
 }
 
 export async function listStudentCertificates(
