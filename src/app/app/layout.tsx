@@ -2,6 +2,7 @@ import Link from "next/link";
 import { UserButton } from "@clerk/nextjs";
 import { cookies } from "next/headers";
 
+import { AppHeaderClient } from "@/components/app-header-client";
 import { ParishSwitcher } from "@/components/parish-switcher";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
@@ -62,38 +63,13 @@ export default async function AppLayout({
 
   return (
     <div className="min-h-screen">
-      <header className="sticky top-0 z-50 border-b border-nav-border bg-nav-bg shadow-sm transition-colors duration-250">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 h-[52px]">
-          <div className="flex items-center gap-2 mr-6">
-            <div className="flex h-[26px] w-[26px] items-center justify-center rounded-[5px] bg-primary">
-              <svg viewBox="0 0 20 20" width="14" height="14" xmlns="http://www.w3.org/2000/svg">
-                <path d="M10 1v18M1 10h18M6 6l-3-3M14 6l3-3M6 14l-3 3M14 14l3 3" stroke="white" strokeWidth="2" strokeLinecap="round" fill="none"/>
-              </svg>
-            </div>
-            <span className="text-[13px] font-bold text-foreground tracking-tight">WD Learning</span>
-          </div>
-          <nav className="flex flex-wrap items-center gap-0.5">
-            {navItems.map((item) => (
-              <Button
-                asChild
-                className="text-muted-foreground hover:text-foreground"
-                key={item.href}
-                size="sm"
-                variant="ghost"
-              >
-                <Link href={item.href}>{item.label}</Link>
-              </Button>
-            ))}
-          </nav>
-          <div className="ml-auto flex items-center gap-2">
-            {parishOptions.length > 1 && activeParishId ? (
-              <ParishSwitcher activeParishId={activeParishId} parishes={parishOptions} />
-            ) : null}
-            <ThemeToggle />
-            {showUserButton ? <UserButton /> : null}
-          </div>
-        </div>
-      </header>
+      <AppHeaderClient
+        navItems={navItems}
+        parishes={parishOptions}
+        showParishSwitcher={parishOptions.length > 1}
+        showUserButton={showUserButton}
+        activeParishId={activeParishId}
+      />
       <main className="mx-auto max-w-6xl px-6 py-7">{children}</main>
     </div>
   );
