@@ -55,7 +55,6 @@ export default async function AppLayout({
 
   const navItems = [
     { label: "Dashboard", href: "/app/dashboard" },
-    { label: "Courses", href: "/app/courses" },
     { label: "Catalog", href: "/app/catalog" },
     ...(showParishAdmin ? [{ label: "Parish Admin", href: "/app/parish-admin" }] : []),
     ...(showDioceseAdmin ? [{ label: "Diocese Admin", href: "/app/admin" }] : []),

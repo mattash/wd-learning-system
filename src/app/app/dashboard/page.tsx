@@ -163,9 +163,17 @@ export default async function DashboardPage() {
 
       {/* Course progress */}
       <section>
-        <h2 className="mb-3 text-sm font-medium text-muted-foreground">
-          Your courses
-        </h2>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-sm font-medium text-muted-foreground">
+            Your courses
+          </h2>
+          <Link
+            className="text-xs font-medium text-primary hover:underline"
+            href="/app/courses"
+          >
+            View all
+          </Link>
+        </div>
         <div className="grid gap-3 sm:grid-cols-1 lg:grid-cols-2">
           {progress.map((course) => (
             <Link
