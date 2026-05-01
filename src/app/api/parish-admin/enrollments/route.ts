@@ -4,6 +4,7 @@ import { z } from "zod";
 import { requireParishRole } from "@/lib/authz";
 import { recordAdminAuditLog } from "@/lib/audit-log";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
+import { notifyEnrollmentConfirmed } from "@/lib/parish-communications/notifications";
 
 const createEnrollmentSchema = z.object({
   clerkUserId: z.string().min(1),
@@ -134,6 +135,13 @@ export async function POST(req: Request) {
       clerk_user_id: payload.clerkUserId,
     },
   });
+
+  // Send enrollment confirmation email (non-blocking)
+  notifyEnrollmentConfirmed({
+    clerkUserId: payload.clerkUserId,
+    parishId,
+    courseId: payload.courseId,
+  }).catch((err) => console.error("[notifications] enrollment confirmed email failed:", err));
 
   return NextResponse.json({ enrollment: data }, { status: 201 });
 }
