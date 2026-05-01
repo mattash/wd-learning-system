@@ -306,7 +306,8 @@ async function importContent(
   }
 
   // Generate course-level AI subject (used for all lesson thumbnails in this course)
-  const courseAiSubject: AiSubject | undefined = courseInput.ai_thumbnail
+  const courseAiSubject: AiSubject | undefined =
+    courseInput.ai_thumbnail || isAiThumbnailUrl(courseInput.thumbnail_url)
     ? {
         courseTitle: courseInput.title,
         lessonNumber: 0,
