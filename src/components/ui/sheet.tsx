@@ -24,21 +24,20 @@ export const SheetTrigger = DialogPrimitive.Trigger;
 
 export function SheetContent({
   className,
+  side = "left",
   children,
   ...props
 }: React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & { side?: "left" | "right" }) {
-  const { side = "left" } = props as { side?: "left" | "right" };
   return (
     <DialogPrimitive.Portal>
       <DialogPrimitive.Overlay
         className={cn(
-          "fixed inset-0 z-50 bg-foreground/40 backdrop-blur-[1px] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
-          className,
+          "fixed inset-0 z-50 bg-foreground/40 backdrop-blur-[1px] data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"
         )}
       />
       <DialogPrimitive.Content
         className={cn(
-          "fixed z-50 flex flex-col bg-card shadow-lg transition-all duration-300 ease-in-out",
+          "fixed z-50 flex flex-col bg-card shadow-lg transition-all duration-300 ease-in-out overflow-hidden",
           "inset-y-0 w-[280px] max-w-full",
           side === "left"
             ? "left-0 data-[state=open]:slide-in-from-left-full data-[state=closed]:slide-out-to-left-full"
