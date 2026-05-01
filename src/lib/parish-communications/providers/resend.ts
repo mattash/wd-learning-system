@@ -40,12 +40,10 @@ export async function sendEmailViaResend(
       });
 
       if (response.ok) {
-        const data = await response.json() as { id?: string };
-        if (data.id) {
-          for (const recipient of batch) {
-            if (recipient.email) {
-              sent.push(recipient.clerkUserId);
-            }
+        // Add all recipients with valid emails to sent
+        for (const recipient of batch) {
+          if (recipient.email) {
+            sent.push(recipient.clerkUserId);
           }
         }
       } else {
