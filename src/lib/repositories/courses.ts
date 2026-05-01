@@ -8,13 +8,14 @@ export interface VisibleCourse {
   description: string | null;
   published: boolean;
   scope: "DIOCESE" | "PARISH";
+  thumbnailUrl?: string | null;
 }
 
 export interface CourseModule {
   id: string;
   title: string;
   sort_order: number;
-  lessons: { id: string; title: string; sort_order: number; content_type: "VIDEO" | "DOCUMENT" }[];
+  lessons: { id: string; title: string; sort_order: number; content_type: "VIDEO" | "DOCUMENT"; thumbnail_url: string | null }[];
 }
 
 export async function listVisibleCourses(parishId: string): Promise<VisibleCourse[]> {
@@ -93,7 +94,7 @@ export async function getCourseTree(courseId: string, parishId: string) {
       modules: [
         {
           ...E2E_MODULE,
-          lessons: [{ id: E2E_LESSON.id, title: E2E_LESSON.title, sort_order: 1, content_type: E2E_LESSON.content_type }],
+          lessons: [{ id: E2E_LESSON.id, title: E2E_LESSON.title, sort_order: 1, content_type: E2E_LESSON.content_type, thumbnail_url: null }],
         },
       ],
     };
@@ -105,14 +106,22 @@ export async function getCourseTree(courseId: string, parishId: string) {
 
   if (!course) return null;
 
+  // Fetch course thumbnail separately (RPC may not return it)
+  const { data: courseRow } = await supabase
+    .from("courses")
+    .select("thumbnail_url")
+    .eq("id", courseId)
+    .single();
+  const courseWithThumbnail = { ...course, thumbnailUrl: (courseRow as { thumbnail_url?: string } | null)?.thumbnail_url ?? null };
+
   const { data: modules, error: modulesError } = await supabase
     .from("modules")
-    .select("id,title,sort_order, lessons(id,title,sort_order,content_type)")
+    .select("id,title,sort_order, lessons(id,title,sort_order,content_type,thumbnail_url)")
     .eq("course_id", courseId)
     .order("sort_order", { ascending: true });
 
   if (modulesError) throw modulesError;
-  return { course, modules: ((modules ?? []) as CourseModule[]) ?? [] };
+  return { course: courseWithThumbnail, modules: ((modules ?? []) as CourseModule[]) ?? [] };
 }
 
 export interface CourseLesson {
@@ -120,6 +129,7 @@ export interface CourseLesson {
   title: string;
   sort_order: number;
   content_type: "VIDEO" | "DOCUMENT";
+  thumbnailUrl: string | null;
   status: "not_started" | "in_progress" | "completed";
   bestScore: number;
 }
@@ -131,11 +141,16 @@ export interface CourseModuleWithProgress {
   lessons: CourseLesson[];
 }
 
+export interface CourseTreeWithProgress {
+  course: VisibleCourse;
+  modules: CourseModuleWithProgress[];
+}
+
 export async function getCourseTreeWithProgress(
   courseId: string,
   parishId: string,
   clerkUserId: string,
-) {
+): Promise<CourseTreeWithProgress | null> {
   if (isE2ESmokeMode()) {
     if (courseId !== E2E_COURSE.id) return null;
     return {
@@ -151,6 +166,7 @@ export async function getCourseTreeWithProgress(
               content_type: E2E_LESSON.content_type,
               status: "not_started" as const,
               bestScore: 0,
+              thumbnailUrl: null,
             },
           ],
         },
@@ -169,6 +185,7 @@ export async function getCourseTreeWithProgress(
         ...m,
         lessons: m.lessons.map((l) => ({
           ...l,
+          thumbnailUrl: (l as { thumbnail_url?: string }).thumbnail_url ?? null,
           status: "not_started" as const,
           bestScore: 0,
         })),
@@ -221,7 +238,7 @@ export async function getCourseTreeWithProgress(
         } else {
           status = "not_started";
         }
-        return { ...l, status, bestScore };
+        return { ...l, thumbnailUrl: l.thumbnail_url, status, bestScore };
       }),
     })),
   };

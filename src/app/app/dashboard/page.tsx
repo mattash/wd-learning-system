@@ -124,21 +124,35 @@ export default async function DashboardPage() {
                 key={`resume-${course.courseId}`}
               >
                 <Card className="h-full transition-colors hover:bg-secondary">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-base">
-                      {course.lastLessonTitle ?? "Resume"}
-                    </CardTitle>
-                    <CardDescription>{course.courseTitle}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-muted-foreground">
-                        {course.completedLessons}/{course.totalLessons} complete
-                      </span>
-                      <span className="text-xs font-medium text-primary">
-                        Resume →
-                      </span>
+                  <CardContent className="flex items-center gap-3 py-3">
+                    {/* Course thumbnail */}
+                    <div className="h-12 w-12 shrink-0 overflow-hidden rounded-md border bg-muted">
+                      {course.thumbnailUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          alt={course.courseTitle}
+                          className="h-full w-full object-cover"
+                          src={course.thumbnailUrl}
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+                          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} />
+                          </svg>
+                        </div>
+                      )}
                     </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">
+                        {course.lastLessonTitle ?? "Resume"}
+                      </p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {course.courseTitle}
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-xs font-medium text-primary">
+                      Resume →
+                    </span>
                   </CardContent>
                 </Card>
               </Link>
@@ -160,6 +174,23 @@ export default async function DashboardPage() {
             >
               <Card className="h-full transition-colors hover:bg-secondary">
                 <CardContent className="flex items-center gap-4 py-4">
+                  {/* Thumbnail */}
+                  <div className="h-14 w-14 shrink-0 overflow-hidden rounded-md border bg-muted">
+                    {course.thumbnailUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        alt={course.courseTitle}
+                        className="h-full w-full object-cover"
+                        src={course.thumbnailUrl}
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+                        <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
                   <ProgressRing percent={course.progressPercent} />
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium">{course.courseTitle}</p>

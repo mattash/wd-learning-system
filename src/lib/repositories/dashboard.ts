@@ -6,6 +6,7 @@ export interface DashboardCourseProgress {
   courseId: string;
   courseTitle: string;
   courseDescription: string | null;
+  thumbnailUrl: string | null;
   totalLessons: number;
   completedLessons: number;
   progressPercent: number;
@@ -41,6 +42,7 @@ export async function getStudentDashboardData(
           courseId: E2E_COURSE.id,
           courseTitle: E2E_COURSE.title,
           courseDescription: E2E_COURSE.description,
+          thumbnailUrl: "/globe.svg",
           totalLessons: 2,
           completedLessons: 0,
           progressPercent: 0,
@@ -70,7 +72,7 @@ export async function getStudentDashboardData(
   // Get enrolled courses, filtered to visible
   const { data: enrollments, error: enrollError } = await supabase
     .from("enrollments")
-    .select("course_id, courses(id, title, description)")
+    .select("course_id, courses(id, title, description, thumbnail_url)")
     .eq("parish_id", parishId)
     .eq("clerk_user_id", clerkUserId);
 
@@ -79,7 +81,7 @@ export async function getStudentDashboardData(
   const enrolledCourses = (
     (enrollments ?? []) as Array<{
       course_id: string;
-      courses: { id: string; title: string; description: string | null };
+      courses: { id: string; title: string; description: string | null; thumbnail_url: string | null };
     }>
   )
     .filter((e) => visibleCourseIds.has(e.course_id))
@@ -87,6 +89,7 @@ export async function getStudentDashboardData(
       courseId: e.course_id,
       title: e.courses.title,
       description: e.courses.description,
+      thumbnailUrl: e.courses.thumbnail_url,
     }));
 
   if (enrolledCourses.length === 0) {
@@ -124,6 +127,7 @@ export async function getStudentDashboardData(
       courseId: course.courseId,
       courseTitle: course.title,
       courseDescription: course.description,
+      thumbnailUrl: course.thumbnailUrl,
       totalLessons: lessons.length,
       completedLessons: 0,
       progressPercent: 0,

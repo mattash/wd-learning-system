@@ -91,7 +91,7 @@ describe("LessonPage", () => {
         id: "module-1",
         title: "Test Module",
         sort_order: 1,
-        lessons: [{ id: "lesson-1", title: "Test Lesson", sort_order: 1, content_type: "VIDEO" as const, status: "not_started" as const, bestScore: 0 }],
+        lessons: [{ id: "lesson-1", title: "Test Lesson", sort_order: 1, content_type: "VIDEO" as const, thumbnailUrl: null, status: "not_started" as const, bestScore: 0 }],
       }],
     });
   });
