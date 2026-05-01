@@ -7,7 +7,7 @@ export interface ResendConfig {
   fromEmail: string;
 }
 
-const RESEND_API_URL = "https://api.resend.com/emails";
+const RESEND_BATCH_API_URL = "https://api.resend.com/emails/batch";
 
 export async function sendEmailViaResend(
   config: ResendConfig,
@@ -20,30 +20,43 @@ export async function sendEmailViaResend(
   const BATCH_SIZE = 100;
   for (let i = 0; i < request.recipients.length; i += BATCH_SIZE) {
     const batch = request.recipients.slice(i, i + BATCH_SIZE);
-    const toEmails = batch.map((r) => r.email).filter((e): e is string => e !== null);
+    const recipientsWithEmail = batch.filter((r): r is typeof r & { email: string } => r.email !== null);
 
-    if (toEmails.length === 0) continue;
+    if (recipientsWithEmail.length === 0) continue;
+
+    const batchPayload = recipientsWithEmail.map((r) => ({
+      from: config.fromEmail,
+      to: [r.email],
+      subject: request.subject,
+      text: request.body,
+    }));
 
     try {
-      const response = await fetch(RESEND_API_URL, {
+      const response = await fetch(RESEND_BATCH_API_URL, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${config.apiKey}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          from: config.fromEmail,
-          to: toEmails,
-          subject: request.subject,
-          text: request.body,
-        }),
+        body: JSON.stringify(batchPayload),
       });
 
       if (response.ok) {
-        // Add all recipients with valid emails to sent
-        for (const recipient of batch) {
-          if (recipient.email) {
+        const data = await response.json() as { data?: Array<{ id?: string }> };
+        const ids = data.data;
+        const allHaveIds =
+          Array.isArray(ids) &&
+          ids.length === recipientsWithEmail.length &&
+          ids.every((item) => Boolean(item?.id));
+
+        if (allHaveIds) {
+          for (const recipient of recipientsWithEmail) {
             sent.push(recipient.clerkUserId);
+          }
+        } else {
+          const errMsg = "Resend batch response missing email ids";
+          for (const recipient of recipientsWithEmail) {
+            failed.push({ clerkUserId: recipient.clerkUserId, error: errMsg });
           }
         }
       } else {
