@@ -35,8 +35,8 @@ export function CourseSidebarClient({
         </svg>
       </button>
 
-      {/* Desktop sidebar (always visible) */}
-      <div className="hidden md:block">
+      {/* Desktop sidebar (always visible); md:contents keeps aside a direct flex child so it stretches and the lesson list can scroll */}
+      <div className="hidden md:contents">
         <CourseSidebar
           courseTitle={courseTitle}
           courseId={courseId}
