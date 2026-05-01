@@ -48,13 +48,18 @@ export function CourseSidebarClient({
       {/* Mobile sheet (slide-out) */}
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
         <SheetContent side="right">
-          <SheetTitle className="mb-2">{courseTitle}</SheetTitle>
-          <CourseSidebar
-            courseTitle={courseTitle}
-            courseId={courseId}
-            modules={modules}
-            currentLessonId={currentLessonId}
-          />
+          {/* SheetTitle is required for Radix Dialog accessibility; sr-only since CourseSidebar renders its own header */}
+          <SheetTitle className="sr-only">{courseTitle}</SheetTitle>
+          {/* Scrollable container prevents clipping when lesson list is long */}
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <CourseSidebar
+              courseTitle={courseTitle}
+              courseId={courseId}
+              modules={modules}
+              currentLessonId={currentLessonId}
+              showHeader={false}
+            />
+          </div>
         </SheetContent>
       </Sheet>
     </>
