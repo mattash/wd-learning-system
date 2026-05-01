@@ -25,7 +25,7 @@ describe("notifyCourseCompletion", () => {
   });
 
   it("does nothing when delivery is disabled", async () => {
-    vi.mocked(getParishDeliveryConfig).mockReturnValue({ enabled: false, provider: undefined });
+    vi.mocked(getParishDeliveryConfig).mockReturnValue({ enabled: false, provider: null });
     await notifyCourseCompletion({
       clerkUserId: "user-1",
       parishId: "parish-1",
@@ -35,7 +35,7 @@ describe("notifyCourseCompletion", () => {
   });
 
   it("does nothing when provider is not configured", async () => {
-    vi.mocked(getParishDeliveryConfig).mockReturnValue({ enabled: true, provider: undefined });
+    vi.mocked(getParishDeliveryConfig).mockReturnValue({ enabled: true, provider: null });
     await notifyCourseCompletion({
       clerkUserId: "user-1",
       parishId: "parish-1",

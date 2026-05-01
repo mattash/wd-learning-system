@@ -18,6 +18,7 @@ describe("sendEmailViaResend", () => {
   });
 
   const baseRequest = {
+    provider: "resend" as const,
     subject: "Test Subject",
     body: "Test body",
     recipients: [
