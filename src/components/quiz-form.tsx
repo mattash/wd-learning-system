@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { CompletionModal } from "@/components/completion-modal";
 
 interface Question {
   id: string;
@@ -16,16 +17,19 @@ export function QuizForm({
   parishId,
   questions,
   nextLesson,
+  courseTitle,
 }: {
   lessonId: string;
   parishId: string;
   questions: Question[];
   nextLesson: { id: string; title: string } | null;
+  courseTitle?: string;
 }) {
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [score, setScore] = useState<number | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [correctIndices, setCorrectIndices] = useState<Record<string, number>>({});
+  const [certificateId, setCertificateId] = useState<string | null>(null);
 
   if (questions.length === 0) return null;
 
@@ -43,6 +47,9 @@ export function QuizForm({
     if (response.ok) {
       setScore(data.score);
       setSubmitted(true);
+      if (data.certificateId) {
+        setCertificateId(data.certificateId);
+      }
       if (data.correctIndices) {
         const map: Record<string, number> = {};
         questions.forEach((q, i) => {
@@ -52,6 +59,22 @@ export function QuizForm({
       }
     }
   };
+
+  // Show completion modal after successful submission with course context
+  if (submitted && score !== null && courseTitle) {
+    return (
+      <div className="space-y-6">
+        <CompletionModal
+          certificateId={certificateId ?? undefined}
+          courseComplete={!!certificateId}
+          courseTitle={courseTitle}
+          lessonTitle={questions[0]?.prompt?.slice(0, 50) ?? "Lesson"}
+          nextLesson={nextLesson}
+          score={score}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
