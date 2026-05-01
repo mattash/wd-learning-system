@@ -17,7 +17,7 @@ function CourseCard({
   hasPendingRequest: boolean;
 }) {
   return (
-    <Card className="flex h-full flex-col transition-colors hover:bg-secondary/50">
+    <Card className="flex h-full flex-col overflow-hidden transition-colors hover:bg-secondary/50">
       <div className="flex gap-3 p-4 pb-0">
         {/* Thumbnail */}
         <div className="h-20 w-20 shrink-0 overflow-hidden rounded-md border bg-muted">
@@ -153,7 +153,7 @@ export default async function CatalogPage({
           <h2 className="mb-3 text-sm font-medium text-muted-foreground">
             My enrolled courses
           </h2>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
             {filteredEnrolled.map((course) => (
               <CourseCard course={course} hasPendingRequest={pendingCourseIds.has(course.id)} key={course.id} />
             ))}
@@ -167,7 +167,7 @@ export default async function CatalogPage({
           <h2 className="mb-3 text-sm font-medium text-muted-foreground">
             {query ? `Results for "${query}"` : "All available courses"}
           </h2>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
             {filteredUnenrolled.map((course) => (
               <CourseCard course={course} hasPendingRequest={pendingCourseIds.has(course.id)} key={course.id} />
             ))}
