@@ -4,9 +4,10 @@ import { E2E_LESSON, E2E_QUESTIONS } from "@/lib/e2e-fixtures";
 import { requireAuth, requireParishRole } from "@/lib/authz";
 import { isE2ESmokeMode } from "@/lib/e2e-mode";
 import { gradeQuiz } from "@/lib/grading";
-import { isUserEnrolledForLesson } from "@/lib/repositories/lessons";
+import { getCourseIdForLesson, isUserEnrolledForLesson } from "@/lib/repositories/lessons";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import { quizSubmissionSchema } from "@/lib/validation/quiz";
+import { checkAndIssueCertificate } from "@/lib/repositories/certificates";
 
 export async function POST(req: Request) {
   const clerkUserId = await requireAuth();
@@ -67,5 +68,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
-  return NextResponse.json({ ok: true, score: grade.score, total: grade.total });
+  // Check for course completion and issue certificate if all lessons done
+  const courseId = await getCourseIdForLesson(payload.lessonId);
+  let certificateId: string | null = null;
+  if (courseId) {
+    const cert = await checkAndIssueCertificate({ clerkUserId, parishId, courseId });
+    certificateId = cert?.id ?? null;
+  }
+
+  return NextResponse.json({ ok: true, score: grade.score, total: grade.total, certificateId });
 }

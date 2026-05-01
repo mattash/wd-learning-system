@@ -13,10 +13,16 @@ vi.mock("@/lib/supabase/server", () => ({
 
 vi.mock("@/lib/repositories/lessons", () => ({
   isUserEnrolledForLesson: vi.fn(),
+  getCourseIdForLesson: vi.fn(),
+}));
+
+vi.mock("@/lib/repositories/certificates", () => ({
+  checkAndIssueCertificate: vi.fn(),
 }));
 
 import { requireAuth, requireParishRole } from "@/lib/authz";
-import { isUserEnrolledForLesson } from "@/lib/repositories/lessons";
+import { isUserEnrolledForLesson, getCourseIdForLesson } from "@/lib/repositories/lessons";
+import { checkAndIssueCertificate } from "@/lib/repositories/certificates";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import { POST } from "@/app/api/quiz-attempt/route";
 
@@ -30,6 +36,8 @@ describe("POST /api/quiz-attempt", () => {
       role: "student",
     });
     vi.mocked(isUserEnrolledForLesson).mockResolvedValue(true);
+    vi.mocked(getCourseIdForLesson).mockResolvedValue("22222222-2222-4222-8222-222222222222");
+    vi.mocked(checkAndIssueCertificate).mockResolvedValue(null);
   });
 
   it("grades and stores quiz attempts", async () => {
@@ -63,7 +71,8 @@ describe("POST /api/quiz-attempt", () => {
     );
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({ ok: true, score: 50, total: 2 });
+    const json = await response.json();
+    expect(json).toMatchObject({ ok: true, score: 50, total: 2, certificateId: null });
     expect(insert).toHaveBeenCalledWith({
       parish_id: "11111111-1111-4111-8111-111111111111",
       clerk_user_id: "user-1",

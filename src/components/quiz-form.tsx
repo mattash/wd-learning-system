@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { CompletionModal } from "@/components/completion-modal";
 
 interface Question {
   id: string;
@@ -13,19 +14,24 @@ interface Question {
 
 export function QuizForm({
   lessonId,
+  lessonTitle,
   parishId,
   questions,
   nextLesson,
+  courseTitle,
 }: {
   lessonId: string;
+  lessonTitle: string;
   parishId: string;
   questions: Question[];
   nextLesson: { id: string; title: string } | null;
+  courseTitle?: string;
 }) {
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [score, setScore] = useState<number | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [correctIndices, setCorrectIndices] = useState<Record<string, number>>({});
+  const [certificateId, setCertificateId] = useState<string | null>(null);
 
   if (questions.length === 0) return null;
 
@@ -43,6 +49,9 @@ export function QuizForm({
     if (response.ok) {
       setScore(data.score);
       setSubmitted(true);
+      if (data.certificateId) {
+        setCertificateId(data.certificateId);
+      }
       if (data.correctIndices) {
         const map: Record<string, number> = {};
         questions.forEach((q, i) => {
@@ -52,6 +61,22 @@ export function QuizForm({
       }
     }
   };
+
+  // Show completion modal after a passing score with course context
+  if (submitted && score !== null && courseTitle && score >= 100) {
+    return (
+      <div className="space-y-6">
+        <CompletionModal
+          certificateId={certificateId ?? undefined}
+          courseComplete={!!certificateId}
+          courseTitle={courseTitle}
+          lessonTitle={lessonTitle}
+          nextLesson={nextLesson}
+          score={score}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -177,7 +202,7 @@ export function QuizForm({
               : "Answer all questions above, then submit."}
         </span>
         <div className="flex items-center gap-2">
-          {submitted && nextLesson ? (
+          {submitted && score !== null && score >= 100 && nextLesson ? (
             <Button asChild size="sm">
               <Link href={`/app/lessons/${nextLesson.id}`}>
                 {nextLesson.title} →

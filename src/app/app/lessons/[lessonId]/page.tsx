@@ -148,7 +148,9 @@ export default async function LessonPage({
           {/* Quiz */}
           <div className="mt-6 px-8">
             <QuizForm
+              courseTitle={courseTree?.course.title}
               lessonId={lesson.id}
+              lessonTitle={lesson.title}
               nextLesson={navContext?.nextLesson ?? null}
               parishId={parishId}
               questions={(lesson.questions ?? []).map((q: { id: string; prompt: string; options: unknown }) => ({
