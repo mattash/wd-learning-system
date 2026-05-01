@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 
-import { CourseSidebar } from "@/components/course-sidebar";
+import { CourseSidebarClient } from "@/components/course-sidebar-client";
 import { DocumentReviewCard } from "@/components/document-review-card";
 import { LessonNav } from "@/components/lesson-nav";
 import { YoutubePlayer } from "@/components/player/youtube-player";
@@ -72,10 +72,10 @@ export default async function LessonPage({
         : "Assigned document";
 
   return (
-    <div className="-mx-6 -mt-7 flex" style={{ height: "calc(100vh - 52px)" }}>
+    <div className="flex" style={{ height: "calc(100vh - 52px)" }}>
       {/* Sidebar */}
       {courseTree && (
-        <CourseSidebar
+        <CourseSidebarClient
           courseId={courseTree.course.id}
           courseTitle={courseTree.course.title}
           currentLessonId={lessonId}

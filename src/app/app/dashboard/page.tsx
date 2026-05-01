@@ -122,8 +122,9 @@ export default async function DashboardPage() {
               <Link
                 href={`/app/lessons/${course.lastLessonId}`}
                 key={`resume-${course.courseId}`}
+                className="min-w-0"
               >
-                <Card className="h-full transition-colors hover:bg-secondary">
+                <Card className="h-full overflow-hidden transition-colors hover:bg-secondary">
                   <CardContent className="flex items-center gap-3 py-3">
                     {/* Course thumbnail */}
                     <div className="h-12 w-12 shrink-0 overflow-hidden rounded-md border bg-muted">
@@ -163,16 +164,25 @@ export default async function DashboardPage() {
 
       {/* Course progress */}
       <section>
-        <h2 className="mb-3 text-sm font-medium text-muted-foreground">
-          Your courses
-        </h2>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="text-sm font-medium text-muted-foreground">
+            Your courses
+          </h2>
+          <Link
+            className="text-xs font-medium text-primary hover:underline"
+            href="/app/courses"
+          >
+            View all
+          </Link>
+        </div>
         <div className="grid gap-3 sm:grid-cols-1 lg:grid-cols-2">
           {progress.map((course) => (
             <Link
               href={`/app/courses/${course.courseId}`}
               key={course.courseId}
+              className="min-w-0"
             >
-              <Card className="h-full transition-colors hover:bg-secondary">
+              <Card className="h-full overflow-hidden transition-colors hover:bg-secondary">
                 <CardContent className="flex items-center gap-4 py-4">
                   {/* Thumbnail */}
                   <div className="h-14 w-14 shrink-0 overflow-hidden rounded-md border bg-muted">
