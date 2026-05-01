@@ -73,13 +73,15 @@ If `npm run build` still reports a missing Clerk publishable key, ensure the key
 Then open http://localhost:3000.
 
 ## Content import CLI
-Bulk-create a course hierarchy from YAML or JSON:
+Bulk-create a course hierarchy from YAML or JSON. See [docs/content-import.md](docs/content-import.md) for full reference including thumbnail handling, `--strict` validation, and AI generation (Phase 3).
 
 ```bash
+# Basic import
 npm run content:import -- scripts/example-course.yaml
-```
 
-The importer loads `.env.local`, connects to Supabase with `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`, and inserts the course, modules, lessons, and questions directly with service-role access. Input keys are validated strictly, and nested items are inserted in file order with `sort_order` starting at `0`.
+# Strict mode — validates all external thumbnail URLs before inserting
+npm run content:import -- scripts/example-course.yaml --strict
+```
 
 ## Bootstrap first diocese admin
 1. Sign in with Clerk user.
