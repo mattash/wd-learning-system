@@ -122,8 +122,9 @@ export default async function DashboardPage() {
               <Link
                 href={`/app/lessons/${course.lastLessonId}`}
                 key={`resume-${course.courseId}`}
+                className="min-w-0"
               >
-                <Card className="h-full transition-colors hover:bg-secondary">
+                <Card className="h-full overflow-hidden transition-colors hover:bg-secondary">
                   <CardContent className="flex items-center gap-3 py-3">
                     {/* Course thumbnail */}
                     <div className="h-12 w-12 shrink-0 overflow-hidden rounded-md border bg-muted">
@@ -179,8 +180,9 @@ export default async function DashboardPage() {
             <Link
               href={`/app/courses/${course.courseId}`}
               key={course.courseId}
+              className="min-w-0"
             >
-              <Card className="h-full transition-colors hover:bg-secondary">
+              <Card className="h-full overflow-hidden transition-colors hover:bg-secondary">
                 <CardContent className="flex items-center gap-4 py-4">
                   {/* Thumbnail */}
                   <div className="h-14 w-14 shrink-0 overflow-hidden rounded-md border bg-muted">
