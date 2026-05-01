@@ -14,12 +14,14 @@ interface Question {
 
 export function QuizForm({
   lessonId,
+  lessonTitle,
   parishId,
   questions,
   nextLesson,
   courseTitle,
 }: {
   lessonId: string;
+  lessonTitle: string;
   parishId: string;
   questions: Question[];
   nextLesson: { id: string; title: string } | null;
@@ -60,15 +62,15 @@ export function QuizForm({
     }
   };
 
-  // Show completion modal after successful submission with course context
-  if (submitted && score !== null && courseTitle) {
+  // Show completion modal after a passing score with course context
+  if (submitted && score !== null && courseTitle && score >= 100) {
     return (
       <div className="space-y-6">
         <CompletionModal
           certificateId={certificateId ?? undefined}
           courseComplete={!!certificateId}
           courseTitle={courseTitle}
-          lessonTitle={questions[0]?.prompt?.slice(0, 50) ?? "Lesson"}
+          lessonTitle={lessonTitle}
           nextLesson={nextLesson}
           score={score}
         />
@@ -200,7 +202,7 @@ export function QuizForm({
               : "Answer all questions above, then submit."}
         </span>
         <div className="flex items-center gap-2">
-          {submitted && nextLesson ? (
+          {submitted && score !== null && score >= 100 && nextLesson ? (
             <Button asChild size="sm">
               <Link href={`/app/lessons/${nextLesson.id}`}>
                 {nextLesson.title} →

@@ -150,6 +150,7 @@ export default async function LessonPage({
             <QuizForm
               courseTitle={courseTree?.course.title}
               lessonId={lesson.id}
+              lessonTitle={lesson.title}
               nextLesson={navContext?.nextLesson ?? null}
               parishId={parishId}
               questions={(lesson.questions ?? []).map((q: { id: string; prompt: string; options: unknown }) => ({

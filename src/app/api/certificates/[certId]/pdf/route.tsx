@@ -49,10 +49,8 @@ export async function GET(
 
   // Generate PDF
   const pdfBuffer = await renderToBuffer(<CertificateDocument data={data} />);
-  const pdfBase64 = Buffer.from(pdfBuffer).toString("base64");
-  const pdfDataUrl = `data:application/pdf;base64,${pdfBase64}`;
 
-  return new NextResponse(pdfBase64, {
+  return new NextResponse(pdfBuffer, {
     headers: {
       "Content-Type": "application/pdf",
       "Content-Disposition": `inline; filename="certificate-${certId}.pdf"`,

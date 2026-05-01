@@ -76,7 +76,7 @@ export async function checkAndIssueCertificate({
   const { data: lessons } = await supabase
     .from("lessons")
     .select("id")
-    .eq("module_id", moduleIds);
+    .in("module_id", moduleIds);
 
   const lessonIds = ((lessons ?? []) as Array<{ id: string }>).map((l) => l.id);
   if (lessonIds.length === 0) return null;

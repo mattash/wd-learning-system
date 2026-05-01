@@ -22,14 +22,28 @@ export function CompletionModal({
   courseComplete = false,
   certificateId,
 }: CompletionModalProps) {
+  const passed = score >= 100;
+
   return (
     <div className="space-y-4">
       {/* Score card */}
-      <Card className="border-success/30 bg-success-subtle">
+      <Card
+        className={
+          passed
+            ? "border-success/30 bg-success-subtle"
+            : "border-destructive/30 bg-destructive-subtle"
+        }
+      >
         <CardContent className="py-6 text-center">
-          <div className="mb-2 text-5xl font-bold text-success">{score}%</div>
-          <p className="text-sm text-muted-foreground">
-            Quiz passed
+          <div
+            className={`mb-2 text-5xl font-bold ${passed ? "text-success" : "text-destructive"}`}
+          >
+            {score}%
+          </div>
+          <p
+            className={`text-sm ${passed ? "text-muted-foreground" : "text-destructive"}`}
+          >
+            {passed ? "Quiz passed" : "Review the questions above and try again."}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
             {lessonTitle} — {courseTitle}
@@ -38,7 +52,7 @@ export function CompletionModal({
       </Card>
 
       {/* Course completion */}
-      {courseComplete && (
+      {courseComplete && passed && (
         <Card className="border-primary/30 bg-brand-subtle">
           <CardContent className="py-6 text-center">
             <div className="mb-3 text-4xl">🎉</div>
@@ -59,7 +73,7 @@ export function CompletionModal({
 
       {/* Next lesson / dashboard */}
       <div className="flex gap-3">
-        {nextLesson ? (
+        {passed && nextLesson ? (
           <Button asChild className="flex-1">
             <Link href={`/app/lessons/${nextLesson.id}`}>
               Next: {nextLesson.title} →
