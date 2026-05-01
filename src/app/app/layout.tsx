@@ -3,6 +3,7 @@ import { UserButton } from "@clerk/nextjs";
 import { cookies } from "next/headers";
 
 import { AppHeaderClient } from "@/components/app-header-client";
+import { HelpPanel } from "@/components/help-panel";
 import { ParishSwitcher } from "@/components/parish-switcher";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
@@ -70,6 +71,7 @@ export default async function AppLayout({
         activeParishId={activeParishId}
       />
       <main className="mx-auto max-w-6xl px-6 py-7">{children}</main>
+      <HelpPanel />
     </div>
   );
 }
