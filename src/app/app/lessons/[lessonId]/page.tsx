@@ -72,7 +72,7 @@ export default async function LessonPage({
         : "Assigned document";
 
   return (
-    <div className="flex h-screen">
+    <div className="flex" style={{ height: "calc(100vh - 52px)" }}>
       {/* Sidebar */}
       {courseTree && (
         <CourseSidebarClient

@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { SheetTitle } from "@/components/ui/sheet";
 import { CourseSidebar } from "@/components/course-sidebar";
 import type { CourseModuleWithProgress } from "@/lib/repositories/courses";
 
@@ -47,6 +48,7 @@ export function CourseSidebarClient({
       {/* Mobile sheet (slide-out) */}
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
         <SheetContent side="right">
+          <SheetTitle className="mb-2">{courseTitle}</SheetTitle>
           <CourseSidebar
             courseTitle={courseTitle}
             courseId={courseId}
