@@ -112,7 +112,7 @@ export function HelpPanel() {
         <Button
           size="sm"
           variant="outline"
-          className="fixed bottom-6 right-6 z-40 gap-2 shadow-md"
+          className="fixed bottom-6 right-[4.5rem] z-40 gap-2 shadow-md md:right-6"
           type="button"
         >
           <span>?</span>
