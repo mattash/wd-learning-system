@@ -27,6 +27,39 @@ describe("/api/admin/questions/[questionId]", () => {
     expect(res.status).toBe(200);
   });
 
+  it("returns 400 for invalid question ids", async () => {
+    const res = await PATCH(
+      new Request("http://x", { method: "PATCH", body: JSON.stringify({ prompt: "P", options: ["A", "B"], correctOptionIndex: 1, sortOrder: 0 }) }),
+      { params: Promise.resolve({ questionId: "not-a-uuid" }) },
+    );
+
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toEqual({ error: "Invalid question request payload" });
+    expect(getSupabaseAdminClient).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 for invalid update payloads", async () => {
+    const res = await PATCH(
+      new Request("http://x", { method: "PATCH", body: JSON.stringify({ prompt: "P", options: ["A", "B"] }) }),
+      { params: Promise.resolve({ questionId: "11111111-1111-4111-8111-111111111111" }) },
+    );
+
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toEqual({ error: "Invalid question request payload" });
+    expect(getSupabaseAdminClient).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 for malformed JSON update payloads", async () => {
+    const res = await PATCH(
+      new Request("http://x", { method: "PATCH", body: "{" }),
+      { params: Promise.resolve({ questionId: "11111111-1111-4111-8111-111111111111" }) },
+    );
+
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toEqual({ error: "Invalid question request payload" });
+    expect(getSupabaseAdminClient).not.toHaveBeenCalled();
+  });
+
   it("deletes question", async () => {
     const eq = vi.fn(async () => ({ error: null }));
     const del = vi.fn(() => ({ eq }));

@@ -13,10 +13,28 @@ const updateQuestionSchema = z.object({
   sortOrder: z.number().int().min(0),
 });
 
+async function parseJsonBody<T>(req: Request, schema: z.ZodSchema<T>) {
+  try {
+    return schema.safeParse(await req.json());
+  } catch {
+    return { success: false } as const;
+  }
+}
+
 export async function PATCH(req: Request, ctx: { params: Promise<{ questionId: string }> }) {
   await requireDioceseAdmin();
-  const { questionId } = paramsSchema.parse(await ctx.params);
-  const payload = updateQuestionSchema.parse(await req.json());
+  const parsedParams = paramsSchema.safeParse(await ctx.params);
+  if (!parsedParams.success) {
+    return NextResponse.json({ error: "Invalid question request payload" }, { status: 400 });
+  }
+
+  const parsedPayload = await parseJsonBody(req, updateQuestionSchema);
+  if (!parsedPayload.success) {
+    return NextResponse.json({ error: "Invalid question request payload" }, { status: 400 });
+  }
+
+  const { questionId } = parsedParams.data;
+  const payload = parsedPayload.data;
 
   if (payload.correctOptionIndex >= payload.options.length) {
     return NextResponse.json({ error: "correctOptionIndex out of bounds" }, { status: 400 });
