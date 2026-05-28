@@ -55,18 +55,12 @@ export async function GET(req: Request) {
   const { q, onboarding, parishId, role, dioceseAdmin, limit } = parsedQuery.data;
   const supabase = getSupabaseAdminClient();
 
-  const [{ data: users, error: usersError }, { data: memberships, error: membershipsError }, { data: adminRows, error: adminsError }, { data: parishes, error: parishesError }] = await Promise.all([
-    supabase
-      .from("user_profiles")
-      .select("clerk_user_id,email,display_name,onboarding_completed_at,created_at")
-      .order("created_at", { ascending: false })
-      .limit(limit),
+  const [{ data: memberships, error: membershipsError }, { data: adminRows, error: adminsError }, { data: parishes, error: parishesError }] = await Promise.all([
     supabase.from("parish_memberships").select("parish_id,clerk_user_id,role"),
     supabase.from("diocese_admins").select("clerk_user_id"),
     supabase.from("parishes").select("id,name"),
   ]);
 
-  if (usersError) return NextResponse.json({ error: usersError.message }, { status: 400 });
   if (membershipsError) return NextResponse.json({ error: membershipsError.message }, { status: 400 });
   if (adminsError) return NextResponse.json({ error: adminsError.message }, { status: 400 });
   if (parishesError) return NextResponse.json({ error: parishesError.message }, { status: 400 });
@@ -92,7 +86,47 @@ export async function GET(req: Request) {
   });
 
   const dioceseAdminIds = new Set(((adminRows ?? []) as DioceseAdminRow[]).map((row) => row.clerk_user_id));
-  const normalizedQuery = q?.toLowerCase();
+  const candidateUserIds = getCandidateUserIds({
+    memberships: (memberships ?? []) as ParishMembershipRow[],
+    dioceseAdminIds,
+    parishId,
+    role,
+    dioceseAdmin,
+  });
+
+  if (candidateUserIds && candidateUserIds.size === 0) {
+    return NextResponse.json({
+      users: [],
+      parishes: parishRows,
+    });
+  }
+
+  let usersQuery = supabase
+    .from("user_profiles")
+    .select("clerk_user_id,email,display_name,onboarding_completed_at,created_at");
+
+  if (q) {
+    const pattern = escapePostgrestPattern(q);
+    usersQuery = usersQuery.or(
+      `clerk_user_id.ilike.%${pattern}%,display_name.ilike.%${pattern}%,email.ilike.%${pattern}%`,
+    );
+  }
+
+  if (onboarding === "yes") {
+    usersQuery = usersQuery.not("onboarding_completed_at", "is", null);
+  } else if (onboarding === "no") {
+    usersQuery = usersQuery.is("onboarding_completed_at", null);
+  }
+
+  if (candidateUserIds) {
+    usersQuery = usersQuery.in("clerk_user_id", Array.from(candidateUserIds));
+  } else if (dioceseAdmin === "no" && dioceseAdminIds.size > 0) {
+    usersQuery = usersQuery.not("clerk_user_id", "in", formatPostgrestInList(dioceseAdminIds));
+  }
+
+  const { data: users, error: usersError } = await usersQuery.order("created_at", { ascending: false }).limit(limit);
+
+  if (usersError) return NextResponse.json({ error: usersError.message }, { status: 400 });
 
   const filteredUsers = ((users ?? []) as UserProfileRow[])
     .map((user) => {
@@ -104,27 +138,6 @@ export async function GET(req: Request) {
       };
     })
     .filter((user) => {
-      if (!normalizedQuery) return true;
-      return (
-        user.clerk_user_id.toLowerCase().includes(normalizedQuery) ||
-        (user.display_name ?? "").toLowerCase().includes(normalizedQuery) ||
-        (user.email ?? "").toLowerCase().includes(normalizedQuery)
-      );
-    })
-    .filter((user) => {
-      if (onboarding === "yes") return Boolean(user.onboarding_completed_at);
-      if (onboarding === "no") return !user.onboarding_completed_at;
-      return true;
-    })
-    .filter((user) => {
-      if (!parishId) return true;
-      return user.memberships.some((membership) => membership.parish_id === parishId);
-    })
-    .filter((user) => {
-      if (role === "all") return true;
-      return user.memberships.some((membership) => membership.role === role);
-    })
-    .filter((user) => {
       if (dioceseAdmin === "yes") return user.is_diocese_admin;
       if (dioceseAdmin === "no") return !user.is_diocese_admin;
       return true;
@@ -134,4 +147,66 @@ export async function GET(req: Request) {
     users: filteredUsers,
     parishes: parishRows,
   });
+}
+
+function getCandidateUserIds({
+  memberships,
+  dioceseAdminIds,
+  parishId,
+  role,
+  dioceseAdmin,
+}: {
+  memberships: ParishMembershipRow[];
+  dioceseAdminIds: Set<string>;
+  parishId?: string;
+  role: "all" | "parish_admin" | "instructor" | "student";
+  dioceseAdmin: "all" | "yes" | "no";
+}) {
+  let candidates: Set<string> | null = null;
+
+  if (parishId) {
+    candidates = intersectCandidateIds(
+      candidates,
+      new Set(
+        memberships
+          .filter((membership) => membership.parish_id === parishId)
+          .map((membership) => membership.clerk_user_id),
+      ),
+    );
+  }
+
+  if (role !== "all") {
+    candidates = intersectCandidateIds(
+      candidates,
+      new Set(
+        memberships
+          .filter((membership) => membership.role === role)
+          .map((membership) => membership.clerk_user_id),
+      ),
+    );
+  }
+
+  if (dioceseAdmin === "yes") {
+    candidates = intersectCandidateIds(candidates, dioceseAdminIds);
+  }
+
+  return candidates;
+}
+
+function intersectCandidateIds(current: Set<string> | null, next: Set<string>) {
+  if (!current) {
+    return new Set(next);
+  }
+
+  return new Set(Array.from(current).filter((id) => next.has(id)));
+}
+
+function escapePostgrestPattern(value: string) {
+  return value.replaceAll("\\", "\\\\").replaceAll("%", "\\%").replaceAll("_", "\\_").replaceAll(",", "\\,");
+}
+
+function formatPostgrestInList(values: Set<string>) {
+  return `(${Array.from(values)
+    .map((value) => `"${value.replaceAll('"', '\\"')}"`)
+    .join(",")})`;
 }

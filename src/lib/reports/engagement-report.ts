@@ -219,6 +219,7 @@ async function loadDateFilteredReportData(
   }
 
   const courseIdByLessonId = new Map<string, string>();
+  const requiredLessonIdsByCourseId = new Map<string, Set<string>>();
   ((modules ?? []) as ModuleRow[]).forEach((module) => {
     if (!Array.isArray(module.lessons)) {
       return;
@@ -226,6 +227,10 @@ async function loadDateFilteredReportData(
 
     module.lessons.forEach((lesson) => {
       courseIdByLessonId.set(lesson.id, module.course_id);
+      if (!requiredLessonIdsByCourseId.has(module.course_id)) {
+        requiredLessonIdsByCourseId.set(module.course_id, new Set());
+      }
+      requiredLessonIdsByCourseId.get(module.course_id)?.add(lesson.id);
     });
   });
 
@@ -266,9 +271,9 @@ async function loadDateFilteredReportData(
   });
 
   const startedByKey = new Map<string, Set<string>>();
-  const completedByKey = new Map<string, Set<string>>();
+  const completedLessonsByLearnerKey = new Map<string, Set<string>>();
   const startedByPeriod = new Map<string, Set<string>>();
-  const completedByPeriod = new Map<string, Set<string>>();
+  const completedLessonsByPeriodLearnerKey = new Map<string, Set<string>>();
 
   progressRows.forEach((row) => {
     const courseId = courseIdByLessonId.get(row.lesson_id);
@@ -281,9 +286,10 @@ async function loadDateFilteredReportData(
     }
 
     const scopeKey = `${row.parish_id}:${courseId}`;
+    const learnerKey = `${scopeKey}:${row.clerk_user_id}`;
     addSetValue(startedByKey, scopeKey, row.clerk_user_id);
     if (row.completed) {
-      addSetValue(completedByKey, scopeKey, row.clerk_user_id);
+      addSetValue(completedLessonsByLearnerKey, learnerKey, row.lesson_id);
     }
 
     if (typeof row.updated_at === "string" && row.updated_at.length >= 7) {
@@ -291,10 +297,16 @@ async function loadDateFilteredReportData(
       const periodUserKey = `${row.parish_id}:${courseId}:${row.clerk_user_id}`;
       addSetValue(startedByPeriod, period, periodUserKey);
       if (row.completed) {
-        addSetValue(completedByPeriod, period, periodUserKey);
+        addSetValue(completedLessonsByPeriodLearnerKey, `${period}:${periodUserKey}`, row.lesson_id);
       }
     }
   });
+
+  const completedByKey = buildCompletedLearnersByScope(completedLessonsByLearnerKey, requiredLessonIdsByCourseId);
+  const completedByPeriod = buildCompletedLearnersByPeriod(
+    completedLessonsByPeriodLearnerKey,
+    requiredLessonIdsByCourseId,
+  );
 
   const rowKeys = new Set<string>([
     ...enrollmentCountByKey.keys(),
@@ -387,6 +399,54 @@ function addSetValue(map: Map<string, Set<string>>, key: string, value: string) 
     map.set(key, new Set());
   }
   map.get(key)?.add(value);
+}
+
+function buildCompletedLearnersByScope(
+  completedLessonsByLearnerKey: Map<string, Set<string>>,
+  requiredLessonIdsByCourseId: Map<string, Set<string>>,
+) {
+  const completedByKey = new Map<string, Set<string>>();
+
+  completedLessonsByLearnerKey.forEach((completedLessonIds, learnerKey) => {
+    const [parishId, courseId, clerkUserId] = learnerKey.split(":");
+    const requiredLessonIds = requiredLessonIdsByCourseId.get(courseId);
+    if (!requiredLessonIds?.size || !hasCompletedAllLessons(completedLessonIds, requiredLessonIds)) {
+      return;
+    }
+
+    addSetValue(completedByKey, `${parishId}:${courseId}`, clerkUserId);
+  });
+
+  return completedByKey;
+}
+
+function buildCompletedLearnersByPeriod(
+  completedLessonsByPeriodLearnerKey: Map<string, Set<string>>,
+  requiredLessonIdsByCourseId: Map<string, Set<string>>,
+) {
+  const completedByPeriod = new Map<string, Set<string>>();
+
+  completedLessonsByPeriodLearnerKey.forEach((completedLessonIds, periodLearnerKey) => {
+    const [period, parishId, courseId, clerkUserId] = periodLearnerKey.split(":");
+    const requiredLessonIds = requiredLessonIdsByCourseId.get(courseId);
+    if (!requiredLessonIds?.size || !hasCompletedAllLessons(completedLessonIds, requiredLessonIds)) {
+      return;
+    }
+
+    addSetValue(completedByPeriod, period, `${parishId}:${courseId}:${clerkUserId}`);
+  });
+
+  return completedByPeriod;
+}
+
+function hasCompletedAllLessons(completedLessonIds: Set<string>, requiredLessonIds: Set<string>) {
+  for (const lessonId of requiredLessonIds) {
+    if (!completedLessonIds.has(lessonId)) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 function firstErrorMessage(...errors: Array<{ message: string } | null | undefined>) {

@@ -15,7 +15,9 @@ describe("GET /api/admin/reports/engagement/export", () => {
 
   it("returns CSV export", async () => {
     vi.mocked(getSupabaseAdminClient).mockReturnValue({
-      rpc: vi.fn(async () => ({ data: [{ parish_id: "p1", course_id: "c1", learners_started: 2, learners_completed: 1 }] })),
+      rpc: vi.fn(async () => ({
+        data: [{ parish_id: "p1", course_id: "c1", learners_started: 2, learners_completed: 1 }],
+      })),
       from: vi.fn((table: string) => {
         if (table === "parishes") return { select: vi.fn(async () => ({ data: [{ id: "p1", name: "St A" }] })) };
         if (table === "courses") return { select: vi.fn(async () => ({ data: [{ id: "c1", title: "Course" }] })) };
@@ -29,6 +31,26 @@ describe("GET /api/admin/reports/engagement/export", () => {
     const body = await res.text();
     expect(body).toContain("parish,course,enrollment_count");
     expect(body).toContain("\"St A\"");
+  });
+
+  it("neutralizes spreadsheet formulas in exported cells", async () => {
+    vi.mocked(getSupabaseAdminClient).mockReturnValue({
+      rpc: vi.fn(async () => ({
+        data: [{ parish_id: "p1", course_id: "c1", learners_started: 2, learners_completed: 1 }],
+      })),
+      from: vi.fn((table: string) => {
+        if (table === "parishes") return { select: vi.fn(async () => ({ data: [{ id: "p1", name: "=St A" }] })) };
+        if (table === "courses") return { select: vi.fn(async () => ({ data: [{ id: "c1", title: "@Course" }] })) };
+        if (table === "enrollments") return { select: vi.fn(async () => ({ data: [{ parish_id: "p1", course_id: "c1" }] })) };
+        throw new Error(`Unexpected table ${table}`);
+      }),
+    } as never);
+
+    const res = await GET(new Request("http://localhost/api/admin/reports/engagement/export"));
+    const body = await res.text();
+
+    expect(body).toContain("\"'=St A\"");
+    expect(body).toContain("\"'@Course\"");
   });
 
   it("filters rows for export", async () => {
