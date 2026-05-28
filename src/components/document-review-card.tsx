@@ -26,28 +26,32 @@ export function DocumentReviewCard({
     setSubmitting(true);
     setMessage("");
 
-    const response = await fetch("/api/progress", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        lessonId,
-        parishId,
-        percentWatched: 100,
-        lastPositionSeconds: 0,
-        completed: true,
-      }),
-    });
+    try {
+      const response = await fetch("/api/progress", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lessonId,
+          parishId,
+          percentWatched: 100,
+          lastPositionSeconds: 0,
+          completed: true,
+        }),
+      });
 
-    const data = await response.json();
+      const data = (await response.json()) as { error?: string };
 
-    if (response.ok) {
-      setCompleted(true);
-      setMessage("Section marked as reviewed.");
-    } else {
-      setMessage(data.error ?? "Unable to update review status.");
+      if (response.ok) {
+        setCompleted(true);
+        setMessage("Section marked as reviewed.");
+      } else {
+        setMessage(data.error ?? "Unable to update review status.");
+      }
+    } catch {
+      setMessage("Unable to update review status.");
+    } finally {
+      setSubmitting(false);
     }
-
-    setSubmitting(false);
   }
 
   return (
