@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -13,16 +13,30 @@ export function AdminMembershipForm() {
   const [role, setRole] = useState("student");
   const [makeDioceseAdmin, setMakeDioceseAdmin] = useState(false);
   const [message, setMessage] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
 
   async function submit() {
-    const response = await fetch("/api/admin-membership", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ clerkUserId, parishId: parishId || undefined, role, makeDioceseAdmin }),
-    });
+    if (submittingRef.current) {
+      return;
+    }
 
-    const data = await response.json();
-    setMessage(response.ok ? "Saved" : data.error ?? "Failed");
+    submittingRef.current = true;
+    setSubmitting(true);
+
+    try {
+      const response = await fetch("/api/admin-membership", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clerkUserId, parishId: parishId || undefined, role, makeDioceseAdmin }),
+      });
+
+      const data = await response.json();
+      setMessage(response.ok ? "Saved" : data.error ?? "Failed");
+    } finally {
+      submittingRef.current = false;
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -62,8 +76,8 @@ export function AdminMembershipForm() {
         />
         Make Diocese Admin
       </label>
-      <Button onClick={submit} size="sm" type="button">
-        Add membership
+      <Button aria-busy={submitting} disabled={submitting} onClick={submit} size="sm" type="button">
+        {submitting ? "Saving..." : "Add membership"}
       </Button>
       {message && <p className="mt-3 text-[13px] text-muted-foreground">{message}</p>}
     </div>
