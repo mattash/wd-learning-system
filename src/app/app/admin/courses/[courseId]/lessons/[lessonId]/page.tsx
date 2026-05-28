@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { AdminLessonQuestionManager } from "@/components/admin-lesson-question-manager";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { requireDioceseAdmin } from "@/lib/authz";
 import { getCourseLessonContentForAdmin } from "@/lib/repositories/diocese-admin";
 
 export default async function DioceseAdminLessonQuestionsPage({
@@ -12,6 +13,8 @@ export default async function DioceseAdminLessonQuestionsPage({
   params: Promise<{ courseId: string; lessonId: string }>;
 }) {
   const { courseId, lessonId } = await params;
+  await requireDioceseAdmin();
+
   const data = await getCourseLessonContentForAdmin(courseId, lessonId);
 
   if (!data) {
