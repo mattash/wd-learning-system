@@ -26,4 +26,15 @@ describe("POST /api/admin/courses/[courseId]/modules", () => {
 
     expect(res.status).toBe(201);
   });
+
+  it("returns 400 for invalid module payloads", async () => {
+    const res = await POST(
+      new Request("http://x", { method: "POST", body: JSON.stringify({ title: "", sortOrder: -1 }) }),
+      { params: Promise.resolve({ courseId: "11111111-1111-4111-8111-111111111111" }) },
+    );
+
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toEqual({ error: "Invalid module request payload" });
+    expect(getSupabaseAdminClient).not.toHaveBeenCalled();
+  });
 });

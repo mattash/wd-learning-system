@@ -36,7 +36,13 @@ export async function GET() {
 
 export async function POST(req: Request) {
   await requireDioceseAdmin();
-  const payload = createCourseSchema.parse(await req.json());
+  let payload: z.infer<typeof createCourseSchema>;
+
+  try {
+    payload = createCourseSchema.parse(await req.json());
+  } catch {
+    return NextResponse.json({ error: "Invalid course request payload" }, { status: 400 });
+  }
 
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase

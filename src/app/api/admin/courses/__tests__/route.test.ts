@@ -85,6 +85,19 @@ describe("/api/admin/courses", () => {
     await expect(response.json()).resolves.toEqual({ error: "bad payload" });
   });
 
+  it("returns 400 for invalid create payloads", async () => {
+    const response = await POST(
+      new Request("http://localhost/api/admin/courses", {
+        method: "POST",
+        body: JSON.stringify({ title: "Course A", scope: "BAD" }),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "Invalid course request payload" });
+    expect(getSupabaseAdminClient).not.toHaveBeenCalled();
+  });
+
   it("updates a course", async () => {
     const single = vi.fn(async () => ({ data: { id: "c1", title: "Updated" }, error: null }));
     const select = vi.fn(() => ({ single }));
@@ -127,6 +140,20 @@ describe("/api/admin/courses", () => {
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({ error: "not found" });
+  });
+
+  it("returns 400 for invalid update route params", async () => {
+    const response = await PATCH(
+      new Request("http://localhost/api/admin/courses/not-a-uuid", {
+        method: "PATCH",
+        body: JSON.stringify({ title: "Updated", description: null, scope: "PARISH", published: true }),
+      }),
+      { params: Promise.resolve({ courseId: "not-a-uuid" }) },
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "Invalid course request payload" });
+    expect(getSupabaseAdminClient).not.toHaveBeenCalled();
   });
 
   it("deletes a course", async () => {
