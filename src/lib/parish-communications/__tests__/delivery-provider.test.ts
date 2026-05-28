@@ -22,6 +22,64 @@ describe("getParishDeliveryConfig", () => {
       provider: "mock",
     });
   });
+
+  it("enables resend when configured with all env vars", () => {
+    process.env.PARISH_COMMUNICATIONS_DELIVERY_MODE = "resend";
+    process.env.RESEND_API_KEY = "re_test_key";
+    process.env.RESEND_FROM_EMAIL = "parish@test.com";
+
+    expect(getParishDeliveryConfig()).toEqual({
+      enabled: true,
+      provider: "resend",
+      resendApiKey: "re_test_key",
+      resendFromEmail: "parish@test.com",
+    });
+
+    delete process.env.RESEND_API_KEY;
+    delete process.env.RESEND_FROM_EMAIL;
+  });
+
+  it("falls back to disabled when resend is configured but missing api key", () => {
+    process.env.PARISH_COMMUNICATIONS_DELIVERY_MODE = "resend";
+    process.env.RESEND_FROM_EMAIL = "parish@test.com";
+
+    expect(getParishDeliveryConfig()).toEqual({
+      enabled: false,
+      provider: null,
+    });
+
+    delete process.env.RESEND_FROM_EMAIL;
+  });
+
+  it("falls back to disabled when resend is configured but missing from email", () => {
+    process.env.PARISH_COMMUNICATIONS_DELIVERY_MODE = "resend";
+    process.env.RESEND_API_KEY = "re_test_key";
+
+    expect(getParishDeliveryConfig()).toEqual({
+      enabled: false,
+      provider: null,
+    });
+
+    delete process.env.RESEND_API_KEY;
+  });
+
+  it("returns disabled for unknown delivery mode", () => {
+    process.env.PARISH_COMMUNICATIONS_DELIVERY_MODE = "smtp";
+
+    expect(getParishDeliveryConfig()).toEqual({
+      enabled: false,
+      provider: null,
+    });
+  });
+
+  it("returns disabled when mode is explicitly set to disabled", () => {
+    process.env.PARISH_COMMUNICATIONS_DELIVERY_MODE = "disabled";
+
+    expect(getParishDeliveryConfig()).toEqual({
+      enabled: false,
+      provider: null,
+    });
+  });
 });
 
 describe("deliverParishMessage", () => {
@@ -50,6 +108,37 @@ describe("deliverParishMessage", () => {
     expect(result).toEqual({
       sent: ["u-1"],
       failed: [{ clerkUserId: "u-2", error: "Recipient has no email on file." }],
+    });
+  });
+
+  it("sends to all recipients when all have valid emails", async () => {
+    const result = await deliverParishMessage({
+      provider: "mock",
+      subject: "Subject",
+      body: "Body",
+      recipients: [
+        { clerkUserId: "u-1", email: "u1@example.com" },
+        { clerkUserId: "u-2", email: "u2@example.com" },
+      ],
+    });
+
+    expect(result).toEqual({
+      sent: ["u-1", "u-2"],
+      failed: [],
+    });
+  });
+
+  it("returns empty sent and failed when recipients array is empty", async () => {
+    const result = await deliverParishMessage({
+      provider: "mock",
+      subject: "Subject",
+      body: "Body",
+      recipients: [],
+    });
+
+    expect(result).toEqual({
+      sent: [],
+      failed: [],
     });
   });
 });
