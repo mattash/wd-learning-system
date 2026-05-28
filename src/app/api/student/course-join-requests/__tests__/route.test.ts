@@ -19,6 +19,7 @@ describe("POST /api/student/course-join-requests", () => {
     vi.mocked(requireParishRole).mockResolvedValue({
       clerkUserId: "student-1",
       parishId: "11111111-1111-4111-8111-111111111111",
+      role: "student",
     });
   });
 

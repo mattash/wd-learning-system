@@ -13,7 +13,21 @@ const schema = z.object({
 
 export async function POST(req: Request) {
   await requireDioceseAdmin();
-  const payload = schema.parse(await req.json());
+  let payload: z.infer<typeof schema>;
+
+  try {
+    payload = schema.parse(await req.json());
+  } catch {
+    return NextResponse.json({ error: "Invalid admin membership request payload" }, { status: 400 });
+  }
+
+  const hasParishMembershipChange = Boolean(payload.parishId && payload.role);
+  const hasPartialParishMembershipChange = Boolean(payload.parishId || payload.role) && !hasParishMembershipChange;
+
+  if (hasPartialParishMembershipChange || (!payload.makeDioceseAdmin && !hasParishMembershipChange)) {
+    return NextResponse.json({ error: "Invalid admin membership request payload" }, { status: 400 });
+  }
+
   const supabase = getSupabaseAdminClient();
 
   if (payload.makeDioceseAdmin) {
@@ -23,7 +37,7 @@ export async function POST(req: Request) {
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
-  if (payload.parishId && payload.role) {
+  if (hasParishMembershipChange) {
     const { error } = await supabase.from("parish_memberships").upsert(
       {
         parish_id: payload.parishId,
