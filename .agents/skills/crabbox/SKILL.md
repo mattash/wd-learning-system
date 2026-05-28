@@ -8,7 +8,7 @@ description: Use Crabbox for remote Linux validation in the WD Learning System r
 Use Crabbox when this Next.js learning system needs remote Linux verification on
 Hetzner.
 
-Run from `/Users/oshii/Projects/wd-learning-system`:
+Run from the repository root:
 
 - Full CI-style check: `scripts/crabbox-validate.sh ci`
 - Lint only: `scripts/crabbox-validate.sh lint`
