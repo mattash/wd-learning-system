@@ -188,6 +188,8 @@ function getCandidateUserIds({
 
   if (dioceseAdmin === "yes") {
     candidates = intersectCandidateIds(candidates, dioceseAdminIds);
+  } else if (dioceseAdmin === "no" && candidates && dioceseAdminIds.size > 0) {
+    candidates = new Set(Array.from(candidates).filter((id) => !dioceseAdminIds.has(id)));
   }
 
   return candidates;

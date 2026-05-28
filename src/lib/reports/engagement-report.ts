@@ -273,7 +273,7 @@ async function loadDateFilteredReportData(
   const startedByKey = new Map<string, Set<string>>();
   const completedLessonsByLearnerKey = new Map<string, Set<string>>();
   const startedByPeriod = new Map<string, Set<string>>();
-  const completedLessonsByPeriodLearnerKey = new Map<string, Set<string>>();
+  const lastCompletionAtByLearnerKey = new Map<string, string>();
 
   progressRows.forEach((row) => {
     const courseId = courseIdByLessonId.get(row.lesson_id);
@@ -290,22 +290,24 @@ async function loadDateFilteredReportData(
     addSetValue(startedByKey, scopeKey, row.clerk_user_id);
     if (row.completed) {
       addSetValue(completedLessonsByLearnerKey, learnerKey, row.lesson_id);
+      const existingCompletionAt = lastCompletionAtByLearnerKey.get(learnerKey);
+      if (!existingCompletionAt || row.updated_at > existingCompletionAt) {
+        lastCompletionAtByLearnerKey.set(learnerKey, row.updated_at);
+      }
     }
 
     if (typeof row.updated_at === "string" && row.updated_at.length >= 7) {
       const period = row.updated_at.slice(0, 7);
       const periodUserKey = `${row.parish_id}:${courseId}:${row.clerk_user_id}`;
       addSetValue(startedByPeriod, period, periodUserKey);
-      if (row.completed) {
-        addSetValue(completedLessonsByPeriodLearnerKey, `${period}:${periodUserKey}`, row.lesson_id);
-      }
     }
   });
 
   const completedByKey = buildCompletedLearnersByScope(completedLessonsByLearnerKey, requiredLessonIdsByCourseId);
   const completedByPeriod = buildCompletedLearnersByPeriod(
-    completedLessonsByPeriodLearnerKey,
+    completedLessonsByLearnerKey,
     requiredLessonIdsByCourseId,
+    lastCompletionAtByLearnerKey,
   );
 
   const rowKeys = new Set<string>([
@@ -421,18 +423,25 @@ function buildCompletedLearnersByScope(
 }
 
 function buildCompletedLearnersByPeriod(
-  completedLessonsByPeriodLearnerKey: Map<string, Set<string>>,
+  completedLessonsByLearnerKey: Map<string, Set<string>>,
   requiredLessonIdsByCourseId: Map<string, Set<string>>,
+  lastCompletionAtByLearnerKey: Map<string, string>,
 ) {
   const completedByPeriod = new Map<string, Set<string>>();
 
-  completedLessonsByPeriodLearnerKey.forEach((completedLessonIds, periodLearnerKey) => {
-    const [period, parishId, courseId, clerkUserId] = periodLearnerKey.split(":");
+  completedLessonsByLearnerKey.forEach((completedLessonIds, learnerKey) => {
+    const [parishId, courseId, clerkUserId] = learnerKey.split(":");
     const requiredLessonIds = requiredLessonIdsByCourseId.get(courseId);
     if (!requiredLessonIds?.size || !hasCompletedAllLessons(completedLessonIds, requiredLessonIds)) {
       return;
     }
 
+    const lastCompletionAt = lastCompletionAtByLearnerKey.get(learnerKey);
+    if (!lastCompletionAt || lastCompletionAt.length < 7) {
+      return;
+    }
+
+    const period = lastCompletionAt.slice(0, 7);
     addSetValue(completedByPeriod, period, `${parishId}:${courseId}:${clerkUserId}`);
   });
 
