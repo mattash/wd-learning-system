@@ -48,6 +48,12 @@ describe("DioceseAdminCoursesPage", () => {
     expect(screen.getByText("Course manager: 1")).toBeInTheDocument();
   });
 
+  it("does not render a create link to an unimplemented course detail route", async () => {
+    render(await DioceseAdminCoursesPage());
+
+    expect(screen.queryByRole("link", { name: /create course/i })).not.toBeInTheDocument();
+  });
+
   it("does not load course data when the guard rejects access", async () => {
     const accessError = new Error("redirect");
     vi.mocked(requireDioceseAdmin).mockRejectedValue(accessError);
