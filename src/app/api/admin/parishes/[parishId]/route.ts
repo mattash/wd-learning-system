@@ -17,8 +17,25 @@ const updateParishSchema = z.object({
 
 export async function PATCH(req: Request, ctx: { params: Promise<{ parishId: string }> }) {
   const actorUserId = await requireDioceseAdmin();
-  const { parishId } = paramsSchema.parse(await ctx.params);
-  const payload = updateParishSchema.parse(await req.json());
+  const parsedParams = paramsSchema.safeParse(await ctx.params);
+  if (!parsedParams.success) {
+    return NextResponse.json({ error: "Invalid parish request payload" }, { status: 400 });
+  }
+  const { parishId } = parsedParams.data;
+
+  let rawPayload: unknown;
+  try {
+    rawPayload = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid parish request payload" }, { status: 400 });
+  }
+
+  const parsedPayload = updateParishSchema.safeParse(rawPayload);
+  if (!parsedPayload.success) {
+    return NextResponse.json({ error: "Invalid parish request payload" }, { status: 400 });
+  }
+
+  const payload = parsedPayload.data;
 
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
@@ -53,7 +70,11 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ parishId: str
 
 export async function DELETE(_req: Request, ctx: { params: Promise<{ parishId: string }> }) {
   const actorUserId = await requireDioceseAdmin();
-  const { parishId } = paramsSchema.parse(await ctx.params);
+  const parsedParams = paramsSchema.safeParse(await ctx.params);
+  if (!parsedParams.success) {
+    return NextResponse.json({ error: "Invalid parish request payload" }, { status: 400 });
+  }
+  const { parishId } = parsedParams.data;
 
   const supabase = getSupabaseAdminClient();
   const { error } = await supabase.from("parishes").delete().eq("id", parishId);
