@@ -188,6 +188,7 @@ export async function POST(req: Request) {
   );
 
   if (recipientInsertError) {
+    await supabase.from("parish_message_sends").delete().eq("id", send.id as string);
     return NextResponse.json({ error: recipientInsertError.message }, { status: 400 });
   }
 
