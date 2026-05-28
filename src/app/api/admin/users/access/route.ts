@@ -16,7 +16,13 @@ const schema = z.object({
 
 export async function POST(req: Request) {
   const actorUserId = await requireDioceseAdmin();
-  const payload = schema.parse(await req.json());
+
+  let payload: z.infer<typeof schema>;
+  try {
+    payload = schema.parse(await req.json());
+  } catch {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
 
   const requestedMutationCount = [
     payload.makeDioceseAdmin,

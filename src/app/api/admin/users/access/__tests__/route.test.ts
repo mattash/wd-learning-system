@@ -157,6 +157,18 @@ describe("POST /api/admin/users/access", () => {
     await expect(response.json()).resolves.toEqual({ error: "cannot promote" });
   });
 
+  it("returns 400 for invalid JSON body", async () => {
+    const response = await POST(
+      new Request("http://localhost/api/admin/users/access", {
+        method: "POST",
+        body: "not-json",
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "Invalid request body" });
+  });
+
   it("returns 400 when parish membership delete fails", async () => {
     vi.mocked(getSupabaseAdminClient).mockReturnValue({
       from: vi.fn((table: string) => {
