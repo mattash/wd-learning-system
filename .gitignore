@@ -49,4 +49,6 @@ next-env.d.ts
 .temp/
 parish-leaders-course-videos/
 
+.agents
+.crabbox*
 .clawpatch/
