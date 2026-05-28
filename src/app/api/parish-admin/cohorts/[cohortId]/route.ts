@@ -78,18 +78,51 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ cohortId: str
     return NextResponse.json({ error: "Only parish admins can reassign facilitators." }, { status: 403 });
   }
 
+  const hasFacilitatorClerkUserId = Object.prototype.hasOwnProperty.call(payload, "facilitatorClerkUserId");
+  const hasNextSessionAt = Object.prototype.hasOwnProperty.call(payload, "nextSessionAt");
+  const cohortUpdates: {
+    name: string;
+    cadence: z.infer<typeof cadenceSchema>;
+    updated_at: string;
+    facilitator_clerk_user_id?: string | null;
+    next_session_at?: string | null;
+  } = {
+    name: payload.name,
+    cadence: payload.cadence,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (role === "parish_admin" && hasFacilitatorClerkUserId) {
+    cohortUpdates.facilitator_clerk_user_id = payload.facilitatorClerkUserId ?? null;
+  }
+
+  if (hasNextSessionAt) {
+    cohortUpdates.next_session_at = payload.nextSessionAt ?? null;
+  }
+
+  const auditDetails: {
+    parish_id: string;
+    name: string;
+    cadence: z.infer<typeof cadenceSchema>;
+    facilitator_clerk_user_id?: string | null;
+    next_session_at?: string | null;
+  } = {
+    parish_id: parishId,
+    name: payload.name,
+    cadence: payload.cadence,
+  };
+
+  if (role === "parish_admin" && hasFacilitatorClerkUserId) {
+    auditDetails.facilitator_clerk_user_id = payload.facilitatorClerkUserId ?? null;
+  }
+
+  if (hasNextSessionAt) {
+    auditDetails.next_session_at = payload.nextSessionAt ?? null;
+  }
+
   const { data, error } = await supabase
     .from("cohorts")
-    .update({
-      name: payload.name,
-      facilitator_clerk_user_id:
-        role === "parish_admin"
-          ? (payload.facilitatorClerkUserId ?? null)
-          : existingCohort.facilitator_clerk_user_id,
-      cadence: payload.cadence,
-      next_session_at: payload.nextSessionAt ?? null,
-      updated_at: new Date().toISOString(),
-    })
+    .update(cohortUpdates)
     .eq("id", cohortId)
     .eq("parish_id", parishId)
     .select("id,name,facilitator_clerk_user_id,cadence,next_session_at,created_at,updated_at")
@@ -104,13 +137,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ cohortId: str
     action: "parish.cohort_updated",
     resourceType: "cohort",
     resourceId: cohortId,
-    details: {
-      parish_id: parishId,
-      name: payload.name,
-      facilitator_clerk_user_id: payload.facilitatorClerkUserId ?? null,
-      cadence: payload.cadence,
-      next_session_at: payload.nextSessionAt ?? null,
-    },
+    details: auditDetails,
   });
 
   return NextResponse.json({ cohort: data });
