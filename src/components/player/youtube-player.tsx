@@ -48,6 +48,31 @@ async function saveProgress(payload: {
   });
 }
 
+function saveProgressOnUnload(payload: {
+  lessonId: string;
+  parishId: string;
+  lastPositionSeconds: number;
+  percentWatched: number;
+  completed: boolean;
+}) {
+  const body = JSON.stringify(payload);
+
+  if (navigator.sendBeacon) {
+    navigator.sendBeacon(
+      "/api/progress",
+      new Blob([body], { type: "application/json" }),
+    );
+    return;
+  }
+
+  void fetch("/api/progress", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body,
+    keepalive: true,
+  });
+}
+
 export function YoutubePlayer({
   lessonId,
   parishId,
@@ -65,22 +90,36 @@ export function YoutubePlayer({
     [lessonId],
   );
 
-  const flushProgress = useCallback(
-    async (forcedCompleted = false) => {
-      if (!playerRef.current) return;
+  const buildProgressPayload = useCallback(
+    (forcedCompleted = false) => {
+      if (!playerRef.current) return null;
       const duration = Math.max(1, playerRef.current.getDuration?.() || 1);
       const lastPosition = Math.floor(playerRef.current.getCurrentTime?.() || 0);
       const percent = Math.min(100, Math.round((lastPosition / duration) * 100));
-      await saveProgress({
+
+      return {
         lessonId,
         parishId,
         lastPositionSeconds: lastPosition,
         percentWatched: percent,
         completed: forcedCompleted || percent >= 90,
-      });
+      };
     },
     [lessonId, parishId],
   );
+
+  const flushProgress = useCallback(
+    async (forcedCompleted = false) => {
+      const payload = buildProgressPayload(forcedCompleted);
+      if (payload) await saveProgress(payload);
+    },
+    [buildProgressPayload],
+  );
+
+  const flushProgressOnUnload = useCallback(() => {
+    const payload = buildProgressPayload(false);
+    if (payload) saveProgressOnUnload(payload);
+  }, [buildProgressPayload]);
 
   useEffect(() => {
     window.onYouTubeIframeAPIReady = () => setApiReady(true);
@@ -129,7 +168,7 @@ export function YoutubePlayer({
     playerRef.current = player;
 
     const onBeforeUnload = () => {
-      void flushProgress(false);
+      flushProgressOnUnload();
     };
 
     window.addEventListener("beforeunload", onBeforeUnload);
@@ -141,7 +180,14 @@ export function YoutubePlayer({
       player.destroy();
       playerRef.current = null;
     };
-  }, [apiReady, flushProgress, playerContainerId, resumeSeconds, videoId]);
+  }, [
+    apiReady,
+    flushProgress,
+    flushProgressOnUnload,
+    playerContainerId,
+    resumeSeconds,
+    videoId,
+  ]);
 
   return (
     <>
