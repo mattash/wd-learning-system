@@ -33,6 +33,8 @@ export function AdminMembershipForm() {
 
       const data = await response.json();
       setMessage(response.ok ? "Saved" : data.error ?? "Failed");
+    } catch {
+      setMessage("Request failed. Check your connection and try again.");
     } finally {
       submittingRef.current = false;
       setSubmitting(false);
