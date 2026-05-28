@@ -38,7 +38,7 @@ describe("DioceseAdminParishesPage", () => {
   it("requires a diocese admin before rendering parish data", async () => {
     render(await DioceseAdminParishesPage());
 
-    expect(requireDioceseAdmin).toHaveBeenCalledBefore(listParishes);
+    expect(vi.mocked(requireDioceseAdmin)).toHaveBeenCalledBefore(vi.mocked(listParishes));
     expect(listParishes).toHaveBeenCalledWith(100);
     expect(screen.getByRole("heading", { name: "Parishes" })).toBeInTheDocument();
     expect(screen.getByText("Parish manager: 1")).toBeInTheDocument();

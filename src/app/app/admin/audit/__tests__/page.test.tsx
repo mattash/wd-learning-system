@@ -39,7 +39,7 @@ describe("DioceseAdminAuditPage", () => {
   it("requires a diocese admin before rendering audit logs", async () => {
     render(await DioceseAdminAuditPage());
 
-    expect(requireDioceseAdmin).toHaveBeenCalledBefore(listAdminAuditLogs);
+    expect(vi.mocked(requireDioceseAdmin)).toHaveBeenCalledBefore(vi.mocked(listAdminAuditLogs));
     expect(listAdminAuditLogs).toHaveBeenCalledWith({ limit: 100 });
     expect(screen.getByRole("heading", { name: "Audit Logs" })).toBeInTheDocument();
     expect(screen.getByText("Audit logs: 1")).toBeInTheDocument();

@@ -50,7 +50,7 @@ describe("DioceseAdminUsersPage", () => {
   it("requires a diocese admin before rendering directory data", async () => {
     render(await DioceseAdminUsersPage());
 
-    expect(requireDioceseAdmin).toHaveBeenCalledBefore(listDioceseUserDirectory);
+    expect(vi.mocked(requireDioceseAdmin)).toHaveBeenCalledBefore(vi.mocked(listDioceseUserDirectory));
     expect(listDioceseUserDirectory).toHaveBeenCalledWith(200);
     expect(screen.getByRole("heading", { name: "Users" })).toBeInTheDocument();
     expect(screen.getByText("Directory users: 1; parishes: 1")).toBeInTheDocument();

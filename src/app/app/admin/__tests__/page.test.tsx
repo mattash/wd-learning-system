@@ -32,7 +32,7 @@ describe("DioceseAdminPage", () => {
   it("requires a diocese admin before rendering overview data", async () => {
     render(await DioceseAdminPage());
 
-    expect(requireDioceseAdmin).toHaveBeenCalledBefore(getDioceseOverview);
+    expect(vi.mocked(requireDioceseAdmin)).toHaveBeenCalledBefore(vi.mocked(getDioceseOverview));
     expect(screen.getByText("Parishes")).toBeInTheDocument();
     expect(screen.getByText("2")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Open access tool →" })).toHaveAttribute(
