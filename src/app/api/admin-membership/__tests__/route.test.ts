@@ -18,17 +18,9 @@ describe("POST /api/admin-membership", () => {
     vi.mocked(requireDioceseAdmin).mockResolvedValue("admin-1");
   });
 
-  it("creates diocese admin and parish membership when requested", async () => {
-    const dioceseUpsert = vi.fn(async () => ({ error: null }));
-    const membershipUpsert = vi.fn(async () => ({ error: null }));
-
-    vi.mocked(getSupabaseAdminClient).mockReturnValue({
-      from: vi.fn((table: string) => {
-        if (table === "diocese_admins") return { upsert: dioceseUpsert };
-        if (table === "parish_memberships") return { upsert: membershipUpsert };
-        throw new Error(`Unexpected table ${table}`);
-      }),
-    } as never);
+  it("rejects combined diocese admin and parish membership changes", async () => {
+    const from = vi.fn();
+    vi.mocked(getSupabaseAdminClient).mockReturnValue({ from } as never);
 
     const response = await POST(
       new Request("http://localhost/api/admin-membership", {
@@ -42,17 +34,9 @@ describe("POST /api/admin-membership", () => {
       }),
     );
 
-    expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toEqual({ ok: true });
-    expect(dioceseUpsert).toHaveBeenCalledWith({ clerk_user_id: "user-2" });
-    expect(membershipUpsert).toHaveBeenCalledWith(
-      {
-        parish_id: "11111111-1111-4111-8111-111111111111",
-        clerk_user_id: "user-2",
-        role: "instructor",
-      },
-      { onConflict: "parish_id,clerk_user_id" },
-    );
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "Only one membership change may be requested at a time" });
+    expect(from).not.toHaveBeenCalled();
   });
 
   it("returns 400 when diocese upsert fails", async () => {
@@ -167,4 +151,5 @@ describe("POST /api/admin-membership", () => {
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({ error: "invalid role" });
   });
+
 });

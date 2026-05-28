@@ -28,6 +28,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid admin membership request payload" }, { status: 400 });
   }
 
+  if (payload.makeDioceseAdmin && hasParishMembershipChange) {
+    return NextResponse.json(
+      { error: "Only one membership change may be requested at a time" },
+      { status: 400 },
+    );
+  }
+
   const supabase = getSupabaseAdminClient();
 
   if (payload.makeDioceseAdmin) {
