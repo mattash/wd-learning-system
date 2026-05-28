@@ -82,7 +82,7 @@ async function joinParish(formData: FormData) {
       clerk_user_id: userId,
       role: "student",
     },
-    { onConflict: "parish_id,clerk_user_id" },
+    { onConflict: "parish_id,clerk_user_id", ignoreDuplicates: true },
   );
 
   if (error) {
