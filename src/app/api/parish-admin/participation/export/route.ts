@@ -68,7 +68,9 @@ function filterRows({
 }
 
 function csvValue(value: string | number | null) {
-  return `"${String(value ?? "").replaceAll('"', '""')}"`;
+  const text = String(value ?? "");
+  const safeText = /^[=+\-@\t\r]/.test(text) ? `'${text}` : text;
+  return `"${safeText.replaceAll('"', '""')}"`;
 }
 
 export async function GET(req: Request) {

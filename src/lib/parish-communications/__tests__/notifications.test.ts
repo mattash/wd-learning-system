@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fail, ok } from "@/test/supabase-route-mocks";
+import { ok } from "@/test/supabase-route-mocks";
 
 vi.mock("@/lib/supabase/server", () => ({
   getSupabaseAdminClient: vi.fn(),
@@ -102,6 +102,43 @@ describe("notifyJoinRequestApproved", () => {
     vi.clearAllMocks();
   });
 
+  it("does nothing when delivery is disabled", async () => {
+    vi.mocked(getParishDeliveryConfig).mockReturnValue({ enabled: false, provider: null });
+    await notifyJoinRequestApproved({
+      clerkUserId: "user-1",
+      parishId: "parish-1",
+      courseId: "course-1",
+    });
+    expect(deliverParishMessage).not.toHaveBeenCalled();
+  });
+
+  it("does nothing when provider is not configured", async () => {
+    vi.mocked(getParishDeliveryConfig).mockReturnValue({ enabled: true, provider: null });
+    await notifyJoinRequestApproved({
+      clerkUserId: "user-1",
+      parishId: "parish-1",
+      courseId: "course-1",
+    });
+    expect(deliverParishMessage).not.toHaveBeenCalled();
+  });
+
+  it("does nothing when user has no email", async () => {
+    vi.mocked(getParishDeliveryConfig).mockReturnValue({ enabled: true, provider: "mock" });
+    vi.mocked(getSupabaseAdminClient).mockReturnValue({
+      from: vi.fn(() => ({
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({ maybeSingle: vi.fn(async () => ({ data: null, error: null })) })),
+        })),
+      })),
+    } as never);
+    await notifyJoinRequestApproved({
+      clerkUserId: "user-1",
+      parishId: "parish-1",
+      courseId: "course-1",
+    });
+    expect(deliverParishMessage).not.toHaveBeenCalled();
+  });
+
   it("sends approval email with correct subject and body", async () => {
     vi.mocked(getParishDeliveryConfig).mockReturnValue({ enabled: true, provider: "mock" });
 
@@ -139,6 +176,43 @@ describe("notifyJoinRequestRejected", () => {
     vi.clearAllMocks();
   });
 
+  it("does nothing when delivery is disabled", async () => {
+    vi.mocked(getParishDeliveryConfig).mockReturnValue({ enabled: false, provider: null });
+    await notifyJoinRequestRejected({
+      clerkUserId: "user-1",
+      parishId: "parish-1",
+      courseId: "course-1",
+    });
+    expect(deliverParishMessage).not.toHaveBeenCalled();
+  });
+
+  it("does nothing when provider is not configured", async () => {
+    vi.mocked(getParishDeliveryConfig).mockReturnValue({ enabled: true, provider: null });
+    await notifyJoinRequestRejected({
+      clerkUserId: "user-1",
+      parishId: "parish-1",
+      courseId: "course-1",
+    });
+    expect(deliverParishMessage).not.toHaveBeenCalled();
+  });
+
+  it("does nothing when user has no email", async () => {
+    vi.mocked(getParishDeliveryConfig).mockReturnValue({ enabled: true, provider: "mock" });
+    vi.mocked(getSupabaseAdminClient).mockReturnValue({
+      from: vi.fn(() => ({
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({ maybeSingle: vi.fn(async () => ({ data: null, error: null })) })),
+        })),
+      })),
+    } as never);
+    await notifyJoinRequestRejected({
+      clerkUserId: "user-1",
+      parishId: "parish-1",
+      courseId: "course-1",
+    });
+    expect(deliverParishMessage).not.toHaveBeenCalled();
+  });
+
   it("sends rejection email with correct subject and body", async () => {
     vi.mocked(getParishDeliveryConfig).mockReturnValue({ enabled: true, provider: "mock" });
 
@@ -174,6 +248,43 @@ describe("notifyJoinRequestRejected", () => {
 describe("notifyEnrollmentConfirmed", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("does nothing when delivery is disabled", async () => {
+    vi.mocked(getParishDeliveryConfig).mockReturnValue({ enabled: false, provider: null });
+    await notifyEnrollmentConfirmed({
+      clerkUserId: "user-1",
+      parishId: "parish-1",
+      courseId: "course-1",
+    });
+    expect(deliverParishMessage).not.toHaveBeenCalled();
+  });
+
+  it("does nothing when provider is not configured", async () => {
+    vi.mocked(getParishDeliveryConfig).mockReturnValue({ enabled: true, provider: null });
+    await notifyEnrollmentConfirmed({
+      clerkUserId: "user-1",
+      parishId: "parish-1",
+      courseId: "course-1",
+    });
+    expect(deliverParishMessage).not.toHaveBeenCalled();
+  });
+
+  it("does nothing when user has no email", async () => {
+    vi.mocked(getParishDeliveryConfig).mockReturnValue({ enabled: true, provider: "mock" });
+    vi.mocked(getSupabaseAdminClient).mockReturnValue({
+      from: vi.fn(() => ({
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({ maybeSingle: vi.fn(async () => ({ data: null, error: null })) })),
+        })),
+      })),
+    } as never);
+    await notifyEnrollmentConfirmed({
+      clerkUserId: "user-1",
+      parishId: "parish-1",
+      courseId: "course-1",
+    });
+    expect(deliverParishMessage).not.toHaveBeenCalled();
   });
 
   it("sends enrollment confirmation email with correct data", async () => {

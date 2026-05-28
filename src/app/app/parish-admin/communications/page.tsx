@@ -4,17 +4,13 @@ import { requireParishRole } from "@/lib/authz";
 import { getParishAdminDashboardDataForUser } from "@/lib/repositories/parish-admin";
 
 export default async function CommunicationsPage() {
-  const { parishId, role, clerkUserId } = await requireParishRole("instructor");
-  const data = await getParishAdminDashboardDataForUser({ parishId, role, clerkUserId });
+  const { parishId, role, clerkUserId } = await requireParishRole("parish_admin");
 
   if (role !== "parish_admin") {
     return null;
   }
 
-  function firstValue(value: string | string[] | undefined) {
-    if (Array.isArray(value)) return value[0];
-    return value;
-  }
+  const data = await getParishAdminDashboardDataForUser({ parishId, role, clerkUserId });
 
   // Communications page doesn't use prefill from search params in this tabbed version
   const prefill = { audienceType: null, audienceValue: null, subject: null, body: null };

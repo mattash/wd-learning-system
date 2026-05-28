@@ -30,12 +30,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <AuthProvider>
-      <html lang="en" className={`${merriweather.variable} ${sourceSans.variable}`} suppressHydrationWarning>
-        <body>
+    <html lang="en" className={`${merriweather.variable} ${sourceSans.variable}`} suppressHydrationWarning>
+      <body>
+        <AuthProvider>
           <QueryProvider>{children}</QueryProvider>
-        </body>
-      </html>
-    </AuthProvider>
+        </AuthProvider>
+      </body>
+    </html>
   );
 }

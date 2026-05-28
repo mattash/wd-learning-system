@@ -65,6 +65,62 @@ describe("/api/parish-admin/cohorts/[cohortId]", () => {
     expect(recordAdminAuditLog).toHaveBeenCalledTimes(1);
   });
 
+  it("preserves omitted optional fields when updating a cohort", async () => {
+    const existingMaybeSingle = vi.fn(async () => ({
+      data: {
+        id: "cohort-1",
+        facilitator_clerk_user_id: "facilitator-1",
+        next_session_at: "2025-01-01T00:00:00.000Z",
+      },
+      error: null,
+    }));
+    const existingEqParish = vi.fn(() => ({ maybeSingle: existingMaybeSingle }));
+    const existingEqId = vi.fn(() => ({ eq: existingEqParish }));
+    const cohortSelect = vi.fn(() => ({ eq: existingEqId }));
+
+    const updateSingle = vi.fn(async () => ({
+      data: {
+        id: "cohort-1",
+        name: "Updated",
+        facilitator_clerk_user_id: "facilitator-1",
+        next_session_at: "2025-01-01T00:00:00.000Z",
+      },
+      error: null,
+    }));
+    const updateSelect = vi.fn(() => ({ single: updateSingle }));
+    const updateEqParish = vi.fn(() => ({ select: updateSelect }));
+    const updateEqId = vi.fn(() => ({ eq: updateEqParish }));
+    const cohortUpdate = vi.fn(() => ({ eq: updateEqId }));
+
+    vi.mocked(getSupabaseAdminClient).mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "cohorts") return { select: cohortSelect, update: cohortUpdate };
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    } as never);
+
+    const response = await PATCH(
+      new Request("http://localhost/api/parish-admin/cohorts/11111111-1111-4111-8111-111111111111", {
+        method: "PATCH",
+        body: JSON.stringify({
+          name: "Updated",
+          cadence: "biweekly",
+        }),
+      }),
+      { params: Promise.resolve({ cohortId: "11111111-1111-4111-8111-111111111111" }) },
+    );
+
+    expect(response.status).toBe(200);
+    const updatePayload = (cohortUpdate.mock.calls as unknown as Array<[Record<string, unknown>]>)[0][0];
+    expect(updatePayload).not.toHaveProperty("facilitator_clerk_user_id");
+    expect(updatePayload).not.toHaveProperty("next_session_at");
+    const auditDetails = (
+      vi.mocked(recordAdminAuditLog).mock.calls as unknown as Array<[{ details: Record<string, unknown> }]>
+    )[0][0].details;
+    expect(auditDetails).not.toHaveProperty("facilitator_clerk_user_id");
+    expect(auditDetails).not.toHaveProperty("next_session_at");
+  });
+
   it("returns 403 when instructor tries to update unassigned cohort", async () => {
     vi.mocked(requireParishRole).mockResolvedValue({
       clerkUserId: "instructor-1",

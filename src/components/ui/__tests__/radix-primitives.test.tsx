@@ -14,6 +14,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 describe("Radix primitives", () => {
   it("renders Dialog content when open", () => {
@@ -60,5 +61,19 @@ describe("Radix primitives", () => {
     );
 
     expect(screen.getByRole("tooltip")).toHaveTextContent("Helpful context");
+  });
+
+  it("renders Sheet content on the right side", () => {
+    render(
+      <Sheet open onOpenChange={() => {}}>
+        <SheetContent side="right">
+          <SheetHeader>
+            <SheetTitle>Sheet Title</SheetTitle>
+          </SheetHeader>
+        </SheetContent>
+      </Sheet>,
+    );
+
+    expect(screen.getByText("Sheet Title")).toBeInTheDocument();
   });
 });

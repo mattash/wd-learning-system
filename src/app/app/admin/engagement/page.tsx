@@ -2,9 +2,12 @@ import { AdminEngagementReport } from "@/components/admin-engagement-report";
 import { AdminEnrollmentManager } from "@/components/admin-enrollment-manager";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ProgressBar } from "@/components/ui/progress-bar";
+import { requireDioceseAdmin } from "@/lib/authz";
 import { listCourses, listEngagement, listEnrollments, listParishes } from "@/lib/repositories/diocese-admin";
 
 export default async function DioceseAdminEngagementPage() {
+  await requireDioceseAdmin();
+
   const [engagementRows, enrollments, parishes, courses] = await Promise.all([
     listEngagement(200),
     listEnrollments(200),

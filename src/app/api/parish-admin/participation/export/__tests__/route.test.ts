@@ -64,6 +64,78 @@ describe("GET /api/parish-admin/participation/export", () => {
     expect(body).toContain("\"RCIA\"");
   });
 
+  it("neutralizes spreadsheet formulas in exported cells", async () => {
+    vi.mocked(getParishAdminDashboardDataForUser).mockResolvedValue({
+      role: "parish_admin",
+      overview: {
+        memberCount: 1,
+        enrollmentCount: 1,
+        activeLearnerCount: 1,
+        stalledLearnerCount: 0,
+        completionRate: 50,
+        pendingJoinRequestCount: 0,
+      },
+      visibleCourses: [
+        {
+          id: "22222222-2222-4222-8222-222222222222",
+          title: "@Course \"Alpha\"",
+          description: null,
+          published: true,
+          scope: "PARISH",
+        },
+      ],
+      dioceseCourses: [],
+      adoptedParishCourses: [],
+      availableParishCourses: [],
+      enrollments: [],
+      members: [
+        {
+          clerk_user_id: "-user-1",
+          role: "student",
+          email: "+person@example.com",
+          display_name: "=HYPERLINK(\"https://attacker.example\",\"click\")",
+        },
+      ],
+      cohorts: [
+        {
+          id: "33333333-3333-4333-8333-333333333333",
+          name: "\tCohort A",
+          facilitator_clerk_user_id: null,
+          cadence: "weekly",
+          next_session_at: null,
+          created_at: "2026-01-01T00:00:00.000Z",
+          updated_at: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      communicationSends: [],
+      participationRows: [
+        {
+          enrollment_id: "enroll-1",
+          clerk_user_id: "-user-1",
+          course_id: "22222222-2222-4222-8222-222222222222",
+          cohort_id: "33333333-3333-4333-8333-333333333333",
+          enrolled_at: "\r2026-01-02T00:00:00.000Z",
+          completed_lessons: 2,
+          started_lessons: 2,
+          total_lessons: 4,
+          progress_percent: 50,
+          last_activity_at: "2026-01-10T00:00:00.000Z",
+          status: "active",
+        },
+      ],
+    });
+
+    const response = await GET(new Request("http://localhost/api/parish-admin/participation/export"));
+    const body = await response.text();
+
+    expect(body).toContain("\"'=HYPERLINK(\"\"https://attacker.example\"\",\"\"click\"\")\"");
+    expect(body).toContain("\"'+person@example.com\"");
+    expect(body).toContain("\"'-user-1\"");
+    expect(body).toContain("\"'@Course \"\"Alpha\"\"\"");
+    expect(body).toContain("\"'\tCohort A\"");
+    expect(body).toContain("\"'\r2026-01-02T00:00:00.000Z\"");
+  });
+
   it("applies cohort and status filters", async () => {
     vi.mocked(getParishAdminDashboardDataForUser).mockResolvedValue({
       role: "parish_admin",

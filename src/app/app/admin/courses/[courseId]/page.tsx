@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 
 import { AdminCourseContentManager } from "@/components/admin-course-content-manager";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { requireDioceseAdmin } from "@/lib/authz";
 import { getCourseContentForAdmin } from "@/lib/repositories/diocese-admin";
 
 export default async function DioceseAdminCourseContentPage({
@@ -10,6 +11,8 @@ export default async function DioceseAdminCourseContentPage({
   params: Promise<{ courseId: string }>;
 }) {
   const { courseId } = await params;
+  await requireDioceseAdmin();
+
   const data = await getCourseContentForAdmin(courseId);
 
   if (!data) {

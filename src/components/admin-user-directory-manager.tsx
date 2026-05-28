@@ -285,7 +285,11 @@ export function AdminUserDirectoryManager({
       closeEditor();
       setMessage("User profile and access updated.");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Failed to update user.");
+      const errorMessage = error instanceof Error ? error.message : "Failed to update user.";
+      await loadUsers(filters);
+      router.refresh();
+      closeEditor();
+      setMessage(`${errorMessage} Some changes may have already been saved; the user list has been reloaded.`);
     } finally {
       setSaving(false);
     }

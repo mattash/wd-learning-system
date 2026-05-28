@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { requireDioceseAdmin } from "@/lib/authz";
 import { getDioceseOverview } from "@/lib/repositories/diocese-admin";
 
 const statRow1 = [
@@ -35,6 +36,8 @@ function StatCard({ label, value, sub }: { label: string; value: number; sub?: s
 }
 
 export default async function DioceseAdminPage() {
+  await requireDioceseAdmin();
+
   const overview = await getDioceseOverview();
 
   const completionRate =
