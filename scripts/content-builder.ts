@@ -256,7 +256,13 @@ async function insertSingle<T>(
 
 async function importContent(
   content: ContentImport,
-  options?: { strict?: boolean; aiPalette?: AiPalette; aiStyle?: AiStyle; aiTextPlacement?: AiTextPlacement },
+  options?: {
+    strict?: boolean;
+    aiPalette?: AiPalette;
+    aiStyle?: AiStyle;
+    aiTextPlacement?: AiTextPlacement;
+    onCourseCreated?: (course: CourseRow) => void;
+  },
 ): Promise<ImportSummary> {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -336,6 +342,7 @@ async function importContent(
       .single(),
     "Course",
   );
+  options?.onCourseCreated?.(course);
 
   const summary: ImportSummary = {
     course,
@@ -556,18 +563,25 @@ async function main() {
 
   const options = { strict, aiPalette, aiStyle, aiTextPlacement };
   let summary: ImportSummary | undefined;
+  let createdCourse: CourseRow | undefined;
   try {
-    summary = await importContent(content, options);
+    summary = await importContent(content, {
+      ...options,
+      onCourseCreated: (course) => {
+        createdCourse = course;
+      },
+    });
     printSummary(summary);
   } catch (err) {
     // Best-effort cleanup: delete the partially-created course so retry is clean
-    if (summary?.course?.id) {
-      console.error(red(`\nImport failed — cleaning up course ${summary.course.id}...`));
+    const course = summary?.course ?? createdCourse;
+    if (course?.id) {
+      console.error(red(`\nImport failed — cleaning up course ${course.id}...`));
       try {
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
         const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
         const supabase = createClient(supabaseUrl, serviceRoleKey);
-        await supabase.from("courses").delete().eq("id", summary.course.id);
+        await supabase.from("courses").delete().eq("id", course.id);
         console.error(red("Cleanup done. Delete manually if cascade missed any rows."));
       } catch {
         // best-effort — don't mask the original error
