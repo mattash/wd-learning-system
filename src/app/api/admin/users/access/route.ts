@@ -16,7 +16,25 @@ const schema = z.object({
 
 export async function POST(req: Request) {
   const actorUserId = await requireDioceseAdmin();
-  const payload = schema.parse(await req.json());
+
+  let payload: z.infer<typeof schema>;
+  try {
+    payload = schema.parse(await req.json());
+  } catch {
+    return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+  }
+
+  const requestedMutationCount = [
+    payload.makeDioceseAdmin,
+    payload.removeDioceseAdmin,
+    Boolean(payload.parishId && payload.role && !payload.removeParishMembership),
+    Boolean(payload.parishId && payload.removeParishMembership),
+  ].filter(Boolean).length;
+
+  if (requestedMutationCount > 1) {
+    return NextResponse.json({ error: "Only one access change may be requested at a time" }, { status: 400 });
+  }
+
   const supabase = getSupabaseAdminClient();
 
   if (payload.makeDioceseAdmin) {

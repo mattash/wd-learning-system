@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Badge } from "@/components/ui/badge";
@@ -82,8 +82,12 @@ export function AdminUserDirectoryManager({
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<UserEditDraft | null>(null);
   const [pendingParishId, setPendingParishId] = useState("");
+  const loadUsersRequestIdRef = useRef(0);
 
   const loadUsers = useCallback(async (activeFilters: UserFilters) => {
+    const requestId = loadUsersRequestIdRef.current + 1;
+    loadUsersRequestIdRef.current = requestId;
+
     setLoading(true);
     setMessage("");
 
@@ -94,18 +98,30 @@ export function AdminUserDirectoryManager({
     if (activeFilters.role !== "all") params.set("role", activeFilters.role);
     if (activeFilters.dioceseAdmin !== "all") params.set("dioceseAdmin", activeFilters.dioceseAdmin);
 
-    const response = await fetch(`/api/admin/users?${params.toString()}`);
-    const data = await response.json();
+    try {
+      const response = await fetch(`/api/admin/users?${params.toString()}`);
+      const data = await response.json();
 
-    if (!response.ok) {
-      setLoading(false);
-      setMessage(data.error ?? "Failed to load users.");
-      return;
+      if (loadUsersRequestIdRef.current !== requestId) {
+        return;
+      }
+
+      if (!response.ok) {
+        setMessage(data.error ?? "Failed to load users.");
+        return;
+      }
+
+      setUsers((data.users ?? []) as UserDirectoryRow[]);
+      setParishes((data.parishes ?? []) as ParishFilterOption[]);
+    } catch {
+      if (loadUsersRequestIdRef.current === requestId) {
+        setMessage("Failed to load users.");
+      }
+    } finally {
+      if (loadUsersRequestIdRef.current === requestId) {
+        setLoading(false);
+      }
     }
-
-    setUsers((data.users ?? []) as UserDirectoryRow[]);
-    setParishes((data.parishes ?? []) as ParishFilterOption[]);
-    setLoading(false);
   }, []);
 
   const activeFilterCount = useMemo(() => {
