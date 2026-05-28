@@ -49,6 +49,13 @@ next-env.d.ts
 .temp/
 parish-leaders-course-videos/
 
-.agents
-.crabbox*
-.clawpatch/
+# Agent/validation config: keep stable instructions, ignore generated state.
+.agents/*
+!.agents/skills/
+!.agents/skills/crabbox/
+!.agents/skills/crabbox/SKILL.md
+.crabbox/
+!.crabbox.yaml
+!.crabbox.slug.conf
+.clawpatch/*
+!.clawpatch/config.json
