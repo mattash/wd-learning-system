@@ -1,8 +1,11 @@
 import { AdminParishManager } from "@/components/admin-parish-manager";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { requireDioceseAdmin } from "@/lib/authz";
 import { listParishes } from "@/lib/repositories/diocese-admin";
 
 export default async function DioceseAdminParishesPage() {
+  await requireDioceseAdmin();
+
   const parishes = await listParishes(100);
 
   return (

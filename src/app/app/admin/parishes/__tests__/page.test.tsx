@@ -1,0 +1,54 @@
+import { render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("@/components/admin-parish-manager", () => ({
+  AdminParishManager: ({ parishes }: { parishes: unknown[] }) => (
+    <div>Parish manager: {parishes.length}</div>
+  ),
+}));
+
+vi.mock("@/lib/authz", () => ({
+  requireDioceseAdmin: vi.fn(),
+}));
+
+vi.mock("@/lib/repositories/diocese-admin", () => ({
+  listParishes: vi.fn(),
+}));
+
+import DioceseAdminParishesPage from "@/app/app/admin/parishes/page";
+import { requireDioceseAdmin } from "@/lib/authz";
+import { listParishes } from "@/lib/repositories/diocese-admin";
+
+describe("DioceseAdminParishesPage", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(requireDioceseAdmin).mockResolvedValue("admin-1");
+    vi.mocked(listParishes).mockResolvedValue([
+      {
+        id: "parish-1",
+        name: "St Anne",
+        slug: "st-anne",
+        allow_self_signup: true,
+        archived_at: null,
+        created_at: "2026-01-01",
+      },
+    ]);
+  });
+
+  it("requires a diocese admin before rendering parish data", async () => {
+    render(await DioceseAdminParishesPage());
+
+    expect(requireDioceseAdmin).toHaveBeenCalledBefore(listParishes);
+    expect(listParishes).toHaveBeenCalledWith(100);
+    expect(screen.getByRole("heading", { name: "Parishes" })).toBeInTheDocument();
+    expect(screen.getByText("Parish manager: 1")).toBeInTheDocument();
+  });
+
+  it("does not load parish data when the guard rejects access", async () => {
+    const accessError = new Error("redirect");
+    vi.mocked(requireDioceseAdmin).mockRejectedValue(accessError);
+
+    await expect(DioceseAdminParishesPage()).rejects.toThrow(accessError);
+    expect(listParishes).not.toHaveBeenCalled();
+  });
+});
