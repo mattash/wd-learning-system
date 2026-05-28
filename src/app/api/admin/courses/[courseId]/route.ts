@@ -25,8 +25,15 @@ const updateCourseSchema = z.object({
 
 export async function PATCH(req: Request, ctx: { params: Promise<{ courseId: string }> }) {
   await requireDioceseAdmin();
-  const { courseId } = paramsSchema.parse(await ctx.params);
-  const payload = updateCourseSchema.parse(await req.json());
+  let courseId: string;
+  let payload: z.infer<typeof updateCourseSchema>;
+
+  try {
+    courseId = paramsSchema.parse(await ctx.params).courseId;
+    payload = updateCourseSchema.parse(await req.json());
+  } catch {
+    return NextResponse.json({ error: "Invalid course request payload" }, { status: 400 });
+  }
 
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
@@ -52,7 +59,13 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ courseId: str
 
 export async function DELETE(_req: Request, ctx: { params: Promise<{ courseId: string }> }) {
   await requireDioceseAdmin();
-  const { courseId } = paramsSchema.parse(await ctx.params);
+  let courseId: string;
+
+  try {
+    courseId = paramsSchema.parse(await ctx.params).courseId;
+  } catch {
+    return NextResponse.json({ error: "Invalid course request payload" }, { status: 400 });
+  }
 
   const supabase = getSupabaseAdminClient();
   const { error } = await supabase.from("courses").delete().eq("id", courseId);

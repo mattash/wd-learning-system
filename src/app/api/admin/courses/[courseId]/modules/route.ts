@@ -29,8 +29,15 @@ const createModuleSchema = z.object({
 
 export async function POST(req: Request, ctx: { params: Promise<{ courseId: string }> }) {
   await requireDioceseAdmin();
-  const { courseId } = paramsSchema.parse(await ctx.params);
-  const payload = createModuleSchema.parse(await req.json());
+  let courseId: string;
+  let payload: z.infer<typeof createModuleSchema>;
+
+  try {
+    courseId = paramsSchema.parse(await ctx.params).courseId;
+    payload = createModuleSchema.parse(await req.json());
+  } catch {
+    return NextResponse.json({ error: "Invalid module request payload" }, { status: 400 });
+  }
 
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase

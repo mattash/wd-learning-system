@@ -80,6 +80,67 @@ describe("POST /api/admin-membership", () => {
     await expect(response.json()).resolves.toEqual({ error: "cannot promote" });
   });
 
+  it("returns 400 for invalid request payloads", async () => {
+    const response = await POST(
+      new Request("http://localhost/api/admin-membership", {
+        method: "POST",
+        body: JSON.stringify({
+          clerkUserId: "user-2",
+          parishId: "not-a-uuid",
+          role: "student",
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "Invalid admin membership request payload" });
+    expect(getSupabaseAdminClient).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 for malformed JSON", async () => {
+    const response = await POST(
+      new Request("http://localhost/api/admin-membership", {
+        method: "POST",
+        body: "{",
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "Invalid admin membership request payload" });
+    expect(getSupabaseAdminClient).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 for no-op membership payloads", async () => {
+    const response = await POST(
+      new Request("http://localhost/api/admin-membership", {
+        method: "POST",
+        body: JSON.stringify({
+          clerkUserId: "user-2",
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "Invalid admin membership request payload" });
+    expect(getSupabaseAdminClient).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 for incomplete parish membership payloads", async () => {
+    const response = await POST(
+      new Request("http://localhost/api/admin-membership", {
+        method: "POST",
+        body: JSON.stringify({
+          clerkUserId: "user-2",
+          parishId: "11111111-1111-4111-8111-111111111111",
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "Invalid admin membership request payload" });
+    expect(getSupabaseAdminClient).not.toHaveBeenCalled();
+  });
+
   it("returns 400 when parish membership upsert fails", async () => {
     const membershipUpsert = vi.fn(async () => ({ error: { message: "invalid role" } }));
 

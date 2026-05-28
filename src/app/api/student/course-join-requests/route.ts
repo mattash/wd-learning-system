@@ -18,9 +18,9 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const { clerkUserId, parishId } = await requireParishRole("student");
-  const payload = createSchema.parse(await req.json());
 
   try {
+    const payload = createSchema.parse(await req.json());
     const request = await createJoinRequest({
       parishId,
       clerkUserId,

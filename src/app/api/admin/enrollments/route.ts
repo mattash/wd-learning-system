@@ -17,6 +17,14 @@ const deleteEnrollmentSchema = z.object({
   courseId: z.string().uuid(),
 });
 
+async function parseJsonBody<T>(req: Request, schema: z.ZodSchema<T>) {
+  try {
+    return schema.safeParse(await req.json());
+  } catch {
+    return { success: false } as const;
+  }
+}
+
 export async function GET(req: Request) {
   await requireDioceseAdmin();
   const url = new URL(req.url);
@@ -45,7 +53,13 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   await requireDioceseAdmin();
-  const payload = createEnrollmentSchema.parse(await req.json());
+  const parsedPayload = await parseJsonBody(req, createEnrollmentSchema);
+
+  if (!parsedPayload.success) {
+    return NextResponse.json({ error: "Invalid enrollment request payload" }, { status: 400 });
+  }
+
+  const payload = parsedPayload.data;
   const supabase = getSupabaseAdminClient();
 
   const { data, error } = await supabase
@@ -77,7 +91,13 @@ export async function POST(req: Request) {
 
 export async function DELETE(req: Request) {
   await requireDioceseAdmin();
-  const payload = deleteEnrollmentSchema.parse(await req.json());
+  const parsedPayload = await parseJsonBody(req, deleteEnrollmentSchema);
+
+  if (!parsedPayload.success) {
+    return NextResponse.json({ error: "Invalid enrollment request payload" }, { status: 400 });
+  }
+
+  const payload = parsedPayload.data;
   const supabase = getSupabaseAdminClient();
 
   const { error } = await supabase

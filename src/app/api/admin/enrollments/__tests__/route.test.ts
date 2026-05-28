@@ -49,6 +49,23 @@ describe("/api/admin/enrollments", () => {
     await expect(response.json()).resolves.toEqual({ enrollment: { id: "e1" } });
   });
 
+  it("returns 400 for invalid create payloads", async () => {
+    const response = await POST(
+      new Request("http://localhost/api/admin/enrollments", {
+        method: "POST",
+        body: JSON.stringify({
+          parishId: "not-a-uuid",
+          courseId: "22222222-2222-4222-8222-222222222222",
+          clerkUserId: "user-1",
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "Invalid enrollment request payload" });
+    expect(getSupabaseAdminClient).not.toHaveBeenCalled();
+  });
+
   it("deletes enrollment", async () => {
     const eqCourse = vi.fn(async () => ({ error: null }));
     const eqUser = vi.fn(() => ({ eq: eqCourse }));
@@ -70,5 +87,21 @@ describe("/api/admin/enrollments", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ ok: true });
+  });
+
+  it("returns 400 for invalid delete payloads", async () => {
+    const response = await DELETE(
+      new Request("http://localhost/api/admin/enrollments", {
+        method: "DELETE",
+        body: JSON.stringify({
+          parishId: "11111111-1111-4111-8111-111111111111",
+          clerkUserId: "user-1",
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "Invalid enrollment request payload" });
+    expect(getSupabaseAdminClient).not.toHaveBeenCalled();
   });
 });

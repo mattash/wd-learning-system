@@ -132,13 +132,15 @@ describe("/api/parish-admin/communications branch coverage", () => {
     const sendSingle = vi.fn(async () => ({ data: { id: "send-1", recipient_count: 1 }, error: null }));
     const sendSelect = vi.fn(() => ({ single: sendSingle }));
     const sendInsert = vi.fn(() => ({ select: sendSelect }));
+    const sendDeleteEq = vi.fn(async () => ({ error: null }));
+    const sendDelete = vi.fn(() => ({ eq: sendDeleteEq }));
 
     const recipientInsert = vi.fn(async () => ({ error: { message: "recipient insert failed" } }));
 
     vi.mocked(getSupabaseAdminClient).mockReturnValue({
       from: vi.fn((table: string) => {
         if (table === "parish_memberships") return { select: membershipSelect };
-        if (table === "parish_message_sends") return { insert: sendInsert };
+        if (table === "parish_message_sends") return { insert: sendInsert, delete: sendDelete };
         if (table === "parish_message_recipients") return { insert: recipientInsert };
         throw new Error(`Unexpected table: ${table}`);
       }),
@@ -157,6 +159,8 @@ describe("/api/parish-admin/communications branch coverage", () => {
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({ error: "recipient insert failed" });
+    expect(sendDelete).toHaveBeenCalledTimes(1);
+    expect(sendDeleteEq).toHaveBeenCalledWith("id", "send-1");
   });
 
   it("returns 500 and marks send as failed when queueing fails", async () => {

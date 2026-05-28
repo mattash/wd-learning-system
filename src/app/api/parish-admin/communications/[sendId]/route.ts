@@ -9,6 +9,7 @@ const paramsSchema = z.object({
 });
 
 type RecipientDeliveryStatus = "not_configured" | "pending" | "sent" | "failed";
+const recipientDeliveryStatuses: RecipientDeliveryStatus[] = ["not_configured", "pending", "sent", "failed"];
 
 export async function GET(_req: Request, ctx: { params: Promise<{ sendId: string }> }) {
   const { parishId } = await requireParishRole("parish_admin");
@@ -41,6 +42,23 @@ export async function GET(_req: Request, ctx: { params: Promise<{ sendId: string
     return NextResponse.json({ error: recipientError.message }, { status: 400 });
   }
 
+  const statusCounts = await Promise.all(
+    recipientDeliveryStatuses.map(async (status) => {
+      const { count, error } = await supabase
+        .from("parish_message_recipients")
+        .select("id", { count: "exact", head: true })
+        .eq("send_id", params.sendId)
+        .eq("parish_id", parishId)
+        .eq("delivery_status", status);
+
+      return { count: count ?? 0, error, status };
+    }),
+  );
+  const statusCountError = statusCounts.find(({ error }) => error);
+  if (statusCountError?.error) {
+    return NextResponse.json({ error: statusCountError.error.message }, { status: 400 });
+  }
+
   const recipients =
     (recipientRows as Array<{
       clerk_user_id: string;
@@ -68,16 +86,18 @@ export async function GET(_req: Request, ctx: { params: Promise<{ sendId: string
   }
 
   const profileById = new Map(profiles.map((profile) => [profile.clerk_user_id, profile]));
-  const summary = {
-    total: recipients.length,
-    not_configured: 0,
-    pending: 0,
-    sent: 0,
-    failed: 0,
-  };
+  const summary = statusCounts.reduce(
+    (acc, { count, status }) => ({ ...acc, [status]: count }),
+    {
+      total: send.recipient_count as number,
+      not_configured: 0,
+      pending: 0,
+      sent: 0,
+      failed: 0,
+    },
+  );
 
   const detailedRecipients = recipients.map((recipient) => {
-    summary[recipient.delivery_status] += 1;
     const profile = profileById.get(recipient.clerk_user_id);
     return {
       clerk_user_id: recipient.clerk_user_id,
@@ -92,6 +112,11 @@ export async function GET(_req: Request, ctx: { params: Promise<{ sendId: string
   return NextResponse.json({
     send,
     summary,
+    pagination: {
+      returned: detailedRecipients.length,
+      limit: 500,
+      hasMore: (send.recipient_count as number) > detailedRecipients.length,
+    },
     recipients: detailedRecipients,
   });
 }
