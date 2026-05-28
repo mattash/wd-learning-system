@@ -58,7 +58,20 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   const { clerkUserId: actorUserId, parishId } = await requireParishRole("parish_admin");
-  const payload = createEnrollmentSchema.parse(await req.json());
+  let rawPayload: unknown;
+
+  try {
+    rawPayload = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid enrollment request payload" }, { status: 400 });
+  }
+
+  const parsedPayload = createEnrollmentSchema.safeParse(rawPayload);
+  if (!parsedPayload.success) {
+    return NextResponse.json({ error: "Invalid enrollment request payload" }, { status: 400 });
+  }
+
+  const payload = parsedPayload.data;
   const supabase = getSupabaseAdminClient();
 
   const { data: membership, error: membershipError } = await supabase
@@ -148,7 +161,20 @@ export async function POST(req: Request) {
 
 export async function DELETE(req: Request) {
   const { clerkUserId: actorUserId, parishId } = await requireParishRole("parish_admin");
-  const payload = deleteEnrollmentSchema.parse(await req.json());
+  let rawPayload: unknown;
+
+  try {
+    rawPayload = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid enrollment request payload" }, { status: 400 });
+  }
+
+  const parsedPayload = deleteEnrollmentSchema.safeParse(rawPayload);
+  if (!parsedPayload.success) {
+    return NextResponse.json({ error: "Invalid enrollment request payload" }, { status: 400 });
+  }
+
+  const payload = parsedPayload.data;
   const supabase = getSupabaseAdminClient();
 
   const { error } = await supabase
