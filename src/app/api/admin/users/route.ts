@@ -59,8 +59,7 @@ export async function GET(req: Request) {
     supabase
       .from("user_profiles")
       .select("clerk_user_id,email,display_name,onboarding_completed_at,created_at")
-      .order("created_at", { ascending: false })
-      .limit(limit),
+      .order("created_at", { ascending: false }),
     supabase.from("parish_memberships").select("parish_id,clerk_user_id,role"),
     supabase.from("diocese_admins").select("clerk_user_id"),
     supabase.from("parishes").select("id,name"),
@@ -128,7 +127,8 @@ export async function GET(req: Request) {
       if (dioceseAdmin === "yes") return user.is_diocese_admin;
       if (dioceseAdmin === "no") return !user.is_diocese_admin;
       return true;
-    });
+    })
+    .slice(0, limit);
 
   return NextResponse.json({
     users: filteredUsers,
