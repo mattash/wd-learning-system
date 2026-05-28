@@ -53,9 +53,10 @@ cd "$ROOT_DIR"
 
 if [ "$DRY_RUN" = "--dry-run" ]; then
   printf 'scripts/crabbox-box.sh warm\n'
-  printf 'crabbox job run --id %q --stop never %q\n' "$CRABBOX_SLUG" "$JOB"
+  printf 'crabbox job run --id "$(scripts/crabbox-box.sh slug)" --stop never %q\n' "$JOB"
   exit 0
 fi
 
 scripts/crabbox-box.sh warm
-crabbox job run --id "$CRABBOX_SLUG" --stop never "$JOB"
+LEASE_REF="$(scripts/crabbox-box.sh slug)"
+crabbox job run --id "$LEASE_REF" --stop never "$JOB"

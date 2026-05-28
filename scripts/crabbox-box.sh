@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CONFIG_FILE="$ROOT_DIR/.crabbox.slug.conf"
 LOCK_DIR="$ROOT_DIR/.crabbox/warmup.lock"
+STATE_FILE="$ROOT_DIR/.crabbox/active-lease.env"
 
 usage() {
   cat <<'USAGE'
@@ -37,8 +38,63 @@ ensure_crabbox() {
   fi
 }
 
-lease_ready() {
-  crabbox status --id "$CRABBOX_SLUG" --wait --wait-timeout 10s >/dev/null 2>&1
+load_active_lease() {
+  if [ -f "$STATE_FILE" ]; then
+    # shellcheck source=/dev/null
+    source "$STATE_FILE"
+  fi
+}
+
+lease_refs() {
+  load_active_lease
+
+  if [ "${CRABBOX_ACTIVE_LEASE_ID:-}" != "" ]; then
+    printf '%s\n' "$CRABBOX_ACTIVE_LEASE_ID"
+  fi
+
+  if [ "${CRABBOX_ACTIVE_SLUG:-}" != "" ]; then
+    printf '%s\n' "$CRABBOX_ACTIVE_SLUG"
+  fi
+
+  printf '%s\n' "$CRABBOX_SLUG"
+}
+
+active_lease_ref() {
+  local ref
+
+  while IFS= read -r ref; do
+    if [ "$ref" = "" ]; then
+      continue
+    fi
+
+    if crabbox status --id "$ref" --wait --wait-timeout 10s >/dev/null 2>&1; then
+      printf '%s\n' "$ref"
+      return 0
+    fi
+  done < <(lease_refs)
+
+  return 1
+}
+
+write_active_lease() {
+  local output="$1"
+  local lease_id
+  local slug
+
+  lease_id="$(printf '%s\n' "$output" | sed -n 's/.*leased \(cbx_[^ ]*\).*/\1/p' | tail -n 1)"
+  slug="$(printf '%s\n' "$output" | sed -n 's/.*slug=\([^ ]*\).*/\1/p' | tail -n 1)"
+
+  if [ "$lease_id" = "" ]; then
+    return
+  fi
+
+  mkdir -p "$ROOT_DIR/.crabbox"
+  {
+    printf 'CRABBOX_ACTIVE_LEASE_ID=%q\n' "$lease_id"
+    if [ "$slug" != "" ]; then
+      printf 'CRABBOX_ACTIVE_SLUG=%q\n' "$slug"
+    fi
+  } > "$STATE_FILE"
 }
 
 with_warmup_lock() {
@@ -60,23 +116,27 @@ with_warmup_lock() {
 warm() {
   ensure_crabbox
 
-  if lease_ready; then
-    echo "Crabbox lease is ready: $CRABBOX_SLUG"
+  local ref
+  if ref="$(active_lease_ref)"; then
+    echo "Crabbox lease is ready: $ref"
     return
   fi
 
   with_warmup_lock
 
-  if lease_ready; then
-    echo "Crabbox lease is ready: $CRABBOX_SLUG"
+  if ref="$(active_lease_ref)"; then
+    echo "Crabbox lease is ready: $ref"
     return
   fi
 
-  crabbox warmup \
+  local output
+  output="$(crabbox warmup \
     --slug "$CRABBOX_SLUG" \
     --idle-timeout "$CRABBOX_IDLE_TIMEOUT" \
     --ttl "$CRABBOX_TTL" \
-    --class "$CRABBOX_CLASS"
+    --class "$CRABBOX_CLASS" 2>&1)"
+  printf '%s\n' "$output"
+  write_active_lease "$output"
 }
 
 case "${1:-}" in
@@ -85,14 +145,27 @@ case "${1:-}" in
     ;;
   status)
     ensure_crabbox
-    crabbox status --id "$CRABBOX_SLUG"
+    if ref="$(active_lease_ref)"; then
+      crabbox status --id "$ref"
+    else
+      crabbox status --id "$CRABBOX_SLUG"
+    fi
     ;;
   stop)
     ensure_crabbox
-    crabbox stop "$CRABBOX_SLUG"
+    if ref="$(active_lease_ref)"; then
+      crabbox stop "$ref"
+      rm -f "$STATE_FILE"
+    else
+      crabbox stop "$CRABBOX_SLUG"
+    fi
     ;;
   slug)
-    printf '%s\n' "$CRABBOX_SLUG"
+    if ref="$(active_lease_ref)"; then
+      printf '%s\n' "$ref"
+    else
+      printf '%s\n' "$CRABBOX_SLUG"
+    fi
     ;;
   -h|--help|help|"")
     usage
