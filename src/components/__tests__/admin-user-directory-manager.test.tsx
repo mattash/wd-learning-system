@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AdminUserDirectoryManager } from "@/components/admin-user-directory-manager";
@@ -26,6 +26,25 @@ const initialParishes = [
   { id: "parish-2", name: "St. Mark" },
 ];
 
+function deferredResponse() {
+  let resolveResponse!: (response: Response) => void;
+  const promise = new Promise<Response>((resolve) => {
+    resolveResponse = resolve;
+  });
+
+  return {
+    promise,
+    resolve: resolveResponse,
+  };
+}
+
+function usersResponse(users: typeof initialUsers): Response {
+  return {
+    ok: true,
+    json: async () => ({ users, parishes: initialParishes }),
+  } as Response;
+}
+
 describe("AdminUserDirectoryManager", () => {
   beforeEach(() => {
     refresh.mockReset();
@@ -33,6 +52,51 @@ describe("AdminUserDirectoryManager", () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  it("keeps newer filter results when an older request resolves last", async () => {
+    const firstRequest = deferredResponse();
+    const secondRequest = deferredResponse();
+    const fetchMock = vi
+      .fn()
+      .mockReturnValueOnce(firstRequest.promise)
+      .mockReturnValueOnce(secondRequest.promise);
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <AdminUserDirectoryManager
+        initialParishes={initialParishes}
+        initialUsers={initialUsers}
+      />,
+    );
+
+    fireEvent.change(screen.getByPlaceholderText("Search users..."), {
+      target: { value: "first" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+
+    fireEvent.change(screen.getByPlaceholderText("Search users..."), {
+      target: { value: "second" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(fetchMock).toHaveBeenNthCalledWith(1, "/api/admin/users?q=first");
+    expect(fetchMock).toHaveBeenNthCalledWith(2, "/api/admin/users?q=second");
+
+    await act(async () => {
+      secondRequest.resolve(usersResponse([{ ...initialUsers[0], display_name: "Second Result" }]));
+    });
+
+    expect(await screen.findByText("Second Result")).toBeInTheDocument();
+
+    await act(async () => {
+      firstRequest.resolve(usersResponse([{ ...initialUsers[0], display_name: "First Result" }]));
+    });
+
+    await waitFor(() => expect(screen.queryByText("First Result")).not.toBeInTheDocument());
+    expect(screen.getByText("Second Result")).toBeInTheDocument();
   });
 
   it("reloads user data when access saving fails after a profile update", async () => {
