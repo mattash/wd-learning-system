@@ -1,0 +1,105 @@
+provider: hetzner
+target: linux
+profile: wd-learning-system-node-hetzner
+class: standard
+lease:
+  idleTimeout: 45m
+  ttl: 4h
+sync:
+  delete: true
+  checksum: false
+  gitSeed: true
+  fingerprint: true
+  baseRef: main
+  timeout: 15m
+  warnFiles: 50000
+  warnBytes: 5368709120
+  failFiles: 150000
+  failBytes: 21474836480
+  exclude:
+    - .crabbox
+    - .cache
+    - .next
+    - .playwright
+    - coverage
+    - node_modules
+    - playwright-report
+    - test-results
+env:
+  allow:
+    - CI
+    - NODE_ENV
+    - NODE_OPTIONS
+run:
+  preflightTools:
+    - node
+    - npm
+jobs:
+  lint:
+    provider: hetzner
+    hydrate:
+      actions: false
+    shell: true
+    command: >
+      set -euo pipefail;
+      bash scripts/crabbox-ensure-node-deps.sh;
+      npm run lint
+    stop: always
+  typecheck:
+    provider: hetzner
+    hydrate:
+      actions: false
+    shell: true
+    command: >
+      set -euo pipefail;
+      bash scripts/crabbox-ensure-node-deps.sh;
+      npm run typecheck
+    stop: always
+  test:
+    provider: hetzner
+    hydrate:
+      actions: false
+    shell: true
+    command: >
+      set -euo pipefail;
+      bash scripts/crabbox-ensure-node-deps.sh;
+      npm run test
+    stop: always
+  coverage:
+    provider: hetzner
+    hydrate:
+      actions: false
+    shell: true
+    command: >
+      set -euo pipefail;
+      bash scripts/crabbox-ensure-node-deps.sh;
+      npm run test:coverage
+    stop: always
+  ci:
+    provider: hetzner
+    hydrate:
+      actions: false
+    shell: true
+    command: >
+      set -euo pipefail;
+      bash scripts/crabbox-ensure-node-deps.sh;
+      npm run lint;
+      npm run typecheck;
+      npm run test:coverage
+    stop: always
+  e2e:
+    provider: hetzner
+    hydrate:
+      actions: false
+    shell: true
+    command: >
+      set -euo pipefail;
+      bash scripts/crabbox-ensure-node-deps.sh;
+      npx playwright install --with-deps chromium;
+      npm run test:e2e
+    stop: always
+ssh:
+  user: crabbox
+  port: "2222"
+  fallbackPorts:
+    - "22"
