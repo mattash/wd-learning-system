@@ -59,7 +59,14 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const { clerkUserId: actorUserId, parishId } = await requireParishRole("parish_admin");
-  const payload = createCohortSchema.parse(await req.json());
+  let payload: z.infer<typeof createCohortSchema>;
+
+  try {
+    payload = createCohortSchema.parse(await req.json());
+  } catch {
+    return NextResponse.json({ error: "Invalid cohort request payload" }, { status: 400 });
+  }
+
   const supabase = getSupabaseAdminClient();
 
   if (payload.facilitatorClerkUserId) {
