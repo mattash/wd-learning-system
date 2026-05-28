@@ -45,6 +45,11 @@ export function AdminEngagementReport({ parishes, courses }: { parishes: Diocese
   const [learners, setLearners] = useState<LearnerRow[]>([]);
   const [selectedPair, setSelectedPair] = useState<{ parishId: string; courseId: string } | null>(null);
 
+  const resetDrillDown = () => {
+    setSelectedPair(null);
+    setLearners([]);
+  };
+
   const query = useMemo(() => {
     const params = new URLSearchParams();
     if (parishId !== "all") params.set("parishId", parishId);
@@ -106,7 +111,14 @@ export function AdminEngagementReport({ parishes, courses }: { parishes: Diocese
     <div>
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-2 border-b border-border px-5 py-3">
-        <Select className="h-[34px] w-[160px] text-[13px]" onChange={(e) => setParishId(e.target.value)} value={parishId}>
+        <Select
+          className="h-[34px] w-[160px] text-[13px]"
+          onChange={(e) => {
+            setParishId(e.target.value);
+            resetDrillDown();
+          }}
+          value={parishId}
+        >
           <option value="all">All parishes</option>
           {parishes.map((parish) => (
             <option key={parish.id} value={parish.id}>
@@ -114,7 +126,14 @@ export function AdminEngagementReport({ parishes, courses }: { parishes: Diocese
             </option>
           ))}
         </Select>
-        <Select className="h-[34px] w-[160px] text-[13px]" onChange={(e) => setCourseId(e.target.value)} value={courseId}>
+        <Select
+          className="h-[34px] w-[160px] text-[13px]"
+          onChange={(e) => {
+            setCourseId(e.target.value);
+            resetDrillDown();
+          }}
+          value={courseId}
+        >
           <option value="all">All courses</option>
           {courses.map((course) => (
             <option key={course.id} value={course.id}>
@@ -125,19 +144,34 @@ export function AdminEngagementReport({ parishes, courses }: { parishes: Diocese
         <Input
           aria-label="Start date"
           className="h-[34px] w-[140px] text-[13px]"
-          onChange={(e) => setStartDate(e.target.value)}
+          onChange={(e) => {
+            setStartDate(e.target.value);
+            resetDrillDown();
+          }}
           type="date"
           value={startDate}
         />
         <Input
           aria-label="End date"
           className="h-[34px] w-[140px] text-[13px]"
-          onChange={(e) => setEndDate(e.target.value)}
+          onChange={(e) => {
+            setEndDate(e.target.value);
+            resetDrillDown();
+          }}
           type="date"
           value={endDate}
         />
         {(startDate || endDate) ? (
-          <Button onClick={() => { setStartDate(""); setEndDate(""); }} size="sm" type="button" variant="ghost">
+          <Button
+            onClick={() => {
+              setStartDate("");
+              setEndDate("");
+              resetDrillDown();
+            }}
+            size="sm"
+            type="button"
+            variant="ghost"
+          >
             Clear dates
           </Button>
         ) : null}

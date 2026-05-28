@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
-  parseEngagementFilters,
-  hasDateFilters,
   getDateRangeBounds,
+  hasDateFilters,
+  loadEngagementReportData,
+  parseEngagementFilters,
 } from "@/lib/reports/engagement-report";
 
 describe("parseEngagementFilters", () => {
@@ -132,5 +133,177 @@ describe("getDateRangeBounds", () => {
       startAt: "2024-01-01T00:00:00.000Z",
       endAt: "2024-12-31T23:59:59.999Z",
     });
+  });
+});
+
+describe("loadEngagementReportData", () => {
+  it("requires all course lessons before counting a date-filtered learner as completed", async () => {
+    const supabase = {
+      from: (table: string) => {
+        if (table === "modules") {
+          return {
+            select: async () => ({
+              data: [
+                {
+                  course_id: "course-1",
+                  lessons: [{ id: "lesson-1" }, { id: "lesson-2" }],
+                },
+              ],
+              error: null,
+            }),
+          };
+        }
+
+        if (table === "parishes") {
+          return { select: async () => ({ data: [{ id: "parish-1", name: "St A" }], error: null }) };
+        }
+
+        if (table === "courses") {
+          return { select: async () => ({ data: [{ id: "course-1", title: "Course A" }], error: null }) };
+        }
+
+        if (table === "enrollments") {
+          const query = {
+            eq: () => query,
+            gte: () => query,
+            lte: async () => ({
+              data: [{ parish_id: "parish-1", course_id: "course-1", created_at: "2024-01-01T00:00:00.000Z" }],
+              error: null,
+            }),
+          };
+          return { select: () => query };
+        }
+
+        if (table === "video_progress") {
+          const query = {
+            eq: () => query,
+            in: () => query,
+            gte: () => query,
+            lte: async () => ({
+              data: [
+                {
+                  parish_id: "parish-1",
+                  clerk_user_id: "learner-1",
+                  lesson_id: "lesson-1",
+                  completed: true,
+                  updated_at: "2024-01-15T00:00:00.000Z",
+                },
+              ],
+              error: null,
+            }),
+          };
+          return { select: () => query };
+        }
+
+        throw new Error(`Unexpected table ${table}`);
+      },
+    };
+
+    const result = await loadEngagementReportData(supabase as never, {
+      startDate: "2024-01-01",
+      endDate: "2024-01-31",
+    });
+
+    expect(result.error).toBeUndefined();
+    expect(result.data?.rows).toEqual([
+      {
+        parish_id: "parish-1",
+        course_id: "course-1",
+        parish_name: "St A",
+        course_title: "Course A",
+        enrollment_count: 1,
+        learners_started: 1,
+        learners_completed: 0,
+        completion_rate: 0,
+      },
+    ]);
+    expect(result.data?.trends).toEqual([
+      {
+        period: "2024-01",
+        learners_started: 1,
+        learners_completed: 0,
+        completion_rate: 0,
+      },
+    ]);
+  });
+
+  it("counts date-filtered learners as completed after all course lessons are completed", async () => {
+    const supabase = {
+      from: (table: string) => {
+        if (table === "modules") {
+          return {
+            select: async () => ({
+              data: [
+                {
+                  course_id: "course-1",
+                  lessons: [{ id: "lesson-1" }, { id: "lesson-2" }],
+                },
+              ],
+              error: null,
+            }),
+          };
+        }
+
+        if (table === "parishes") {
+          return { select: async () => ({ data: [{ id: "parish-1", name: "St A" }], error: null }) };
+        }
+
+        if (table === "courses") {
+          return { select: async () => ({ data: [{ id: "course-1", title: "Course A" }], error: null }) };
+        }
+
+        if (table === "enrollments") {
+          const query = {
+            eq: () => query,
+            gte: () => query,
+            lte: async () => ({
+              data: [{ parish_id: "parish-1", course_id: "course-1", created_at: "2024-01-01T00:00:00.000Z" }],
+              error: null,
+            }),
+          };
+          return { select: () => query };
+        }
+
+        if (table === "video_progress") {
+          const query = {
+            eq: () => query,
+            in: () => query,
+            gte: () => query,
+            lte: async () => ({
+              data: [
+                {
+                  parish_id: "parish-1",
+                  clerk_user_id: "learner-1",
+                  lesson_id: "lesson-1",
+                  completed: true,
+                  updated_at: "2024-01-15T00:00:00.000Z",
+                },
+                {
+                  parish_id: "parish-1",
+                  clerk_user_id: "learner-1",
+                  lesson_id: "lesson-2",
+                  completed: true,
+                  updated_at: "2024-01-16T00:00:00.000Z",
+                },
+              ],
+              error: null,
+            }),
+          };
+          return { select: () => query };
+        }
+
+        throw new Error(`Unexpected table ${table}`);
+      },
+    };
+
+    const result = await loadEngagementReportData(supabase as never, {
+      startDate: "2024-01-01",
+      endDate: "2024-01-31",
+    });
+
+    expect(result.data?.rows[0]?.learners_completed).toBe(1);
+    expect(result.data?.rows[0]?.completion_rate).toBe(100);
+    expect(result.data?.trends[0]?.learners_completed).toBe(1);
+    expect(result.data?.trends[0]?.completion_rate).toBe(100);
   });
 });
