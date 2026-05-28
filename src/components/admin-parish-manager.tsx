@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import type { DioceseParishRow } from "@/lib/repositories/diocese-admin";
@@ -18,6 +18,29 @@ interface ParishDraft {
   archivedAt: string | null;
 }
 
+function buildParishDraft(parish: DioceseParishRow): ParishDraft {
+  return {
+    id: parish.id,
+    name: parish.name,
+    slug: parish.slug,
+    allowSelfSignup: parish.allow_self_signup,
+    archivedAt: parish.archived_at,
+  };
+}
+
+function buildParishDrafts(parishes: DioceseParishRow[]) {
+  return Object.fromEntries(parishes.map((parish) => [parish.id, buildParishDraft(parish)])) as Record<string, ParishDraft>;
+}
+
+function isSameDraft(left: ParishDraft, right: ParishDraft) {
+  return (
+    left.name === right.name &&
+    left.slug === right.slug &&
+    left.allowSelfSignup === right.allowSelfSignup &&
+    left.archivedAt === right.archivedAt
+  );
+}
+
 export function AdminParishManager({ parishes }: { parishes: DioceseParishRow[] }) {
   const router = useRouter();
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -25,21 +48,24 @@ export function AdminParishManager({ parishes }: { parishes: DioceseParishRow[] 
   const [newSlug, setNewSlug] = useState("");
   const [newAllowSelfSignup, setNewAllowSelfSignup] = useState(true);
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "archived">("all");
-  const [drafts, setDrafts] = useState<Record<string, ParishDraft>>(
-    Object.fromEntries(
-      parishes.map((parish) => [
-        parish.id,
-        {
-          id: parish.id,
-          name: parish.name,
-          slug: parish.slug,
-          allowSelfSignup: parish.allow_self_signup,
-          archivedAt: parish.archived_at,
-        },
-      ]),
-    ),
-  );
+  const [drafts, setDrafts] = useState<Record<string, ParishDraft>>(() => buildParishDrafts(parishes));
+  const previousPropDrafts = useRef<Record<string, ParishDraft>>(buildParishDrafts(parishes));
   const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    setDrafts((prev) => {
+      const next = { ...prev };
+      for (const parish of parishes) {
+        const propDraft = buildParishDraft(parish);
+        const previousPropDraft = previousPropDrafts.current[parish.id];
+        if (!next[parish.id] || (previousPropDraft && isSameDraft(next[parish.id], previousPropDraft))) {
+          next[parish.id] = propDraft;
+        }
+      }
+      return next;
+    });
+    previousPropDrafts.current = buildParishDrafts(parishes);
+  }, [parishes]);
 
   async function createParish() {
     const response = await fetch("/api/admin/parishes", {
@@ -63,7 +89,13 @@ export function AdminParishManager({ parishes }: { parishes: DioceseParishRow[] 
   }
 
   async function saveParish(id: string) {
-    const draft = drafts[id];
+    const parish = parishes.find((candidate) => candidate.id === id);
+    const draft = drafts[id] ?? (parish ? buildParishDraft(parish) : null);
+    if (!draft) {
+      setMessage("Unable to find parish draft.");
+      return;
+    }
+
     const response = await fetch(`/api/admin/parishes/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
