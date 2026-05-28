@@ -28,19 +28,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid admin membership request payload" }, { status: 400 });
   }
 
-  const supabase = getSupabaseAdminClient();
-  let removeDioceseAdminOnMembershipFailure = false;
-
   if (payload.makeDioceseAdmin && hasParishMembershipChange) {
-    const { data, error } = await supabase
-      .from("diocese_admins")
-      .select("clerk_user_id")
-      .eq("clerk_user_id", payload.clerkUserId)
-      .maybeSingle();
-
-    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-    removeDioceseAdminOnMembershipFailure = !data;
+    return NextResponse.json(
+      { error: "Only one membership change may be requested at a time" },
+      { status: 400 },
+    );
   }
+
+  const supabase = getSupabaseAdminClient();
 
   if (payload.makeDioceseAdmin) {
     const { error } = await supabase.from("diocese_admins").upsert({
@@ -59,13 +54,7 @@ export async function POST(req: Request) {
       { onConflict: "parish_id,clerk_user_id" },
     );
 
-    if (error) {
-      if (removeDioceseAdminOnMembershipFailure) {
-        await supabase.from("diocese_admins").delete().eq("clerk_user_id", payload.clerkUserId);
-      }
-
-      return NextResponse.json({ error: error.message }, { status: 400 });
-    }
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
   return NextResponse.json({ ok: true });
