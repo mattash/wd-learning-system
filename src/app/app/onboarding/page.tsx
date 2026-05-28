@@ -78,6 +78,18 @@ async function completeOnboarding(formData: FormData) {
     primaryEmail = null;
   }
 
+  const { error: membershipError } = await supabase.from("parish_memberships").upsert(
+    {
+      parish_id: parsed.data.parishId,
+      clerk_user_id: userId,
+      role: "student",
+    },
+    { onConflict: "parish_id,clerk_user_id", ignoreDuplicates: true },
+  );
+  if (membershipError) {
+    redirect("/app/onboarding?error=membership_save_failed");
+  }
+
   const { error: profileError } = await supabase.from("user_profiles").upsert(
     {
       clerk_user_id: userId,
@@ -89,18 +101,6 @@ async function completeOnboarding(formData: FormData) {
   );
   if (profileError) {
     redirect("/app/onboarding?error=profile_save_failed");
-  }
-
-  const { error: membershipError } = await supabase.from("parish_memberships").upsert(
-    {
-      parish_id: parsed.data.parishId,
-      clerk_user_id: userId,
-      role: "student",
-    },
-    { onConflict: "parish_id,clerk_user_id", ignoreDuplicates: true },
-  );
-  if (membershipError) {
-    redirect("/app/onboarding?error=membership_save_failed");
   }
 
   store.set("active_parish_id", parsed.data.parishId, {
