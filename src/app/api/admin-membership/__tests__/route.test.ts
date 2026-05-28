@@ -19,12 +19,15 @@ describe("POST /api/admin-membership", () => {
   });
 
   it("creates diocese admin and parish membership when requested", async () => {
+    const maybeSingle = vi.fn(async () => ({ data: null, error: null }));
+    const eq = vi.fn(() => ({ maybeSingle }));
+    const select = vi.fn(() => ({ eq }));
     const dioceseUpsert = vi.fn(async () => ({ error: null }));
     const membershipUpsert = vi.fn(async () => ({ error: null }));
 
     vi.mocked(getSupabaseAdminClient).mockReturnValue({
       from: vi.fn((table: string) => {
-        if (table === "diocese_admins") return { upsert: dioceseUpsert };
+        if (table === "diocese_admins") return { select, upsert: dioceseUpsert };
         if (table === "parish_memberships") return { upsert: membershipUpsert };
         throw new Error(`Unexpected table ${table}`);
       }),
@@ -44,6 +47,8 @@ describe("POST /api/admin-membership", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ ok: true });
+    expect(select).toHaveBeenCalledWith("clerk_user_id");
+    expect(eq).toHaveBeenCalledWith("clerk_user_id", "user-2");
     expect(dioceseUpsert).toHaveBeenCalledWith({ clerk_user_id: "user-2" });
     expect(membershipUpsert).toHaveBeenCalledWith(
       {
@@ -166,5 +171,75 @@ describe("POST /api/admin-membership", () => {
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({ error: "invalid role" });
+  });
+
+  it("rolls back a new diocese admin when combined parish membership upsert fails", async () => {
+    const maybeSingle = vi.fn(async () => ({ data: null, error: null }));
+    const selectEq = vi.fn(() => ({ maybeSingle }));
+    const select = vi.fn(() => ({ eq: selectEq }));
+    const dioceseUpsert = vi.fn(async () => ({ error: null }));
+    const membershipUpsert = vi.fn(async () => ({ error: { message: "invalid role" } }));
+    const deleteEq = vi.fn(async () => ({ error: null }));
+    const deleteDiocese = vi.fn(() => ({ eq: deleteEq }));
+
+    vi.mocked(getSupabaseAdminClient).mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "diocese_admins") return { select, upsert: dioceseUpsert, delete: deleteDiocese };
+        if (table === "parish_memberships") return { upsert: membershipUpsert };
+        throw new Error(`Unexpected table ${table}`);
+      }),
+    } as never);
+
+    const response = await POST(
+      new Request("http://localhost/api/admin-membership", {
+        method: "POST",
+        body: JSON.stringify({
+          clerkUserId: "user-2",
+          parishId: "11111111-1111-4111-8111-111111111111",
+          role: "student",
+          makeDioceseAdmin: true,
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "invalid role" });
+    expect(dioceseUpsert).toHaveBeenCalledWith({ clerk_user_id: "user-2" });
+    expect(deleteDiocese).toHaveBeenCalled();
+    expect(deleteEq).toHaveBeenCalledWith("clerk_user_id", "user-2");
+  });
+
+  it("keeps an existing diocese admin when combined parish membership upsert fails", async () => {
+    const maybeSingle = vi.fn(async () => ({ data: { clerk_user_id: "user-2" }, error: null }));
+    const selectEq = vi.fn(() => ({ maybeSingle }));
+    const select = vi.fn(() => ({ eq: selectEq }));
+    const membershipUpsert = vi.fn(async () => ({ error: { message: "invalid role" } }));
+    const deleteDiocese = vi.fn();
+
+    vi.mocked(getSupabaseAdminClient).mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "diocese_admins") {
+          return { select, upsert: vi.fn(async () => ({ error: null })), delete: deleteDiocese };
+        }
+        if (table === "parish_memberships") return { upsert: membershipUpsert };
+        throw new Error(`Unexpected table ${table}`);
+      }),
+    } as never);
+
+    const response = await POST(
+      new Request("http://localhost/api/admin-membership", {
+        method: "POST",
+        body: JSON.stringify({
+          clerkUserId: "user-2",
+          parishId: "11111111-1111-4111-8111-111111111111",
+          role: "student",
+          makeDioceseAdmin: true,
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "invalid role" });
+    expect(deleteDiocese).not.toHaveBeenCalled();
   });
 });
