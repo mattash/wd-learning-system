@@ -28,7 +28,20 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const actorUserId = await requireDioceseAdmin();
-  const payload = createParishSchema.parse(await req.json());
+  let rawPayload: unknown;
+
+  try {
+    rawPayload = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid parish request payload" }, { status: 400 });
+  }
+
+  const parsedPayload = createParishSchema.safeParse(rawPayload);
+  if (!parsedPayload.success) {
+    return NextResponse.json({ error: "Invalid parish request payload" }, { status: 400 });
+  }
+
+  const payload = parsedPayload.data;
 
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase

@@ -15,8 +15,25 @@ const bodySchema = z.object({
 
 export async function POST(req: Request, ctx: { params: Promise<{ parishId: string }> }) {
   const actorUserId = await requireDioceseAdmin();
-  const { parishId } = paramsSchema.parse(await ctx.params);
-  const payload = bodySchema.parse(await req.json());
+  const parsedParams = paramsSchema.safeParse(await ctx.params);
+  if (!parsedParams.success) {
+    return NextResponse.json({ error: "Invalid parish request payload" }, { status: 400 });
+  }
+  const { parishId } = parsedParams.data;
+
+  let rawPayload: unknown;
+  try {
+    rawPayload = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid parish request payload" }, { status: 400 });
+  }
+
+  const parsedPayload = bodySchema.safeParse(rawPayload);
+  if (!parsedPayload.success) {
+    return NextResponse.json({ error: "Invalid parish request payload" }, { status: 400 });
+  }
+
+  const payload = parsedPayload.data;
 
   const archivedAt = payload.archive ? new Date().toISOString() : null;
 

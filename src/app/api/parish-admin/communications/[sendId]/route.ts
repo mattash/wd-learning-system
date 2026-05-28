@@ -13,7 +13,11 @@ const recipientDeliveryStatuses: RecipientDeliveryStatus[] = ["not_configured", 
 
 export async function GET(_req: Request, ctx: { params: Promise<{ sendId: string }> }) {
   const { parishId } = await requireParishRole("parish_admin");
-  const params = paramsSchema.parse(await ctx.params);
+  const paramsResult = paramsSchema.safeParse(await ctx.params);
+  if (!paramsResult.success) {
+    return NextResponse.json({ error: "Invalid message send id." }, { status: 400 });
+  }
+  const params = paramsResult.data;
   const supabase = getSupabaseAdminClient();
 
   const { data: send, error: sendError } = await supabase

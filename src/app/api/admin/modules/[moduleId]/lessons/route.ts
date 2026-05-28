@@ -81,8 +81,26 @@ const createLessonSchema = z.object({
 
 export async function POST(req: Request, ctx: { params: Promise<{ moduleId: string }> }) {
   await requireDioceseAdmin();
-  const { moduleId } = paramsSchema.parse(await ctx.params);
-  const payload = createLessonSchema.parse(await req.json());
+  const parsedParams = paramsSchema.safeParse(await ctx.params);
+  if (!parsedParams.success) {
+    return NextResponse.json({ error: "Invalid lesson request payload" }, { status: 400 });
+  }
+  const { moduleId } = parsedParams.data;
+
+  let rawPayload: unknown;
+  try {
+    rawPayload = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid lesson request payload" }, { status: 400 });
+  }
+
+  const parsedPayload = createLessonSchema.safeParse(rawPayload);
+  if (!parsedPayload.success) {
+    const firstIssue = parsedPayload.error.issues[0];
+    return NextResponse.json({ error: firstIssue?.message ?? "Invalid lesson request payload" }, { status: 400 });
+  }
+
+  const payload = parsedPayload.data;
 
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase

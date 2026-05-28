@@ -12,7 +12,20 @@ const updateAssignmentSchema = z.object({
 
 export async function PATCH(req: Request) {
   const { clerkUserId: actorUserId, parishId } = await requireParishRole("parish_admin");
-  const payload = updateAssignmentSchema.parse(await req.json());
+  let rawPayload: unknown;
+
+  try {
+    rawPayload = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid cohort assignment request payload" }, { status: 400 });
+  }
+
+  const parsedPayload = updateAssignmentSchema.safeParse(rawPayload);
+  if (!parsedPayload.success) {
+    return NextResponse.json({ error: "Invalid cohort assignment request payload" }, { status: 400 });
+  }
+
+  const payload = parsedPayload.data;
   const supabase = getSupabaseAdminClient();
 
   if (payload.cohortId) {

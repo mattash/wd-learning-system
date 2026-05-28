@@ -75,6 +75,36 @@ describe("/api/parish-admin/communications", () => {
     expect(recordAdminAuditLog).toHaveBeenCalledTimes(1);
   });
 
+  it("returns 400 for malformed JSON", async () => {
+    const response = await POST(
+      new Request("http://localhost/api/parish-admin/communications", {
+        method: "POST",
+        body: "{",
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "Invalid communication request payload" });
+    expect(getSupabaseAdminClient).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 for invalid request payloads", async () => {
+    const response = await POST(
+      new Request("http://localhost/api/parish-admin/communications", {
+        method: "POST",
+        body: JSON.stringify({
+          subject: "",
+          body: "Please continue your course this week.",
+          audienceType: "all_members",
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "Invalid communication request payload" });
+    expect(getSupabaseAdminClient).not.toHaveBeenCalled();
+  });
+
   it("returns 400 when audience resolves to no recipients", async () => {
     const membershipEq = vi.fn(async () => ({ data: [], error: null }));
     const membershipSelect = vi.fn(() => ({ eq: membershipEq }));

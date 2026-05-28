@@ -59,7 +59,11 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ questionId: s
 
 export async function DELETE(_req: Request, ctx: { params: Promise<{ questionId: string }> }) {
   await requireDioceseAdmin();
-  const { questionId } = paramsSchema.parse(await ctx.params);
+  const parsedParams = paramsSchema.safeParse(await ctx.params);
+  if (!parsedParams.success) {
+    return NextResponse.json({ error: "Invalid question request payload" }, { status: 400 });
+  }
+  const { questionId } = parsedParams.data;
 
   const supabase = getSupabaseAdminClient();
   const { error } = await supabase.from("questions").delete().eq("id", questionId);
