@@ -27,20 +27,27 @@ function createMemoryStorage(): Storage {
   };
 }
 
-if (typeof localStorage?.clear !== "function" || typeof localStorage?.setItem !== "function") {
+const existingStorage = globalThis.localStorage;
+
+if (
+  typeof existingStorage?.clear !== "function" ||
+  typeof existingStorage?.setItem !== "function"
+) {
   Object.defineProperty(globalThis, "localStorage", {
     configurable: true,
     value: createMemoryStorage(),
   });
 
-  Object.defineProperty(window, "localStorage", {
-    configurable: true,
-    value: globalThis.localStorage,
-  });
+  if (typeof globalThis.window !== "undefined") {
+    Object.defineProperty(globalThis.window, "localStorage", {
+      configurable: true,
+      value: globalThis.localStorage,
+    });
+  }
 }
 
 afterEach(() => {
   cleanup();
-  localStorage.clear();
+  globalThis.localStorage.clear();
   delete document.documentElement.dataset.theme;
 });
