@@ -96,7 +96,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ moduleId: stri
 
   const parsedPayload = createLessonSchema.safeParse(rawPayload);
   if (!parsedPayload.success) {
-    return NextResponse.json({ error: "Invalid lesson request payload" }, { status: 400 });
+    const firstIssue = parsedPayload.error.issues[0];
+    return NextResponse.json({ error: firstIssue?.message ?? "Invalid lesson request payload" }, { status: 400 });
   }
 
   const payload = parsedPayload.data;
