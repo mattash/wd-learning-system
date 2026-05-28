@@ -76,27 +76,29 @@ describe("GET /api/admin/reports/engagement/learners", () => {
     });
   });
 
-  it("returns empty list when course has no lessons", async () => {
-    vi.mocked(getSupabaseAdminClient).mockReturnValue({
-      from: vi.fn((table: string) => {
-        if (table === "modules") {
-          return {
-            select: vi.fn(() => ({ eq: vi.fn(async () => ({ data: [{ lessons: [] }], error: null })) })),
-          };
-        }
+  it("returns enrolled learners with zero progress when course has no lessons", async () => {
+    const from = vi.fn((table: string) => {
+      if (table === "modules") {
+        return {
+          select: vi.fn(() => ({ eq: vi.fn(async () => ({ data: [{ lessons: [] }], error: null })) })),
+        };
+      }
 
-        if (table === "enrollments") {
-          return {
-            select: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                eq: vi.fn(async () => ({ data: [{ clerk_user_id: "u1", created_at: "2024-01-01" }], error: null })),
-              })),
+      if (table === "enrollments") {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              eq: vi.fn(async () => ({ data: [{ clerk_user_id: "u1", created_at: "2024-01-01" }], error: null })),
             })),
-          };
-        }
+          })),
+        };
+      }
 
-        throw new Error(`Unexpected table ${table}`);
-      }),
+      throw new Error(`Unexpected table ${table}`);
+    });
+
+    vi.mocked(getSupabaseAdminClient).mockReturnValue({
+      from,
     } as never);
 
     const res = await GET(
@@ -106,7 +108,18 @@ describe("GET /api/admin/reports/engagement/learners", () => {
     );
 
     expect(res.status).toBe(200);
-    await expect(res.json()).resolves.toEqual({ learners: [] });
+    await expect(res.json()).resolves.toEqual({
+      learners: [
+        {
+          clerk_user_id: "u1",
+          enrolled_at: "2024-01-01",
+          completed_lessons: 0,
+          total_lessons: 0,
+          progress_percent: 0,
+        },
+      ],
+    });
+    expect(from).not.toHaveBeenCalledWith("video_progress");
   });
 
   it("returns 400 for invalid date range", async () => {

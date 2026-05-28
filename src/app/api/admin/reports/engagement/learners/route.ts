@@ -60,29 +60,29 @@ export async function GET(req: Request) {
     Array.isArray(module.lessons) ? module.lessons.map((lesson) => lesson.id) : [],
   );
 
-  if (lessonIds.length === 0) {
-    return NextResponse.json({ learners: [] });
-  }
-
   const userIds = (enrollments ?? []).map((enrollment) => enrollment.clerk_user_id as string);
 
-  let progressQuery = supabase
-    .from("video_progress")
-    .select("clerk_user_id,lesson_id,completed")
-    .eq("parish_id", parishId)
-    .in("lesson_id", lessonIds)
-    .in("clerk_user_id", userIds);
+  let progress: Array<{ clerk_user_id: string; completed: boolean }> = [];
+  if (lessonIds.length > 0 && userIds.length > 0) {
+    let progressQuery = supabase
+      .from("video_progress")
+      .select("clerk_user_id,lesson_id,completed")
+      .eq("parish_id", parishId)
+      .in("lesson_id", lessonIds)
+      .in("clerk_user_id", userIds);
 
-  if (hasDateFilter) {
-    progressQuery = progressQuery.gte("updated_at", startAt).lte("updated_at", endAt);
+    if (hasDateFilter) {
+      progressQuery = progressQuery.gte("updated_at", startAt).lte("updated_at", endAt);
+    }
+
+    const { data, error: progressError } = await progressQuery;
+
+    if (progressError) return NextResponse.json({ error: progressError.message }, { status: 400 });
+    progress = (data ?? []) as Array<{ clerk_user_id: string; completed: boolean }>;
   }
 
-  const { data: progress, error: progressError } = await progressQuery;
-
-  if (progressError) return NextResponse.json({ error: progressError.message }, { status: 400 });
-
   const completedCountByUser = new Map<string, number>();
-  (progress ?? []).forEach((row) => {
+  progress.forEach((row) => {
     if (row.completed) {
       const userId = row.clerk_user_id as string;
       completedCountByUser.set(userId, (completedCountByUser.get(userId) ?? 0) + 1);
