@@ -29,8 +29,20 @@ const updateModuleSchema = z.object({
 
 export async function PATCH(req: Request, ctx: { params: Promise<{ moduleId: string }> }) {
   await requireDioceseAdmin();
-  const { moduleId } = paramsSchema.parse(await ctx.params);
-  const payload = updateModuleSchema.parse(await req.json());
+
+  let moduleId: string;
+  try {
+    moduleId = paramsSchema.parse(await ctx.params).moduleId;
+  } catch {
+    return NextResponse.json({ error: "Invalid module request payload" }, { status: 400 });
+  }
+
+  let payload: z.infer<typeof updateModuleSchema>;
+  try {
+    payload = updateModuleSchema.parse(await req.json());
+  } catch {
+    return NextResponse.json({ error: "Invalid module request payload" }, { status: 400 });
+  }
 
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase

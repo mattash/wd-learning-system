@@ -38,6 +38,27 @@ describe("/api/admin/modules/[moduleId]", () => {
     expect(res.status).toBe(200);
   });
 
+  it("returns 400 for invalid patch route params", async () => {
+    const res = await PATCH(
+      new Request("http://x", { method: "PATCH", body: JSON.stringify({ title: "M", sortOrder: 0 }) }),
+      { params: Promise.resolve({ moduleId: "not-a-uuid" }) },
+    );
+
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toEqual({ error: "Invalid module request payload" });
+    expect(getSupabaseAdminClient).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 for invalid patch request body", async () => {
+    const res = await PATCH(new Request("http://x", { method: "PATCH", body: "not-json" }), {
+      params: Promise.resolve({ moduleId: "11111111-1111-4111-8111-111111111111" }),
+    });
+
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toEqual({ error: "Invalid module request payload" });
+    expect(getSupabaseAdminClient).not.toHaveBeenCalled();
+  });
+
   it("returns 400 for invalid delete route params", async () => {
     const res = await DELETE(new Request("http://x", { method: "DELETE" }), {
       params: Promise.resolve({ moduleId: "not-a-uuid" }),
