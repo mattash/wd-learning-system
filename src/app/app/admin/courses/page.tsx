@@ -1,10 +1,13 @@
 import { AdminCourseManager } from "@/components/admin-course-manager";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { requireDioceseAdmin } from "@/lib/authz";
 import { listCourses } from "@/lib/repositories/diocese-admin";
 import Link from "next/link";
 
 export default async function DioceseAdminCoursesPage() {
+  await requireDioceseAdmin();
+
   const courses = await listCourses(100);
 
   return (
