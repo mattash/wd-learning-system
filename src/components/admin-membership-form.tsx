@@ -28,7 +28,7 @@ export function AdminMembershipForm() {
       const response = await fetch("/api/admin-membership", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clerkUserId, parishId: parishId || undefined, role, makeDioceseAdmin }),
+        body: JSON.stringify({ clerkUserId, parishId: parishId || undefined, role: parishId ? role : undefined, makeDioceseAdmin }),
       });
 
       const data = await response.json();
