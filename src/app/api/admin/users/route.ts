@@ -108,7 +108,7 @@ export async function GET(req: Request) {
   if (q) {
     const pattern = escapePostgrestPattern(q);
     usersQuery = usersQuery.or(
-      `clerk_user_id.ilike.%${pattern}%,display_name.ilike.%${pattern}%,email.ilike.%${pattern}%`,
+      `clerk_user_id.ilike."%${pattern}%",display_name.ilike."%${pattern}%",email.ilike."%${pattern}%"`,
     );
   }
 
@@ -204,7 +204,7 @@ function intersectCandidateIds(current: Set<string> | null, next: Set<string>) {
 }
 
 function escapePostgrestPattern(value: string) {
-  return value.replaceAll("\\", "\\\\").replaceAll("%", "\\%").replaceAll("_", "\\_").replaceAll(",", "\\,");
+  return value.replaceAll("\\", "\\\\").replaceAll("%", "\\%").replaceAll("_", "\\_").replaceAll('"', '\\"');
 }
 
 function formatPostgrestInList(values: Set<string>) {
