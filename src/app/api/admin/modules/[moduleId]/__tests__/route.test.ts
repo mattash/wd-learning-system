@@ -37,4 +37,14 @@ describe("/api/admin/modules/[moduleId]", () => {
     });
     expect(res.status).toBe(200);
   });
+
+  it("returns 400 for invalid delete route params", async () => {
+    const res = await DELETE(new Request("http://x", { method: "DELETE" }), {
+      params: Promise.resolve({ moduleId: "not-a-uuid" }),
+    });
+
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toEqual({ error: "Invalid module request payload" });
+    expect(getSupabaseAdminClient).not.toHaveBeenCalled();
+  });
 });

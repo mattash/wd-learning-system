@@ -51,7 +51,13 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ moduleId: str
 
 export async function DELETE(_req: Request, ctx: { params: Promise<{ moduleId: string }> }) {
   await requireDioceseAdmin();
-  const { moduleId } = paramsSchema.parse(await ctx.params);
+  let moduleId: string;
+
+  try {
+    moduleId = paramsSchema.parse(await ctx.params).moduleId;
+  } catch {
+    return NextResponse.json({ error: "Invalid module request payload" }, { status: 400 });
+  }
 
   const supabase = getSupabaseAdminClient();
   const { error } = await supabase.from("modules").delete().eq("id", moduleId);
