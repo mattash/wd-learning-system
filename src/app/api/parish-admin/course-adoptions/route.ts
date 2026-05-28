@@ -11,7 +11,20 @@ const courseAdoptionSchema = z.object({
 
 export async function POST(req: Request) {
   const { clerkUserId, parishId } = await requireParishRole("parish_admin");
-  const payload = courseAdoptionSchema.parse(await req.json());
+  let rawPayload: unknown;
+
+  try {
+    rawPayload = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid course adoption request payload" }, { status: 400 });
+  }
+
+  const parsedPayload = courseAdoptionSchema.safeParse(rawPayload);
+  if (!parsedPayload.success) {
+    return NextResponse.json({ error: "Invalid course adoption request payload" }, { status: 400 });
+  }
+
+  const payload = parsedPayload.data;
   const supabase = getSupabaseAdminClient();
 
   const { data: course, error: courseError } = await supabase
@@ -56,7 +69,20 @@ export async function POST(req: Request) {
 
 export async function DELETE(req: Request) {
   const { clerkUserId, parishId } = await requireParishRole("parish_admin");
-  const payload = courseAdoptionSchema.parse(await req.json());
+  let rawPayload: unknown;
+
+  try {
+    rawPayload = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid course adoption request payload" }, { status: 400 });
+  }
+
+  const parsedPayload = courseAdoptionSchema.safeParse(rawPayload);
+  if (!parsedPayload.success) {
+    return NextResponse.json({ error: "Invalid course adoption request payload" }, { status: 400 });
+  }
+
+  const payload = parsedPayload.data;
   const supabase = getSupabaseAdminClient();
 
   const { data: course, error: courseError } = await supabase

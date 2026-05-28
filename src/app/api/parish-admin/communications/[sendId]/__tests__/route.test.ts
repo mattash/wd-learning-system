@@ -207,4 +207,14 @@ describe("/api/parish-admin/communications/[sendId]", () => {
     expect(response.status).toBe(404);
     await expect(response.json()).resolves.toEqual({ error: "Message send not found." });
   });
+
+  it("returns 400 for invalid send ids", async () => {
+    const response = await GET(new Request("http://localhost"), {
+      params: Promise.resolve({ sendId: "not-a-uuid" }),
+    });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "Invalid message send id." });
+    expect(getSupabaseAdminClient).not.toHaveBeenCalled();
+  });
 });

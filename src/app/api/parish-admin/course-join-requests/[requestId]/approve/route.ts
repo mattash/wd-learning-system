@@ -14,19 +14,19 @@ export async function POST(
   { params }: { params: Promise<{ requestId: string }> }
 ) {
   const { clerkUserId, parishId } = await requireParishRole("parish_admin");
-  const { requestId } = paramsSchema.parse(await params);
-
-  // Get request details before approving (need course_id for notification)
-  const { getSupabaseAdminClient } = await import("@/lib/supabase/server");
-  const supabase = getSupabaseAdminClient();
-  const { data: requestRow } = await supabase
-    .from("course_join_requests")
-    .select("clerk_user_id, course_id")
-    .eq("id", requestId)
-    .eq("status", "PENDING")
-    .single();
 
   try {
+    const { requestId } = paramsSchema.parse(await params);
+
+    // Get request details before approving (need course_id for notification)
+    const { getSupabaseAdminClient } = await import("@/lib/supabase/server");
+    const supabase = getSupabaseAdminClient();
+    const { data: requestRow } = await supabase
+      .from("course_join_requests")
+      .select("clerk_user_id, course_id")
+      .eq("id", requestId)
+      .eq("status", "PENDING")
+      .single();
     await approveJoinRequest({ requestId, actorClerkUserId: clerkUserId });
 
     // Send notification email (non-blocking - don't fail the request if email fails)
@@ -41,6 +41,9 @@ export async function POST(
 
     return NextResponse.json({ ok: true });
   } catch (err) {
+    if (err instanceof z.ZodError) {
+      return NextResponse.json({ error: "Invalid request parameters" }, { status: 400 });
+    }
     const message = err instanceof Error ? err.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 400 });
   }

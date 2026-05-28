@@ -85,47 +85,49 @@ describe("POST /api/admin/modules/[moduleId]/lessons", () => {
   it("rejects video lessons without a video id", async () => {
     vi.mocked(getSupabaseAdminClient).mockReturnValue({ from: vi.fn() } as never);
 
-    await expect(() =>
-      POST(
-        new Request(
-          "http://x",
-          {
-            method: "POST",
-            body: JSON.stringify({
-              title: "Broken video",
-              contentType: "VIDEO",
-              sortOrder: 0,
-              passingScore: 80,
-            }),
-          },
-        ),
-        { params: Promise.resolve({ moduleId: "11111111-1111-4111-8111-111111111111" }) },
+    const res = await POST(
+      new Request(
+        "http://x",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            title: "Broken video",
+            contentType: "VIDEO",
+            sortOrder: 0,
+            passingScore: 80,
+          }),
+        },
       ),
-    ).rejects.toThrow("YouTube video ID is required for video lessons.");
+      { params: Promise.resolve({ moduleId: "11111111-1111-4111-8111-111111111111" }) },
+    );
+
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toEqual({ error: "YouTube video ID is required for video lessons." });
   });
 
   it("rejects document lessons with an invalid page range", async () => {
     vi.mocked(getSupabaseAdminClient).mockReturnValue({ from: vi.fn() } as never);
 
-    await expect(() =>
-      POST(
-        new Request(
-          "http://x",
-          {
-            method: "POST",
-            body: JSON.stringify({
-              title: "Broken reading",
-              contentType: "DOCUMENT",
-              documentUrl: "/docs/reading.pdf",
-              documentPageStart: 5,
-              documentPageEnd: 3,
-              sortOrder: 0,
-              passingScore: 80,
-            }),
-          },
-        ),
-        { params: Promise.resolve({ moduleId: "11111111-1111-4111-8111-111111111111" }) },
+    const res = await POST(
+      new Request(
+        "http://x",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            title: "Broken reading",
+            contentType: "DOCUMENT",
+            documentUrl: "/docs/reading.pdf",
+            documentPageStart: 5,
+            documentPageEnd: 3,
+            sortOrder: 0,
+            passingScore: 80,
+          }),
+        },
       ),
-    ).rejects.toThrow("Document end page must be greater than or equal to the start page.");
+      { params: Promise.resolve({ moduleId: "11111111-1111-4111-8111-111111111111" }) },
+    );
+
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toEqual({ error: "Document end page must be greater than or equal to the start page." });
   });
 });

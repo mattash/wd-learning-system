@@ -92,6 +92,38 @@ describe("/api/parish-admin/cohorts", () => {
     expect(recordAdminAuditLog).toHaveBeenCalledTimes(1);
   });
 
+  it.each([
+    ["missing name", { cadence: "weekly" }],
+    ["invalid cadence", { name: "RCIA A", cadence: "daily" }],
+    ["invalid next session datetime", { name: "RCIA A", nextSessionAt: "2026-02-20 19:00" }],
+  ])("returns 400 for invalid create payloads: %s", async (_caseName, body) => {
+    const response = await POST(
+      new Request("http://localhost/api/parish-admin/cohorts", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "Invalid cohort request payload" });
+    expect(getSupabaseAdminClient).not.toHaveBeenCalled();
+    expect(recordAdminAuditLog).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 for malformed JSON create payloads", async () => {
+    const response = await POST(
+      new Request("http://localhost/api/parish-admin/cohorts", {
+        method: "POST",
+        body: "{",
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "Invalid cohort request payload" });
+    expect(getSupabaseAdminClient).not.toHaveBeenCalled();
+    expect(recordAdminAuditLog).not.toHaveBeenCalled();
+  });
+
   it("returns 400 when facilitator is not eligible", async () => {
     const membershipMaybeSingle = vi.fn(async () => ({ data: { role: "student" }, error: null }));
     const membershipEqUser = vi.fn(() => ({ maybeSingle: membershipMaybeSingle }));

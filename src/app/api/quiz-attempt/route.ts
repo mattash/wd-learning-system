@@ -13,7 +13,20 @@ import { notifyCourseCompletion } from "@/lib/parish-communications/notification
 export async function POST(req: Request) {
   const clerkUserId = await requireAuth();
   const { parishId } = await requireParishRole("student");
-  const payload = quizSubmissionSchema.parse(await req.json());
+
+  let rawPayload: unknown;
+  try {
+    rawPayload = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid quiz submission payload" }, { status: 400 });
+  }
+
+  const parsedPayload = quizSubmissionSchema.safeParse(rawPayload);
+  if (!parsedPayload.success) {
+    return NextResponse.json({ error: "Invalid quiz submission payload" }, { status: 400 });
+  }
+
+  const payload = parsedPayload.data;
 
   if (payload.parishId !== parishId) {
     return NextResponse.json({ error: "Invalid parish context" }, { status: 403 });
