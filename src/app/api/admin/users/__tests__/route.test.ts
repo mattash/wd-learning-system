@@ -12,6 +12,34 @@ import { GET } from "@/app/api/admin/users/route";
 import { requireDioceseAdmin } from "@/lib/authz";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 
+function createUserProfilesQuery({
+  data,
+  error = null,
+  onIn,
+}: {
+  data: unknown[];
+  error?: { message: string } | null;
+  onIn?: (column: string, values: string[]) => void;
+}) {
+  const query = {
+    or: vi.fn(() => query),
+    not: vi.fn(() => query),
+    is: vi.fn(() => query),
+    in: vi.fn((column: string, values: string[]) => {
+      onIn?.(column, values);
+      return query;
+    }),
+    order: vi.fn(() => ({
+      limit: vi.fn(async () => ({
+        data,
+        error,
+      })),
+    })),
+  };
+
+  return query;
+}
+
 describe("GET /api/admin/users", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -25,8 +53,8 @@ describe("GET /api/admin/users", () => {
       from: vi.fn((table: string) => {
         if (table === "user_profiles") {
           return {
-            select: vi.fn(() => ({
-              order: vi.fn(async () => ({
+            select: vi.fn(() =>
+              createUserProfilesQuery({
                 data: [
                   {
                     clerk_user_id: "alice",
@@ -35,17 +63,9 @@ describe("GET /api/admin/users", () => {
                     onboarding_completed_at: "2024-01-01",
                     created_at: "2024-01-01",
                   },
-                  {
-                    clerk_user_id: "bob",
-                    email: "bob@example.com",
-                    display_name: "Bob",
-                    onboarding_completed_at: null,
-                    created_at: "2024-01-02",
-                  },
                 ],
-                error: null,
-              })),
-            })),
+              }),
+            ),
           };
         }
 
@@ -113,99 +133,12 @@ describe("GET /api/admin/users", () => {
     expect(String(body.error).toLowerCase()).toContain("uuid");
   });
 
-  it("applies filters before limiting users", async () => {
-    const matchingParishId = "11111111-1111-4111-8111-111111111111";
-    const otherParishId = "22222222-2222-4222-8222-222222222222";
-
-    vi.mocked(getSupabaseAdminClient).mockReturnValue({
-      from: vi.fn((table: string) => {
-        if (table === "user_profiles") {
-          return {
-            select: vi.fn(() => ({
-              order: vi.fn(async () => ({
-                data: [
-                  {
-                    clerk_user_id: "newest",
-                    email: "newest@example.com",
-                    display_name: "Newest",
-                    onboarding_completed_at: null,
-                    created_at: "2024-02-01",
-                  },
-                  {
-                    clerk_user_id: "older-match",
-                    email: "older@example.com",
-                    display_name: "Older Match",
-                    onboarding_completed_at: null,
-                    created_at: "2024-01-01",
-                  },
-                ],
-                error: null,
-              })),
-            })),
-          };
-        }
-
-        if (table === "parish_memberships") {
-          return {
-            select: vi.fn(async () => ({
-              data: [
-                { parish_id: otherParishId, clerk_user_id: "newest", role: "student" },
-                { parish_id: matchingParishId, clerk_user_id: "older-match", role: "student" },
-              ],
-              error: null,
-            })),
-          };
-        }
-
-        if (table === "diocese_admins") {
-          return {
-            select: vi.fn(async () => ({
-              data: [],
-              error: null,
-            })),
-          };
-        }
-
-        if (table === "parishes") {
-          return {
-            select: vi.fn(async () => ({
-              data: [
-                { id: matchingParishId, name: "St Anne" },
-                { id: otherParishId, name: "St Bernadette" },
-              ],
-              error: null,
-            })),
-          };
-        }
-
-        throw new Error(`Unexpected table: ${table}`);
-      }),
-    } as never);
-
-    const response = await GET(
-      new Request(`http://localhost/api/admin/users?limit=1&parishId=${matchingParishId}`),
-    );
-
-    expect(response.status).toBe(200);
-    const body = await response.json();
-    expect(body.users).toHaveLength(1);
-    expect(body.users[0]).toMatchObject({
-      clerk_user_id: "older-match",
-      memberships: [{ parish_id: matchingParishId, parish_name: "St Anne", role: "student" }],
-    });
-  });
-
   it("returns 400 when user listing fails", async () => {
     vi.mocked(getSupabaseAdminClient).mockReturnValue({
       from: vi.fn((table: string) => {
         if (table === "user_profiles") {
           return {
-            select: vi.fn(() => ({
-              order: vi.fn(async () => ({
-                data: null,
-                error: { message: "users failed" },
-              })),
-            })),
+            select: vi.fn(() => createUserProfilesQuery({ data: [], error: { message: "users failed" } })),
           };
         }
 
@@ -218,5 +151,65 @@ describe("GET /api/admin/users", () => {
     const response = await GET(new Request("http://localhost/api/admin/users"));
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({ error: "users failed" });
+  });
+
+  it("applies membership filters before limiting user profiles", async () => {
+    const parishId = "11111111-1111-4111-8111-111111111111";
+    const inCalls: Array<{ column: string; values: string[] }> = [];
+
+    vi.mocked(getSupabaseAdminClient).mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "user_profiles") {
+          return {
+            select: vi.fn(() =>
+              createUserProfilesQuery({
+                data: [
+                  {
+                    clerk_user_id: "late-match",
+                    email: "late@example.com",
+                    display_name: "Late Match",
+                    onboarding_completed_at: null,
+                    created_at: "2024-01-03",
+                  },
+                ],
+                onIn: (column, values) => inCalls.push({ column, values }),
+              }),
+            ),
+          };
+        }
+
+        if (table === "parish_memberships") {
+          return {
+            select: vi.fn(async () => ({
+              data: [
+                { parish_id: "other-parish", clerk_user_id: "newest-user", role: "student" },
+                { parish_id: parishId, clerk_user_id: "late-match", role: "instructor" },
+              ],
+              error: null,
+            })),
+          };
+        }
+
+        if (table === "diocese_admins") {
+          return { select: vi.fn(async () => ({ data: [], error: null })) };
+        }
+
+        if (table === "parishes") {
+          return { select: vi.fn(async () => ({ data: [{ id: parishId, name: "St Anne" }], error: null })) };
+        }
+
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    } as never);
+
+    const response = await GET(
+      new Request(`http://localhost/api/admin/users?parishId=${parishId}&role=instructor&limit=1`),
+    );
+
+    expect(response.status).toBe(200);
+    expect(inCalls).toEqual([{ column: "clerk_user_id", values: ["late-match"] }]);
+    await expect(response.json()).resolves.toMatchObject({
+      users: [{ clerk_user_id: "late-match" }],
+    });
   });
 });

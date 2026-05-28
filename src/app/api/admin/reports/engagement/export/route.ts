@@ -1,4 +1,5 @@
 import { requireDioceseAdmin } from "@/lib/authz";
+import { csvValue } from "@/lib/csv";
 import { loadEngagementReportData, parseEngagementFilters } from "@/lib/reports/engagement-report";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 
@@ -44,7 +45,7 @@ export async function GET(req: Request) {
         row.learners_completed,
         row.completion_rate,
       ]
-        .map((value) => `"${String(value).replaceAll('"', '""')}"`)
+        .map(csvValue)
         .join(","),
     ),
   ];

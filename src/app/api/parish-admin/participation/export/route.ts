@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { requireParishRole } from "@/lib/authz";
+import { csvValue } from "@/lib/csv";
 import type {
   ParishAdminCourseRow,
   ParishAdminCohortRow,
@@ -65,12 +66,6 @@ function filterRows({
       clerkUserId.includes(normalizedSearch)
     );
   });
-}
-
-function csvValue(value: string | number | null) {
-  const text = String(value ?? "");
-  const safeText = /^[=+\-@\t\r]/.test(text) ? `'${text}` : text;
-  return `"${safeText.replaceAll('"', '""')}"`;
 }
 
 export async function GET(req: Request) {
