@@ -46,6 +46,7 @@ begin
     'ok', true,
     'enrollment', jsonb_build_object(
       'id', v_enrollment.id,
+      'parish_id', v_enrollment.parish_id,
       'clerk_user_id', v_enrollment.clerk_user_id,
       'course_id', v_enrollment.course_id,
       'cohort_id', v_enrollment.cohort_id,

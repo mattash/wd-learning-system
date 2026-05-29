@@ -191,6 +191,11 @@ export async function approveJoinRequest({
   if (requestError || !request) {
     throw new Error("Request not found or not pending");
   }
+  const pendingRequest = request as {
+    parish_id: string;
+    clerk_user_id: string;
+    course_id: string;
+  };
 
   // Mark request as approved first (only if still PENDING) — guard against concurrent rejection
   const { error: updateError, data: updated } = await supabase
@@ -207,16 +212,45 @@ export async function approveJoinRequest({
   }
 
   // Create enrollment (after successfully transitioning the request)
-  const { error: enrollmentError } = await supabase
-    .from("enrollments")
-    .upsert(
-      {
-        parish_id: request.parish_id,
-        clerk_user_id: request.clerk_user_id,
-        course_id: request.course_id,
-      },
-      { onConflict: "parish_id,clerk_user_id,course_id" }
-    );
+  const { data: course, error: courseError } = await supabase
+    .from("courses")
+    .select("id,scope")
+    .eq("id", pendingRequest.course_id)
+    .maybeSingle();
+
+  if (courseError) {
+    await supabase.from("course_join_requests").update({ status: "PENDING" }).eq("id", requestId);
+    throw courseError;
+  }
+
+  if (!course) {
+    await supabase.from("course_join_requests").update({ status: "PENDING" }).eq("id", requestId);
+    throw new Error("Course not found");
+  }
+
+  const enrollmentResult =
+    course.scope === "PARISH"
+      ? await supabase.rpc("create_parish_course_enrollment", {
+          p_parish_id: pendingRequest.parish_id,
+          p_course_id: pendingRequest.course_id,
+          p_clerk_user_id: pendingRequest.clerk_user_id,
+        })
+      : await supabase
+          .from("enrollments")
+          .upsert(
+            {
+              parish_id: pendingRequest.parish_id,
+              clerk_user_id: pendingRequest.clerk_user_id,
+              course_id: pendingRequest.course_id,
+            },
+            { onConflict: "parish_id,clerk_user_id,course_id" },
+          );
+
+  const rpcError =
+    course.scope === "PARISH" && enrollmentResult.data
+      ? ((enrollmentResult.data as { error?: string } | null)?.error ?? null)
+      : null;
+  const enrollmentError = enrollmentResult.error ?? (rpcError ? new Error(rpcError) : null);
 
   if (enrollmentError) {
     // Roll back the approval if enrollment creation fails
@@ -235,9 +269,9 @@ export async function approveJoinRequest({
     resourceType: "course_join_request",
     resourceId: requestId,
     details: {
-      parish_id: request.parish_id,
-      clerk_user_id: request.clerk_user_id,
-      course_id: request.course_id,
+      parish_id: pendingRequest.parish_id,
+      clerk_user_id: pendingRequest.clerk_user_id,
+      course_id: pendingRequest.course_id,
     },
   });
 }
