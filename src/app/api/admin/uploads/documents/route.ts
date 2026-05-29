@@ -29,6 +29,10 @@ function isPdfFile(file: UploadFile) {
   return file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
 }
 
+function hasPdfHeader(body: Buffer) {
+  return body.subarray(0, 5).equals(Buffer.from("%PDF-"));
+}
+
 export async function POST(req: Request) {
   await requireDioceseAdmin();
 
@@ -57,8 +61,14 @@ export async function POST(req: Request) {
   }
 
   try {
+    const body = Buffer.from(await entry.arrayBuffer());
+
+    if (!hasPdfHeader(body)) {
+      return NextResponse.json({ error: "Only PDF uploads are supported." }, { status: 400 });
+    }
+
     const uploaded = await uploadDocumentToR2({
-      body: Buffer.from(await entry.arrayBuffer()),
+      body,
       contentType: "application/pdf",
       fileName: entry.name,
     });

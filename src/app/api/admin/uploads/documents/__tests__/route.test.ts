@@ -32,9 +32,9 @@ describe("POST /api/admin/uploads/documents", () => {
     });
 
     const file = {
-      arrayBuffer: vi.fn().mockResolvedValue(new TextEncoder().encode("pdf").buffer),
+      arrayBuffer: vi.fn().mockResolvedValue(new TextEncoder().encode("%PDF-1.7").buffer),
       name: "reading.pdf",
-      size: 3,
+      size: 8,
       type: "application/pdf",
     };
 
@@ -67,6 +67,24 @@ describe("POST /api/admin/uploads/documents", () => {
     await expect(response.json()).resolves.toEqual({
       error: "Only PDF uploads are supported.",
     });
+    expect(uploadDocumentToR2).not.toHaveBeenCalled();
+  });
+
+  it("rejects files with pdf metadata but non-pdf bytes", async () => {
+    const file = {
+      arrayBuffer: vi.fn().mockResolvedValue(new TextEncoder().encode("not a pdf").buffer),
+      name: "payload.pdf",
+      size: 9,
+      type: "application/pdf",
+    };
+
+    const response = await POST(buildRequest(file));
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: "Only PDF uploads are supported.",
+    });
+    expect(uploadDocumentToR2).not.toHaveBeenCalled();
   });
 
   it("rejects oversized uploads", async () => {
