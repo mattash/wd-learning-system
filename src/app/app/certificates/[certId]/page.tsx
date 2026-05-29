@@ -1,11 +1,9 @@
 import { notFound } from "next/navigation";
 
 import { requireParishRole } from "@/lib/authz";
-import { getCertificatePdfData } from "@/lib/repositories/certificates";
-import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import { listStudentCertificates } from "@/lib/repositories/certificates";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import Link from "next/link";
 
 export default async function CertificateDetailPage({
