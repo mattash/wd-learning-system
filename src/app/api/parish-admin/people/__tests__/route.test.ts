@@ -17,6 +17,7 @@ describe("/api/parish-admin/people", () => {
       parishId: "11111111-1111-4111-8111-111111111111",
       role: "parish_admin",
     });
+    vi.mocked(recordAdminAuditLog).mockResolvedValue(undefined);
   });
 
   it("adds a member by email", async () => {
@@ -102,6 +103,98 @@ describe("/api/parish-admin/people", () => {
       ],
     });
     expect(recordAdminAuditLog).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns created membership when audit logging fails after successful upsert", async () => {
+    const userLimit = vi.fn(async () => ({
+      data: [{ clerk_user_id: "user-1", email: "person@example.com", display_name: "Person" }],
+      error: null,
+    }));
+    const userOrder = vi.fn(() => ({ limit: userLimit }));
+    const userIlike = vi.fn(() => ({ order: userOrder }));
+    const userSelect = vi.fn(() => ({ ilike: userIlike }));
+
+    const membership = { parish_id: "11111111-1111-4111-8111-111111111111", clerk_user_id: "user-1", role: "student" };
+    const membershipSingle = vi.fn(async () => ({ data: membership, error: null }));
+    const membershipSelect = vi.fn(() => ({ single: membershipSingle }));
+    const membershipUpsert = vi.fn(() => ({ select: membershipSelect }));
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    vi.mocked(getSupabaseAdminClient).mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "user_profiles") return { select: userSelect };
+        if (table === "parish_memberships") return { upsert: membershipUpsert };
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    } as never);
+    vi.mocked(recordAdminAuditLog).mockRejectedValue(new Error("audit unavailable"));
+
+    const response = await POST(
+      new Request("http://localhost/api/parish-admin/people", {
+        method: "POST",
+        body: JSON.stringify({ identifier: "person@example.com", role: "student" }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      membership,
+      user: { clerk_user_id: "user-1", email: "person@example.com", display_name: "Person" },
+    });
+
+    consoleError.mockRestore();
+  });
+
+  it("returns import results when audit logging fails after successful import", async () => {
+    const userLimit = vi.fn(async () => ({
+      data: [{ clerk_user_id: "user-1", email: "person@example.com", display_name: "Person" }],
+      error: null,
+    }));
+    const userOrder = vi.fn(() => ({ limit: userLimit }));
+    const userIlike = vi.fn(() => ({ order: userOrder }));
+    const userSelect = vi.fn(() => ({ ilike: userIlike }));
+
+    const membershipUpsert = vi.fn(async () => ({ error: null }));
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    vi.mocked(getSupabaseAdminClient).mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "user_profiles") return { select: userSelect };
+        if (table === "parish_memberships") return { upsert: membershipUpsert };
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    } as never);
+    vi.mocked(recordAdminAuditLog).mockRejectedValue(new Error("audit unavailable"));
+
+    const response = await PUT(
+      new Request("http://localhost/api/parish-admin/people", {
+        method: "PUT",
+        body: JSON.stringify({
+          csvText: "email,role\nperson@example.com,student",
+          defaultRole: "student",
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      summary: {
+        totalRows: 1,
+        importedCount: 1,
+        skippedCount: 0,
+      },
+      results: [
+        {
+          row: 2,
+          identifier: "user-1",
+          role: "student",
+          status: "imported",
+          message: "Membership saved.",
+        },
+      ],
+    });
+
+    consoleError.mockRestore();
   });
 
   it("returns 400 when csv header is missing required columns", async () => {

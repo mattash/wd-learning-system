@@ -3,6 +3,7 @@ import { getSupabaseAdminClient } from "@/lib/supabase/server";
 export interface DioceseOverview {
   parishCount: number;
   userCount: number;
+  parishMembershipCount: number;
   dioceseAdminCount: number;
   courseCount: number;
   publishedCourseCount: number;
@@ -134,6 +135,7 @@ export async function getDioceseOverview(): Promise<DioceseOverview> {
   const [
     parishCount,
     userCount,
+    parishMembershipCount,
     dioceseAdminCount,
     courseCount,
     enrollmentCount,
@@ -143,6 +145,7 @@ export async function getDioceseOverview(): Promise<DioceseOverview> {
   ] = await Promise.all([
     getTableCount("parishes"),
     getTableCount("user_profiles"),
+    getTableCount("parish_memberships"),
     supabase.from("diocese_admins").select("clerk_user_id", { count: "exact", head: true }),
     getTableCount("courses"),
     getTableCount("enrollments"),
@@ -157,6 +160,7 @@ export async function getDioceseOverview(): Promise<DioceseOverview> {
   return {
     parishCount,
     userCount,
+    parishMembershipCount,
     dioceseAdminCount: dioceseAdminCount.count ?? 0,
     courseCount,
     publishedCourseCount: publishedCoursesResult.count ?? 0,

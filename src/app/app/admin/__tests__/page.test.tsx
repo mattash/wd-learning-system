@@ -20,6 +20,7 @@ describe("DioceseAdminPage", () => {
     vi.mocked(getDioceseOverview).mockResolvedValue({
       parishCount: 2,
       userCount: 12,
+      parishMembershipCount: 7,
       dioceseAdminCount: 1,
       courseCount: 4,
       publishedCourseCount: 3,
@@ -39,6 +40,8 @@ describe("DioceseAdminPage", () => {
       "href",
       "/app/admin/memberships",
     );
+    expect(screen.getByText("Parish memberships")).toBeInTheDocument();
+    expect(screen.getByText("7 active")).toBeInTheDocument();
   });
 
   it("does not load overview data when the guard rejects access", async () => {

@@ -38,13 +38,13 @@ export default async function LessonPage({
 }) {
   const { lessonId } = await params;
   const { parishId, clerkUserId } = await requireParishRole("student");
+  const lesson = await getLessonWithQuestions(lessonId);
+  if (!lesson) notFound();
+
   const enrolled = await isUserEnrolledForLesson({ lessonId, parishId, clerkUserId });
   if (!enrolled) {
     redirect("/app/courses?error=not_enrolled");
   }
-
-  const lesson = await getLessonWithQuestions(lessonId);
-  if (!lesson) notFound();
 
   const [progress, bestScore, navContext, courseId] = await Promise.all([
     getLessonProgress(lessonId, parishId, clerkUserId),

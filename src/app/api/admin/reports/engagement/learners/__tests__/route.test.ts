@@ -122,6 +122,42 @@ describe("GET /api/admin/reports/engagement/learners", () => {
     expect(from).not.toHaveBeenCalledWith("video_progress");
   });
 
+  it("returns no learners without querying progress when course has lessons but no enrollments", async () => {
+    const from = vi.fn((table: string) => {
+      if (table === "modules") {
+        return {
+          select: vi.fn(() => ({ eq: vi.fn(async () => ({ data: [{ lessons: [{ id: "l1" }] }], error: null })) })),
+        };
+      }
+
+      if (table === "enrollments") {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              eq: vi.fn(async () => ({ data: [], error: null })),
+            })),
+          })),
+        };
+      }
+
+      throw new Error(`Unexpected table ${table}`);
+    });
+
+    vi.mocked(getSupabaseAdminClient).mockReturnValue({
+      from,
+    } as never);
+
+    const res = await GET(
+      new Request(
+        "http://localhost/api/admin/reports/engagement/learners?parishId=11111111-1111-4111-8111-111111111111&courseId=22222222-2222-4222-8222-222222222222",
+      ),
+    );
+
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual({ learners: [] });
+    expect(from).not.toHaveBeenCalledWith("video_progress");
+  });
+
   it("returns 400 for invalid date range", async () => {
     vi.mocked(getSupabaseAdminClient).mockReturnValue({ from: vi.fn() } as never);
 

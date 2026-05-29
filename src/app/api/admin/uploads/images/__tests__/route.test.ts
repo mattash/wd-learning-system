@@ -71,6 +71,19 @@ describe("POST /api/admin/uploads/images", () => {
     await expect(response.json()).resolves.toEqual({ error: "Unsupported image type." });
   });
 
+  it("returns 400 for malformed JSON", async () => {
+    const response = await POST(
+      new Request("http://localhost/api/admin/uploads/images", {
+        method: "POST",
+        body: "{",
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "Invalid upload request." });
+    expect(createPresignedImageUpload).not.toHaveBeenCalled();
+  });
+
   it("returns 400 when image exceeds max size", async () => {
     process.env.UPLOAD_MAX_IMAGE_BYTES = "1000";
 

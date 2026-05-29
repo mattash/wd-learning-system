@@ -3,16 +3,26 @@ import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/ca
 import { requireDioceseAdmin } from "@/lib/authz";
 import { listParishes } from "@/lib/repositories/diocese-admin";
 
+const PARISH_PAGE_SIZE = 100;
+
 export default async function DioceseAdminParishesPage() {
   await requireDioceseAdmin();
 
-  const parishes = await listParishes(100);
+  const parishRows = await listParishes(PARISH_PAGE_SIZE + 1);
+  const hasMoreParishes = parishRows.length > PARISH_PAGE_SIZE;
+  const parishes = parishRows.slice(0, PARISH_PAGE_SIZE);
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>Parishes</CardTitle>
         <CardDescription>Parishes registered in the diocese. Each parish can adopt diocese-published courses.</CardDescription>
+        {hasMoreParishes ? (
+          <p className="text-sm text-muted-foreground">
+            Showing the first {PARISH_PAGE_SIZE} parishes. Additional parishes are registered and are not shown in this
+            view yet.
+          </p>
+        ) : null}
       </CardHeader>
       <div className="overflow-auto">
         <AdminParishManager parishes={parishes} />
