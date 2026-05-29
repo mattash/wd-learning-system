@@ -64,7 +64,7 @@ export async function POST(req: Request) {
 
   const existingEnrollmentQuery = await supabase
     .from("enrollments")
-    .select("id")
+    .select("id,parish_id,clerk_user_id,course_id,created_at")
     .eq("parish_id", payload.parishId)
     .eq("clerk_user_id", payload.clerkUserId)
     .eq("course_id", payload.courseId)
@@ -74,24 +74,40 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: existingEnrollmentQuery.error.message }, { status: 400 });
   }
 
-  const { data, error } = await supabase
-    .from("enrollments")
-    .upsert(
-      {
-        parish_id: payload.parishId,
-        clerk_user_id: payload.clerkUserId,
-        course_id: payload.courseId,
-      },
-      { onConflict: "parish_id,clerk_user_id,course_id" },
-    )
-    .select("id,parish_id,clerk_user_id,course_id,created_at")
-    .single();
+  let data: {
+    id: string;
+    parish_id: string;
+    clerk_user_id: string;
+    course_id: string;
+    created_at: string;
+  };
+  let isNewEnrollment = false;
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
+  if (existingEnrollmentQuery.data) {
+    data = existingEnrollmentQuery.data as typeof data;
+  } else {
+    const { data: enrollment, error } = await supabase
+      .from("enrollments")
+      .upsert(
+        {
+          parish_id: payload.parishId,
+          clerk_user_id: payload.clerkUserId,
+          course_id: payload.courseId,
+        },
+        { onConflict: "parish_id,clerk_user_id,course_id" },
+      )
+      .select("id,parish_id,clerk_user_id,course_id,created_at")
+      .single();
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
+    data = enrollment as typeof data;
+    isNewEnrollment = true;
   }
 
-  if (!existingEnrollmentQuery.data) {
+  if (isNewEnrollment) {
     // Send enrollment confirmation email (non-blocking)
     notifyEnrollmentConfirmed({
       clerkUserId: payload.clerkUserId,
@@ -100,7 +116,7 @@ export async function POST(req: Request) {
     }).catch((err) => console.error("[notifications] diocese enrollment confirmed email failed:", err));
   }
 
-  return NextResponse.json({ enrollment: data }, { status: 201 });
+  return NextResponse.json({ enrollment: data }, { status: isNewEnrollment ? 201 : 200 });
 }
 
 export async function DELETE(req: Request) {

@@ -46,7 +46,7 @@ function certificateQuery() {
   return {
     select: vi.fn(() => ({
       eq: vi.fn(() => ({
-        single: vi.fn(async () => ({ data: cert, error: null })),
+        maybeSingle: vi.fn(async () => ({ data: cert, error: null })),
       })),
     })),
   };
@@ -65,7 +65,7 @@ describe("GET /api/certificates/:certId/pdf", () => {
         return {
           select: vi.fn(() => ({
             eq: vi.fn(() => ({
-              single: vi.fn(async () => ({ data: null, error: { message: "db down" } })),
+              maybeSingle: vi.fn(async () => ({ data: null, error: { message: "db down" } })),
             })),
           })),
         };

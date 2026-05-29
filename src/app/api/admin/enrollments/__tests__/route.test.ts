@@ -69,20 +69,21 @@ describe("/api/admin/enrollments", () => {
   });
 
   it("does not send enrollment confirmation for existing enrollments", async () => {
-    const maybeSingle = vi.fn(async () => ({ data: { id: "e1" }, error: null }));
+    const existingEnrollment = {
+      id: "e1",
+      parish_id: "11111111-1111-4111-8111-111111111111",
+      clerk_user_id: "user-1",
+      course_id: "22222222-2222-4222-8222-222222222222",
+      created_at: "2024-01-01T00:00:00.000Z",
+    };
+    const maybeSingle = vi.fn(async () => ({ data: existingEnrollment, error: null }));
     const eqCourse = vi.fn(() => ({ maybeSingle }));
     const eqUser = vi.fn(() => ({ eq: eqCourse }));
     const eqParish = vi.fn(() => ({ eq: eqUser }));
     const existingSelect = vi.fn(() => ({ eq: eqParish }));
-    const single = vi.fn(async () => ({ data: { id: "e1" }, error: null }));
-    const upsertSelect = vi.fn(() => ({ single }));
-    const upsert = vi.fn(() => ({ select: upsertSelect }));
 
     vi.mocked(getSupabaseAdminClient).mockReturnValue({
-      from: vi
-        .fn()
-        .mockReturnValueOnce({ select: existingSelect })
-        .mockReturnValueOnce({ upsert }),
+      from: vi.fn().mockReturnValue({ select: existingSelect }),
     } as never);
 
     const response = await POST(
@@ -96,8 +97,8 @@ describe("/api/admin/enrollments", () => {
       }),
     );
 
-    expect(response.status).toBe(201);
-    await expect(response.json()).resolves.toEqual({ enrollment: { id: "e1" } });
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ enrollment: existingEnrollment });
     expect(notifyEnrollmentConfirmed).not.toHaveBeenCalled();
   });
 
