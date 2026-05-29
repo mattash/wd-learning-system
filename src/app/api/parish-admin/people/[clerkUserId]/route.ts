@@ -62,14 +62,20 @@ export async function DELETE(_req: Request, ctx: { params: Promise<{ clerkUserId
   }
 
   const supabase = getSupabaseAdminClient();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("parish_memberships")
     .delete()
     .eq("parish_id", parishId)
-    .eq("clerk_user_id", clerkUserId);
+    .eq("clerk_user_id", clerkUserId)
+    .select("parish_id,clerk_user_id")
+    .maybeSingle();
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });
+  }
+
+  if (!data) {
+    return NextResponse.json({ error: "Membership not found." }, { status: 404 });
   }
 
   await recordAdminAuditLog({
