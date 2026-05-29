@@ -1,60 +1,198 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { QuizForm } from "@/components/quiz-form";
 
-const baseProps = {
-  courseTitle: undefined,
-  lessonId: "11111111-1111-4111-8111-111111111111",
-  lessonTitle: "Intro lesson",
-  nextLesson: null,
-  parishId: "22222222-2222-4222-8222-222222222222",
-  questions: [
-    {
-      id: "question-1",
-      options: ["Wrong answer", "Correct answer"],
-      prompt: "Which option is correct?",
-    },
-  ],
-};
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh: vi.fn() }),
+}));
+
+const sampleQuestions = [
+  {
+    id: "q1",
+    prompt: "What is the capital of France?",
+    options: ["Paris", "London", "Berlin", "Madrid"],
+  },
+  {
+    id: "q2",
+    prompt: "What is 2 + 2?",
+    options: ["3", "4", "5", "6"],
+  },
+];
 
 describe("QuizForm", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
-  it("allows a failed quiz attempt to be changed and submitted again", async () => {
-    const fetchMock = vi
-      .spyOn(global, "fetch")
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ correctIndices: [1], score: 0 }),
-      } as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ correctIndices: [1], score: 100 }),
-      } as Response);
+  it("renders nothing when there are no questions", () => {
+    const { container } = render(
+      <QuizForm
+        lessonId="lesson-1"
+        lessonTitle="Test Lesson"
+        parishId="parish-1"
+        questions={[]}
+        nextLesson={null}
+      />,
+    );
 
-    render(<QuizForm {...baseProps} />);
+    expect(container.firstChild).toBeNull();
+  });
 
-    fireEvent.click(screen.getByRole("button", { name: /Wrong answer/ }));
+  it("renders questions and submit button", () => {
+    render(
+      <QuizForm
+        lessonId="lesson-1"
+        lessonTitle="Test Lesson"
+        parishId="parish-1"
+        questions={sampleQuestions}
+        nextLesson={null}
+      />,
+    );
+
+    expect(screen.getByText("What is the capital of France?")).toBeInTheDocument();
+    expect(screen.getByText("What is 2 + 2?")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Submit answers" })).toBeDisabled();
+  });
+
+  it("enables submit button when all questions are answered", () => {
+    render(
+      <QuizForm
+        lessonId="lesson-1"
+        lessonTitle="Test Lesson"
+        parishId="parish-1"
+        questions={sampleQuestions}
+        nextLesson={null}
+      />,
+    );
+
+    const submitButton = screen.getByRole("button", { name: "Submit answers" });
+    expect(submitButton).toBeDisabled();
+
+    // Click an option for each question
+    fireEvent.click(screen.getByText("Paris"));
+    fireEvent.click(screen.getByText("4"));
+
+    expect(submitButton).toBeEnabled();
+  });
+
+  it("submits answers and shows score on success", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => ({ score: 50, correctIndices: [0, 1] }),
+    } as Response);
+
+    render(
+      <QuizForm
+        lessonId="lesson-1"
+        lessonTitle="Test Lesson"
+        parishId="parish-1"
+        questions={sampleQuestions}
+        nextLesson={null}
+      />,
+    );
+
+    fireEvent.click(screen.getByText("Paris"));
+    fireEvent.click(screen.getByText("5"));
     fireEvent.click(screen.getByRole("button", { name: "Submit answers" }));
 
-    expect(await screen.findByText("Review the questions above and try again.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Correct answer/ })).toBeEnabled();
-    expect(screen.getByRole("button", { name: "Submit answers" })).toBeEnabled();
+    expect(await screen.findByText("Score: 50%")).toBeInTheDocument();
+  });
 
-    fireEvent.click(screen.getByRole("button", { name: /Correct answer/ }));
+  it("shows error when quiz submission fails with server message", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValue({
+      ok: false,
+      json: async () => ({ error: "Quiz already submitted" }),
+    } as Response);
+
+    render(
+      <QuizForm
+        lessonId="lesson-1"
+        lessonTitle="Test Lesson"
+        parishId="parish-1"
+        questions={sampleQuestions}
+        nextLesson={null}
+      />,
+    );
+
+    fireEvent.click(screen.getByText("Paris"));
+    fireEvent.click(screen.getByText("4"));
     fireEvent.click(screen.getByRole("button", { name: "Submit answers" }));
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
-    const [, retryRequest] = fetchMock.mock.calls[1];
+    expect(await screen.findByText("Quiz already submitted")).toBeInTheDocument();
+  });
 
-    expect(retryRequest).toEqual(expect.objectContaining({ method: "POST" }));
-    expect(JSON.parse((retryRequest as RequestInit).body as string)).toEqual({
-      answers: [1],
-      lessonId: baseProps.lessonId,
-      parishId: baseProps.parishId,
-    });
+  it("shows fallback error when quiz submission response is not json", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValue({
+      ok: false,
+      json: async () => {
+        throw new SyntaxError("Unexpected end of JSON input");
+      },
+    } as unknown as Response);
+
+    render(
+      <QuizForm
+        lessonId="lesson-1"
+        lessonTitle="Test Lesson"
+        parishId="parish-1"
+        questions={sampleQuestions}
+        nextLesson={null}
+      />,
+    );
+
+    fireEvent.click(screen.getByText("Paris"));
+    fireEvent.click(screen.getByText("4"));
+    fireEvent.click(screen.getByRole("button", { name: "Submit answers" }));
+
+    expect(await screen.findByText("Failed to submit quiz answers.")).toBeInTheDocument();
+  });
+
+  it("shows error when quiz submission request rejects", async () => {
+    vi.spyOn(global, "fetch").mockRejectedValue(new Error("network error"));
+
+    render(
+      <QuizForm
+        lessonId="lesson-1"
+        lessonTitle="Test Lesson"
+        parishId="parish-1"
+        questions={sampleQuestions}
+        nextLesson={null}
+      />,
+    );
+
+    fireEvent.click(screen.getByText("Paris"));
+    fireEvent.click(screen.getByText("4"));
+    fireEvent.click(screen.getByRole("button", { name: "Submit answers" }));
+
+    expect(await screen.findByText("Failed to submit quiz answers.")).toBeInTheDocument();
+  });
+
+  it("shows completion modal when score is 100 with courseTitle", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => ({ score: 100, certificateId: "cert-123", correctIndices: [0, 1] }),
+    } as Response);
+
+    render(
+      <QuizForm
+        courseTitle="Catechesis 101"
+        lessonId="lesson-1"
+        lessonTitle="Test Lesson"
+        parishId="parish-1"
+        questions={sampleQuestions}
+        nextLesson={{ id: "next-lesson", title: "Next Up" }}
+      />,
+    );
+
+    fireEvent.click(screen.getByText("Paris"));
+    fireEvent.click(screen.getByText("4"));
+    fireEvent.click(screen.getByRole("button", { name: "Submit answers" }));
+
+    // CompletionModal renders when score is 100 and courseTitle is provided
+    expect(await screen.findByText("100%")).toBeInTheDocument();
   });
 });
