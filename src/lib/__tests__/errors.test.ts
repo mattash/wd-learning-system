@@ -15,7 +15,7 @@ describe("readErrorMessage", () => {
   });
 
   it("returns the fallback when response.json throws", async () => {
-    const response = { json: async () => { throw new Error("Invalid JSON"); } } as Response;
+    const response = { json: async () => { throw new Error("Invalid JSON"); } } as unknown as Response;
     const result = await readErrorMessage(response, "Fallback");
     expect(result).toBe("Fallback");
   });
