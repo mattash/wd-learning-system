@@ -108,7 +108,7 @@ describe("/api/parish-admin/enrollments", () => {
     expect(recordAdminAuditLog).toHaveBeenCalledTimes(1);
   });
 
-  it("creates an enrollment for a parish-scoped course with adoption lock", async () => {
+  it("creates an enrollment for a parish-scoped course atomically", async () => {
     const memberMaybeSingle = vi.fn(async () => ({ data: { clerk_user_id: "user-1" }, error: null }));
     const memberEqUser = vi.fn(() => ({ maybeSingle: memberMaybeSingle }));
     const memberEqParish = vi.fn(() => ({ eq: memberEqUser }));
@@ -118,23 +118,18 @@ describe("/api/parish-admin/enrollments", () => {
     const courseEq = vi.fn(() => ({ maybeSingle: courseMaybeSingle }));
     const courseSelect = vi.fn(() => ({ eq: courseEq }));
 
-    const adoptionMaybeSingle = vi.fn(async () => ({ data: { course_id: "c1" }, error: null }));
-    const adoptionEqCourse = vi.fn(() => ({ maybeSingle: adoptionMaybeSingle }));
-    const adoptionEqParish = vi.fn(() => ({ eq: adoptionEqCourse }));
-    const adoptionSelect = vi.fn(() => ({ eq: adoptionEqParish }));
-
-    const enrollmentSingle = vi.fn(async () => ({ data: { id: "e1" }, error: null }));
-    const enrollmentSelect = vi.fn(() => ({ single: enrollmentSingle }));
-    const enrollmentUpsert = vi.fn(() => ({ select: enrollmentSelect }));
-
-    const rpc = vi.fn(async () => ({ data: null, error: null }));
+    const rpc = vi.fn(async () => ({
+      data: {
+        ok: true,
+        enrollment: { id: "e1", clerk_user_id: "user-1", course_id: "c1", cohort_id: null, created_at: "2026-01-01" },
+      },
+      error: null,
+    }));
 
     vi.mocked(getSupabaseAdminClient).mockReturnValue({
       from: vi.fn((table: string) => {
         if (table === "parish_memberships") return { select: memberSelect };
         if (table === "courses") return { select: courseSelect };
-        if (table === "course_parishes") return { select: adoptionSelect };
-        if (table === "enrollments") return { upsert: enrollmentUpsert };
         throw new Error(`Unexpected table: ${table}`);
       }),
       rpc,
@@ -151,10 +146,13 @@ describe("/api/parish-admin/enrollments", () => {
     );
 
     expect(response.status).toBe(201);
-    await expect(response.json()).resolves.toEqual({ enrollment: { id: "e1" } });
-    expect(rpc).toHaveBeenCalledWith("acquire_adoption_lock", {
+    await expect(response.json()).resolves.toEqual({
+      enrollment: { id: "e1", clerk_user_id: "user-1", course_id: "c1", cohort_id: null, created_at: "2026-01-01" },
+    });
+    expect(rpc).toHaveBeenCalledWith("create_parish_course_enrollment", {
       p_parish_id: "11111111-1111-4111-8111-111111111111",
       p_course_id: "22222222-2222-4222-8222-222222222222",
+      p_clerk_user_id: "user-1",
     });
     expect(recordAdminAuditLog).toHaveBeenCalledTimes(1);
   });

@@ -1,6 +1,6 @@
--- Acquire transaction-level advisory lock for adoption operations.
--- Both enrollment creation and adoption removal must call this
--- to serialize on the same (parish_id, course_id) key.
+-- Transaction-level advisory lock for adoption operations.
+-- Held for the full RPC transaction by create_parish_course_enrollment
+-- and remove_course_adoption to serialize on (parish_id, course_id).
 create or replace function acquire_adoption_lock(
   p_parish_id uuid,
   p_course_id uuid
