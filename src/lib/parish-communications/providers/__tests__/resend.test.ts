@@ -99,7 +99,7 @@ describe("sendEmailViaResend", () => {
     expect(result.sent).toHaveLength(0);
     expect(result.failed).toEqual([
       { clerkUserId: "u-1", error: "Connection refused" },
-      // null email recipient is not added because it was filtered out before the try/catch
+      { clerkUserId: "u-2", error: "Recipient has no email on file." },
     ]);
   });
 

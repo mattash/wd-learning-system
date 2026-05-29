@@ -21,8 +21,14 @@ export async function sendEmailViaResend(
   for (let i = 0; i < request.recipients.length; i += BATCH_SIZE) {
     const batch = request.recipients.slice(i, i + BATCH_SIZE);
     const recipientsWithEmail = batch.filter((r): r is typeof r & { email: string } => r.email !== null);
+    const recipientsWithoutEmail = batch.filter((r) => r.email === null);
 
-    if (recipientsWithEmail.length === 0) continue;
+    if (recipientsWithEmail.length === 0) {
+      for (const recipient of recipientsWithoutEmail) {
+        failed.push({ clerkUserId: recipient.clerkUserId, error: "Recipient has no email on file." });
+      }
+      continue;
+    }
 
     const batchPayload = recipientsWithEmail.map((r) => ({
       from: config.fromEmail,
@@ -61,21 +67,21 @@ export async function sendEmailViaResend(
         }
       } else {
         const errorBody = await response.text();
+        const errMsg = `Resend API error ${response.status}: ${errorBody}`;
         for (const recipient of batch) {
-          if (recipient.email) {
-            failed.push({
-              clerkUserId: recipient.clerkUserId,
-              error: `Resend API error ${response.status}: ${errorBody}`,
-            });
-          }
+          failed.push({
+            clerkUserId: recipient.clerkUserId,
+            error: recipient.email ? errMsg : "Recipient has no email on file.",
+          });
         }
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Network error";
       for (const recipient of batch) {
-        if (recipient.email) {
-          failed.push({ clerkUserId: recipient.clerkUserId, error: message });
-        }
+        failed.push({
+          clerkUserId: recipient.clerkUserId,
+          error: recipient.email ? message : "Recipient has no email on file.",
+        });
       }
     }
   }
