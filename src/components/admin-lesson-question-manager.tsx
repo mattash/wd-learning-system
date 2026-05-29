@@ -63,7 +63,10 @@ export function AdminLessonQuestionManager({ lesson }: { lesson: DioceseLessonRo
     }
 
     const prompt = draft.prompt.trim();
-    const options = draft.options.map((option) => option.trim()).filter(Boolean);
+    const normalizedOptions = draft.options
+      .map((option, index) => ({ index, value: option.trim() }))
+      .filter((option) => option.value);
+    const options = normalizedOptions.map((option) => option.value);
 
     if (!prompt) {
       setMessage("Question prompt is required.");
@@ -75,7 +78,12 @@ export function AdminLessonQuestionManager({ lesson }: { lesson: DioceseLessonRo
       return;
     }
 
-    const correctOptionIndex = Math.min(Math.max(draft.correctOptionIndex, 0), options.length - 1);
+    const correctOptionIndex = normalizedOptions.findIndex((option) => option.index === draft.correctOptionIndex);
+
+    if (correctOptionIndex === -1) {
+      setMessage("Correct answer must be a filled option.");
+      return;
+    }
 
     const response = await fetch(`/api/admin/questions/${questionId}`, {
       method: "PATCH",
