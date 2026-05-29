@@ -128,20 +128,14 @@ export async function GET(req: Request) {
 
   if (usersError) return NextResponse.json({ error: usersError.message }, { status: 400 });
 
-  const filteredUsers = ((users ?? []) as UserProfileRow[])
-    .map((user) => {
-      const userMemberships = membershipsByUser.get(user.clerk_user_id) ?? [];
-      return {
-        ...user,
-        is_diocese_admin: dioceseAdminIds.has(user.clerk_user_id),
-        memberships: userMemberships,
-      };
-    })
-    .filter((user) => {
-      if (dioceseAdmin === "yes") return user.is_diocese_admin;
-      if (dioceseAdmin === "no") return !user.is_diocese_admin;
-      return true;
-    });
+  const filteredUsers = ((users ?? []) as UserProfileRow[]).map((user) => {
+    const userMemberships = membershipsByUser.get(user.clerk_user_id) ?? [];
+    return {
+      ...user,
+      is_diocese_admin: dioceseAdminIds.has(user.clerk_user_id),
+      memberships: userMemberships,
+    };
+  });
 
   return NextResponse.json({
     users: filteredUsers,
