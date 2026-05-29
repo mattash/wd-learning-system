@@ -83,7 +83,6 @@ export function ThemeToggle() {
   useEffect(() => {
     if (!mounted) return;
     applyTheme(theme);
-    localStorage.setItem(THEME_KEY, theme);
   }, [mounted, theme]);
 
   const toggleTheme = () => {
