@@ -30,6 +30,8 @@ export function QuizForm({
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [score, setScore] = useState<number | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
   const [correctIndices, setCorrectIndices] = useState<Record<string, number>>({});
   const [certificateId, setCertificateId] = useState<string | null>(null);
 
@@ -38,27 +40,44 @@ export function QuizForm({
   const allAnswered = questions.every((q) => answers[q.id] !== undefined);
 
   const submit = async () => {
-    const orderedAnswers = questions.map((q) => answers[q.id] ?? -1);
-    const response = await fetch("/api/quiz-attempt", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ lessonId, parishId, answers: orderedAnswers }),
-    });
+    setSubmitting(true);
+    setError("");
 
-    const data = await response.json();
-    if (response.ok) {
-      setScore(data.score);
-      setSubmitted(true);
-      if (data.certificateId) {
-        setCertificateId(data.certificateId);
+    try {
+      const orderedAnswers = questions.map((q) => answers[q.id] ?? -1);
+      const response = await fetch("/api/quiz-attempt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lessonId, parishId, answers: orderedAnswers }),
+      });
+
+      const data = (await response.json().catch(() => ({}))) as {
+        score?: number;
+        certificateId?: string;
+        correctIndices?: number[];
+        error?: string;
+      };
+
+      if (response.ok) {
+        setScore(data.score ?? null);
+        setSubmitted(true);
+        if (data.certificateId) {
+          setCertificateId(data.certificateId);
+        }
+        if (data.correctIndices) {
+          const map: Record<string, number> = {};
+          questions.forEach((q, i) => {
+            map[q.id] = data.correctIndices![i];
+          });
+          setCorrectIndices(map);
+        }
+      } else {
+        setError(data.error ?? "Failed to submit quiz answers.");
       }
-      if (data.correctIndices) {
-        const map: Record<string, number> = {};
-        questions.forEach((q, i) => {
-          map[q.id] = data.correctIndices[i];
-        });
-        setCorrectIndices(map);
-      }
+    } catch {
+      setError("Failed to submit quiz answers.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -209,12 +228,18 @@ export function QuizForm({
               </Link>
             </Button>
           ) : (
-            <Button disabled={!allAnswered || submitted} onClick={submit} size="sm" type="button">
-              Submit answers
+            <Button disabled={!allAnswered || submitted || submitting} onClick={submit} size="sm" type="button">
+              {submitting ? "Submitting…" : "Submit answers"}
             </Button>
           )}
         </div>
       </div>
+
+      {error ? (
+        <div className="rounded-xl border border-destructive bg-destructive-subtle px-5 py-3.5">
+          <p className="text-[13.5px] text-destructive">{error}</p>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -41,11 +41,15 @@ async function saveProgress(payload: {
   percentWatched: number;
   completed: boolean;
 }) {
-  await fetch("/api/progress", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
+  try {
+    await fetch("/api/progress", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  } catch {
+    // Progress save is best-effort; silently ignore network failures
+  }
 }
 
 function saveProgressOnUnload(payload: {
@@ -58,18 +62,24 @@ function saveProgressOnUnload(payload: {
   const body = JSON.stringify(payload);
 
   if (navigator.sendBeacon) {
-    navigator.sendBeacon(
-      "/api/progress",
-      new Blob([body], { type: "application/json" }),
-    );
+    try {
+      navigator.sendBeacon(
+        "/api/progress",
+        new Blob([body], { type: "application/json" }),
+      );
+    } catch {
+      // Best-effort on unload
+    }
     return;
   }
 
-  void fetch("/api/progress", {
+  fetch("/api/progress", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body,
     keepalive: true,
+  }).catch(() => {
+    // Best-effort on unload
   });
 }
 
