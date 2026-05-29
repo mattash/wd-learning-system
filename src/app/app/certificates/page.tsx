@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { requireParishRole } from "@/lib/authz";
 import { listStudentCertificates } from "@/lib/repositories/certificates";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default async function CertificatesPage() {
@@ -40,30 +41,20 @@ export default async function CertificatesPage() {
                   Issued {cert.completion_date}
                 </p>
                 <div className="flex gap-2">
-                  <Link
-                    className="flex-1"
-                    href={`/app/certificates/${cert.id}`}
-                  >
-                    <button
-                      className="w-full rounded-md bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:bg-primary/90"
-                      type="button"
-                    >
+                  <Button asChild className="flex-1" size="sm">
+                    <Link href={`/app/certificates/${cert.id}`}>
                       View Certificate
-                    </button>
-                  </Link>
-                  <a
-                    className="flex-shrink-0"
-                    href={`/api/certificates/${cert.id}/pdf`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <button
-                      className="rounded-md border border-border px-3 py-2 text-xs font-medium text-foreground hover:bg-secondary"
-                      type="button"
+                    </Link>
+                  </Button>
+                  <Button asChild className="flex-shrink-0" variant="outline" size="sm">
+                    <a
+                      href={`/api/certificates/${cert.id}/pdf`}
+                      target="_blank"
+                      rel="noopener noreferrer"
                     >
                       ↓ PDF
-                    </button>
-                  </a>
+                    </a>
+                  </Button>
                 </div>
               </CardContent>
             </Card>

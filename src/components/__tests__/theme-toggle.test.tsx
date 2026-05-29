@@ -4,16 +4,24 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 describe("ThemeToggle", () => {
+  let systemThemeListener: (() => void) | undefined;
+  let systemThemeMatches = false;
+
   beforeEach(() => {
+    systemThemeListener = undefined;
+    systemThemeMatches = false;
+
     Object.defineProperty(window, "matchMedia", {
       writable: true,
       value: vi.fn().mockImplementation((query: string) => ({
-        matches: false,
+        matches: systemThemeMatches,
         media: query,
         onchange: null,
         addListener: vi.fn(),
         removeListener: vi.fn(),
-        addEventListener: vi.fn(),
+        addEventListener: vi.fn((_event: string, listener: () => void) => {
+          systemThemeListener = listener;
+        }),
         removeEventListener: vi.fn(),
         dispatchEvent: vi.fn(),
       })),
@@ -56,6 +64,25 @@ describe("ThemeToggle", () => {
     await waitFor(() => {
       expect(document.documentElement.dataset.theme).toBe("light");
     });
+  });
+
+  it("continues following system theme when no theme is saved", async () => {
+    systemThemeMatches = true;
+
+    render(<ThemeToggle />);
+
+    await waitFor(() => {
+      expect(document.documentElement.dataset.theme).toBe("dark");
+    });
+    expect(localStorage.getItem("wd-lms-theme")).toBeNull();
+
+    systemThemeMatches = false;
+    systemThemeListener?.();
+
+    await waitFor(() => {
+      expect(document.documentElement.dataset.theme).toBe("light");
+    });
+    expect(localStorage.getItem("wd-lms-theme")).toBeNull();
   });
 
   it("toggles from dark to light", async () => {

@@ -57,6 +57,7 @@ export function CourseSidebarClient({
               courseId={courseId}
               modules={modules}
               currentLessonId={currentLessonId}
+              onLessonSelect={() => setMobileOpen(false)}
               showHeader={false}
             />
           </div>

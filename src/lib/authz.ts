@@ -195,10 +195,9 @@ export async function getUserLabel(clerkUserId: string) {
 
   const client = await clerkClient();
   const user = await client.users.getUser(clerkUserId);
-  return (
-    user.fullName ??
-    `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() ??
-    user.primaryEmailAddress?.emailAddress ??
-    clerkUserId
-  );
+  const fullName = user.fullName?.trim();
+  const name = `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim();
+  const email = user.primaryEmailAddress?.emailAddress?.trim();
+
+  return fullName || name || email || clerkUserId;
 }

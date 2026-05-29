@@ -22,7 +22,9 @@ export function ParishAdminNav() {
   return (
     <nav aria-label="Parish admin sections" className="flex flex-wrap gap-1.5">
       {tabs.map((tab) => {
-        const isActive = tab.exact ? pathname === tab.href : pathname.startsWith(tab.href);
+        const isActive = tab.exact
+          ? pathname === tab.href
+          : pathname === tab.href || pathname.startsWith(`${tab.href}/`);
 
         return (
           <Link
