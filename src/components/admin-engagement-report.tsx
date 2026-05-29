@@ -42,7 +42,11 @@ export function AdminEngagementReport({ parishes, courses }: { parishes: Diocese
   const [endDate, setEndDate] = useState("");
   const [rows, setRows] = useState<EngagementRow[]>([]);
   const [trends, setTrends] = useState<TrendRow[]>([]);
+  const [rowsLoading, setRowsLoading] = useState(false);
+  const [rowsError, setRowsError] = useState("");
   const [learners, setLearners] = useState<LearnerRow[]>([]);
+  const [learnersLoading, setLearnersLoading] = useState(false);
+  const [learnersError, setLearnersError] = useState("");
   const [selectedPair, setSelectedPair] = useState<{ parishId: string; courseId: string } | null>(null);
 
   const resetDrillDown = () => {
@@ -63,11 +67,31 @@ export function AdminEngagementReport({ parishes, courses }: { parishes: Diocese
     let cancelled = false;
 
     async function loadRows() {
-      const response = await fetch(`/api/admin/reports/engagement${query ? `?${query}` : ""}`);
-      const data = await response.json();
-      if (!cancelled && response.ok) {
-        setRows(data.rows ?? []);
-        setTrends(data.trends ?? []);
+      setRowsLoading(true);
+      setRowsError("");
+
+      try {
+        const response = await fetch(`/api/admin/reports/engagement${query ? `?${query}` : ""}`);
+        const data = (await response.json().catch(() => ({}))) as { rows?: EngagementRow[]; trends?: TrendRow[]; error?: string };
+
+        if (cancelled) return;
+
+        if (response.ok) {
+          setRows(data.rows ?? []);
+          setTrends(data.trends ?? []);
+        } else {
+          setRows([]);
+          setTrends([]);
+          setRowsError(data.error ?? "Failed to load engagement report.");
+        }
+      } catch {
+        if (!cancelled) {
+          setRows([]);
+          setTrends([]);
+          setRowsError("Failed to load engagement report.");
+        }
+      } finally {
+        if (!cancelled) setRowsLoading(false);
       }
     }
 
@@ -83,19 +107,38 @@ export function AdminEngagementReport({ parishes, courses }: { parishes: Diocese
     async function loadLearners() {
       if (!selectedPair) {
         setLearners([]);
+        setLearnersError("");
         return;
       }
 
-      const params = new URLSearchParams({
-        parishId: selectedPair.parishId,
-        courseId: selectedPair.courseId,
-      });
-      if (startDate) params.set("startDate", startDate);
-      if (endDate) params.set("endDate", endDate);
-      const response = await fetch(`/api/admin/reports/engagement/learners?${params.toString()}`);
-      const data = await response.json();
-      if (!cancelled && response.ok) {
-        setLearners(data.learners ?? []);
+      setLearnersLoading(true);
+      setLearnersError("");
+
+      try {
+        const params = new URLSearchParams({
+          parishId: selectedPair.parishId,
+          courseId: selectedPair.courseId,
+        });
+        if (startDate) params.set("startDate", startDate);
+        if (endDate) params.set("endDate", endDate);
+        const response = await fetch(`/api/admin/reports/engagement/learners?${params.toString()}`);
+        const data = (await response.json().catch(() => ({}))) as { learners?: LearnerRow[]; error?: string };
+
+        if (cancelled) return;
+
+        if (response.ok) {
+          setLearners(data.learners ?? []);
+        } else {
+          setLearners([]);
+          setLearnersError(data.error ?? "Failed to load learner details.");
+        }
+      } catch {
+        if (!cancelled) {
+          setLearners([]);
+          setLearnersError("Failed to load learner details.");
+        }
+      } finally {
+        if (!cancelled) setLearnersLoading(false);
       }
     }
 
@@ -181,6 +224,16 @@ export function AdminEngagementReport({ parishes, courses }: { parishes: Diocese
       </div>
 
       {/* Engagement table */}
+      {rowsLoading && rows.length === 0 ? (
+        <div className="px-5 py-8 text-center">
+          <p className="text-[13px] text-muted-foreground">Loading engagement data…</p>
+        </div>
+      ) : null}
+      {rowsError ? (
+        <div className="mx-5 mt-3 rounded-md border border-red-200 bg-red-50 px-4 py-3">
+          <p className="text-[13px] text-red-700">{rowsError}</p>
+        </div>
+      ) : null}
       <table className="w-full text-left">
         <thead>
           <tr>
@@ -280,6 +333,16 @@ export function AdminEngagementReport({ parishes, courses }: { parishes: Diocese
               Close
             </Button>
           </div>
+          {learnersLoading ? (
+            <div className="px-5 py-4 text-center">
+              <p className="text-[13px] text-muted-foreground">Loading learners…</p>
+            </div>
+          ) : null}
+          {learnersError ? (
+            <div className="mx-4 my-3 rounded-md border border-red-200 bg-red-50 px-4 py-3">
+              <p className="text-[13px] text-red-700">{learnersError}</p>
+            </div>
+          ) : null}
           <table className="w-full text-left">
             <thead>
               <tr>
