@@ -62,6 +62,18 @@ export async function POST(req: Request) {
   const payload = parsedPayload.data;
   const supabase = getSupabaseAdminClient();
 
+  const existingEnrollmentQuery = await supabase
+    .from("enrollments")
+    .select("id")
+    .eq("parish_id", payload.parishId)
+    .eq("clerk_user_id", payload.clerkUserId)
+    .eq("course_id", payload.courseId)
+    .maybeSingle();
+
+  if (existingEnrollmentQuery.error) {
+    return NextResponse.json({ error: existingEnrollmentQuery.error.message }, { status: 400 });
+  }
+
   const { data, error } = await supabase
     .from("enrollments")
     .upsert(
@@ -79,12 +91,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
-  // Send enrollment confirmation email (non-blocking)
-  notifyEnrollmentConfirmed({
-    clerkUserId: payload.clerkUserId,
-    parishId: payload.parishId,
-    courseId: payload.courseId,
-  }).catch((err) => console.error("[notifications] diocese enrollment confirmed email failed:", err));
+  if (!existingEnrollmentQuery.data) {
+    // Send enrollment confirmation email (non-blocking)
+    notifyEnrollmentConfirmed({
+      clerkUserId: payload.clerkUserId,
+      parishId: payload.parishId,
+      courseId: payload.courseId,
+    }).catch((err) => console.error("[notifications] diocese enrollment confirmed email failed:", err));
+  }
 
   return NextResponse.json({ enrollment: data }, { status: 201 });
 }
