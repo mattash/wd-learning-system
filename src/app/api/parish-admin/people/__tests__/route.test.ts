@@ -56,6 +56,37 @@ describe("/api/parish-admin/people", () => {
     expect(recordAdminAuditLog).toHaveBeenCalledTimes(1);
   });
 
+  it("rejects upserting the actor's own parish role", async () => {
+    const userLimit = vi.fn(async () => ({
+      data: [{ clerk_user_id: "admin-1", email: "admin@example.com", display_name: "Admin" }],
+      error: null,
+    }));
+    const userOrder = vi.fn(() => ({ limit: userLimit }));
+    const userIlike = vi.fn(() => ({ order: userOrder }));
+    const userSelect = vi.fn(() => ({ ilike: userIlike }));
+    const membershipUpsert = vi.fn();
+
+    vi.mocked(getSupabaseAdminClient).mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "user_profiles") return { select: userSelect };
+        if (table === "parish_memberships") return { upsert: membershipUpsert };
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    } as never);
+
+    const response = await POST(
+      new Request("http://localhost/api/parish-admin/people", {
+        method: "POST",
+        body: JSON.stringify({ identifier: "admin@example.com", role: "student" }),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "You cannot change your own parish role." });
+    expect(membershipUpsert).not.toHaveBeenCalled();
+    expect(recordAdminAuditLog).not.toHaveBeenCalled();
+  });
+
   it("imports memberships from csv", async () => {
     const userLimit = vi.fn(async () => ({
       data: [{ clerk_user_id: "user-1", email: "person@example.com", display_name: "Person" }],
@@ -102,6 +133,55 @@ describe("/api/parish-admin/people", () => {
         },
       ],
     });
+    expect(recordAdminAuditLog).toHaveBeenCalledTimes(1);
+  });
+
+  it("skips imported rows that would change the actor's own parish role", async () => {
+    const userLimit = vi.fn(async () => ({
+      data: [{ clerk_user_id: "admin-1", email: "admin@example.com", display_name: "Admin" }],
+      error: null,
+    }));
+    const userOrder = vi.fn(() => ({ limit: userLimit }));
+    const userIlike = vi.fn(() => ({ order: userOrder }));
+    const userSelect = vi.fn(() => ({ ilike: userIlike }));
+    const membershipUpsert = vi.fn();
+
+    vi.mocked(getSupabaseAdminClient).mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "user_profiles") return { select: userSelect };
+        if (table === "parish_memberships") return { upsert: membershipUpsert };
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    } as never);
+
+    const response = await PUT(
+      new Request("http://localhost/api/parish-admin/people", {
+        method: "PUT",
+        body: JSON.stringify({
+          csvText: "email,role\nadmin@example.com,student",
+          defaultRole: "student",
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      summary: {
+        totalRows: 1,
+        importedCount: 0,
+        skippedCount: 1,
+      },
+      results: [
+        {
+          row: 2,
+          identifier: "admin@example.com",
+          role: "student",
+          status: "skipped",
+          message: "You cannot change your own parish role.",
+        },
+      ],
+    });
+    expect(membershipUpsert).not.toHaveBeenCalled();
     expect(recordAdminAuditLog).toHaveBeenCalledTimes(1);
   });
 
