@@ -27,25 +27,32 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ courseId: str
   await requireDioceseAdmin();
   let courseId: string;
   let payload: z.infer<typeof updateCourseSchema>;
+  let includesDescription = false;
+  let includesThumbnailUrl = false;
 
   try {
+    const body: unknown = await req.json();
+    includesDescription = typeof body === "object" && body !== null && Object.hasOwn(body, "description");
+    includesThumbnailUrl = typeof body === "object" && body !== null && Object.hasOwn(body, "thumbnailUrl");
     courseId = paramsSchema.parse(await ctx.params).courseId;
-    payload = updateCourseSchema.parse(await req.json());
+    payload = updateCourseSchema.parse(body);
   } catch {
     return NextResponse.json({ error: "Invalid course request payload" }, { status: 400 });
   }
 
   const supabase = getSupabaseAdminClient();
+  const updateValues = {
+    title: payload.title,
+    scope: payload.scope,
+    published: payload.published,
+    updated_at: new Date().toISOString(),
+    ...(includesDescription ? { description: payload.description ?? null } : {}),
+    ...(includesThumbnailUrl ? { thumbnail_url: payload.thumbnailUrl } : {}),
+  };
+
   const { data, error } = await supabase
     .from("courses")
-    .update({
-      title: payload.title,
-      description: payload.description ?? null,
-      thumbnail_url: payload.thumbnailUrl,
-      scope: payload.scope,
-      published: payload.published,
-      updated_at: new Date().toISOString(),
-    })
+    .update(updateValues)
     .eq("id", courseId)
     .select("id,title,description,thumbnail_url,scope,published,created_at,updated_at")
     .single();

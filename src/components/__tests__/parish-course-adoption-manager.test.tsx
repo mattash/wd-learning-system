@@ -135,6 +135,26 @@ describe("ParishCourseAdoptionManager", () => {
     expect(screen.getByRole("button", { name: "Remove" })).toBeEnabled();
   });
 
+  it("shows fallback error when removal response is not json", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValue({
+      ok: false,
+      json: async () => {
+        throw new SyntaxError("Unexpected end of JSON input");
+      },
+    } as unknown as Response);
+
+    render(
+      <ParishCourseAdoptionManager
+        adoptedCourses={baseAdoptedCourses}
+        availableCourses={baseAvailableCourses}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove" }));
+
+    expect(await screen.findByText("Failed to remove course.")).toBeInTheDocument();
+  });
+
   it("shows error message when removal response is non-ok", async () => {
     vi.spyOn(global, "fetch").mockResolvedValue({
       ok: false,

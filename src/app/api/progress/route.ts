@@ -33,18 +33,14 @@ export async function POST(req: Request) {
   }
 
   const supabase = getSupabaseAdminClient();
-  const { error } = await supabase.from("video_progress").upsert(
-    {
-      parish_id: parishId,
-      clerk_user_id: userId,
-      lesson_id: body.lessonId,
-      percent_watched: body.percentWatched,
-      last_position_seconds: body.lastPositionSeconds,
-      completed: body.completed,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "parish_id,clerk_user_id,lesson_id" },
-  );
+  const { error } = await supabase.rpc("record_video_progress", {
+    p_parish_id: parishId,
+    p_clerk_user_id: userId,
+    p_lesson_id: body.lessonId,
+    p_percent_watched: body.percentWatched,
+    p_last_position_seconds: body.lastPositionSeconds,
+    p_completed: body.completed,
+  });
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });

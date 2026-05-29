@@ -67,6 +67,16 @@ function recipientLabel(recipient: SendDetailsResponse["recipients"][number]) {
   return recipient.display_name ?? recipient.email ?? recipient.clerk_user_id;
 }
 
+function getDefaultAudienceValue(
+  audienceType: AudienceType,
+  cohorts: ParishAdminCohortRow[],
+  courses: ParishAdminCourseRow[],
+) {
+  if (audienceType === "cohort") return cohorts[0]?.id ?? "";
+  if (audienceType === "course") return courses[0]?.id ?? "";
+  return "";
+}
+
 export function ParishCommunicationsManager({
   cohorts,
   courses,
@@ -120,11 +130,11 @@ export function ParishCommunicationsManager({
 
   const needsAudienceValue = audienceType === "cohort" || audienceType === "course";
   const selectedAudienceValue =
-    needsAudienceValue && audienceValue
+    audienceType === "cohort" && cohorts.some((cohort) => cohort.id === audienceValue)
       ? audienceValue
-      : needsAudienceValue
-        ? (audienceType === "cohort" ? cohorts[0]?.id ?? "" : courses[0]?.id ?? "")
-        : "";
+      : audienceType === "course" && courses.some((course) => course.id === audienceValue)
+        ? audienceValue
+        : getDefaultAudienceValue(audienceType, cohorts, courses);
 
   const sendStatusCounts = useMemo(() => {
     return sends.reduce(
@@ -157,6 +167,11 @@ export function ParishCommunicationsManager({
   }, [cohortNameById, courseTitleById, historySearch, historyStatusFilter, sends]);
 
   const hasHistoryFilters = historyStatusFilter !== "all" || Boolean(historySearch.trim());
+
+  function updateAudienceType(nextAudienceType: AudienceType) {
+    setAudienceType(nextAudienceType);
+    setAudienceValue(getDefaultAudienceValue(nextAudienceType, cohorts, courses));
+  }
 
   async function logMessage() {
     const response = await fetch("/api/parish-admin/communications", {
@@ -214,7 +229,7 @@ export function ParishCommunicationsManager({
       </p>
 
       <div className="grid gap-2 rounded-md border border-border p-3 md:grid-cols-[220px_220px_1fr_auto]">
-        <Select onChange={(e) => setAudienceType(e.target.value as AudienceType)} value={audienceType}>
+        <Select onChange={(e) => updateAudienceType(e.target.value as AudienceType)} value={audienceType}>
           <option value="all_members">All members</option>
           <option value="stalled_learners">Stalled learners</option>
           <option value="cohort">Specific cohort</option>

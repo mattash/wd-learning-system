@@ -49,7 +49,12 @@ describe("/api/parish-admin/people/[clerkUserId]", () => {
   });
 
   it("removes a member", async () => {
-    const eqUser = vi.fn(async () => ({ error: null }));
+    const membershipSingle = vi.fn(async () => ({
+      data: { parish_id: "11111111-1111-4111-8111-111111111111", clerk_user_id: "user-1" },
+      error: null,
+    }));
+    const membershipSelect = vi.fn(() => ({ maybeSingle: membershipSingle }));
+    const eqUser = vi.fn(() => ({ select: membershipSelect }));
     const eqParish = vi.fn(() => ({ eq: eqUser }));
     const del = vi.fn(() => ({ eq: eqParish }));
 
@@ -65,6 +70,27 @@ describe("/api/parish-admin/people/[clerkUserId]", () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ ok: true });
     expect(recordAdminAuditLog).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns 404 without audit log when no member is removed", async () => {
+    const membershipSingle = vi.fn(async () => ({ data: null, error: null }));
+    const membershipSelect = vi.fn(() => ({ maybeSingle: membershipSingle }));
+    const eqUser = vi.fn(() => ({ select: membershipSelect }));
+    const eqParish = vi.fn(() => ({ eq: eqUser }));
+    const del = vi.fn(() => ({ eq: eqParish }));
+
+    vi.mocked(getSupabaseAdminClient).mockReturnValue({
+      from: vi.fn(() => ({ delete: del })),
+    } as never);
+
+    const response = await DELETE(
+      new Request("http://localhost/api/parish-admin/people/user-1", { method: "DELETE" }),
+      { params: Promise.resolve({ clerkUserId: "user-1" }) },
+    );
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({ error: "Membership not found." });
+    expect(recordAdminAuditLog).not.toHaveBeenCalled();
   });
 
   it("blocks self-removal", async () => {

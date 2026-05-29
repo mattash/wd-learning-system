@@ -150,6 +150,18 @@ const lessonSchema = z
       });
     }
 
+    if (
+      value.content_type === "VIDEO" &&
+      value.youtube_video_id &&
+      !YOUTUBE_ID_REGEX.test(value.youtube_video_id)
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "YouTube IDs are 11 characters (e.g. dQw4w9WgXcQ).",
+        path: ["youtube_video_id"],
+      });
+    }
+
     if (value.content_type === "DOCUMENT" && !value.document_url) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -422,14 +434,6 @@ async function importContent(
           .single(),
         "Lesson",
       );
-
-      // Validate YouTube ID format if present
-      if (lessonInput.youtube_video_id && !YOUTUBE_ID_REGEX.test(lessonInput.youtube_video_id)) {
-        throw new Error(
-          `Invalid YouTube video ID '${lessonInput.youtube_video_id}' for lesson '${lessonInput.title}'. ` +
-          "YouTube IDs are 11 characters (e.g. dQw4w9WgXcQ).",
-        );
-      }
 
       const lessonSummary: SummaryLesson = {
         ...lesson,

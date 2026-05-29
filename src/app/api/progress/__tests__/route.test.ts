@@ -31,9 +31,9 @@ describe("POST /api/progress", () => {
   });
 
   it("stores progress for active parish", async () => {
-    const upsert = vi.fn(async () => ({ error: null }));
+    const rpc = vi.fn(async () => ({ error: null }));
     vi.mocked(getSupabaseAdminClient).mockReturnValue({
-      from: vi.fn(() => ({ upsert })),
+      rpc,
     } as never);
 
     const response = await POST(
@@ -51,23 +51,20 @@ describe("POST /api/progress", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ ok: true });
-    expect(upsert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        parish_id: "11111111-1111-4111-8111-111111111111",
-        clerk_user_id: "user-1",
-        lesson_id: "22222222-2222-4222-8222-222222222222",
-        percent_watched: 90,
-        last_position_seconds: 120,
-        completed: true,
-      }),
-      { onConflict: "parish_id,clerk_user_id,lesson_id" },
-    );
+    expect(rpc).toHaveBeenCalledWith("record_video_progress", {
+      p_parish_id: "11111111-1111-4111-8111-111111111111",
+      p_clerk_user_id: "user-1",
+      p_lesson_id: "22222222-2222-4222-8222-222222222222",
+      p_percent_watched: 90,
+      p_last_position_seconds: 120,
+      p_completed: true,
+    });
   });
 
   it("returns 403 for cross-parish payloads", async () => {
-    const upsert = vi.fn(async () => ({ error: null }));
+    const rpc = vi.fn(async () => ({ error: null }));
     vi.mocked(getSupabaseAdminClient).mockReturnValue({
-      from: vi.fn(() => ({ upsert })),
+      rpc,
     } as never);
 
     const response = await POST(
@@ -85,13 +82,13 @@ describe("POST /api/progress", () => {
 
     expect(response.status).toBe(403);
     await expect(response.json()).resolves.toEqual({ error: "Invalid parish context" });
-    expect(upsert).not.toHaveBeenCalled();
+    expect(rpc).not.toHaveBeenCalled();
   });
 
   it("returns 403 when learner is not enrolled in the lesson course", async () => {
-    const upsert = vi.fn(async () => ({ error: null }));
+    const rpc = vi.fn(async () => ({ error: null }));
     vi.mocked(getSupabaseAdminClient).mockReturnValue({
-      from: vi.fn(() => ({ upsert })),
+      rpc,
     } as never);
     vi.mocked(isUserEnrolledForLesson).mockResolvedValue(false);
 
@@ -110,13 +107,13 @@ describe("POST /api/progress", () => {
 
     expect(response.status).toBe(403);
     await expect(response.json()).resolves.toEqual({ error: "Enrollment required for this lesson" });
-    expect(upsert).not.toHaveBeenCalled();
+    expect(rpc).not.toHaveBeenCalled();
   });
 
-  it("returns 400 when upsert fails", async () => {
-    const upsert = vi.fn(async () => ({ error: { message: "db error" } }));
+  it("returns 400 when progress recording fails", async () => {
+    const rpc = vi.fn(async () => ({ error: { message: "db error" } }));
     vi.mocked(getSupabaseAdminClient).mockReturnValue({
-      from: vi.fn(() => ({ upsert })),
+      rpc,
     } as never);
 
     const response = await POST(

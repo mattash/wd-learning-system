@@ -73,6 +73,20 @@ describe("PATCH /api/admin/users/[clerkUserId]", () => {
     await expect(response.json()).resolves.toEqual({ error: "At least one profile field is required" });
   });
 
+  it("returns 400 for malformed JSON", async () => {
+    const response = await PATCH(
+      new Request("http://localhost/api/admin/users/user-1", {
+        method: "PATCH",
+        body: "{bad json",
+      }),
+      { params: Promise.resolve({ clerkUserId: "user-1" }) },
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "Invalid JSON payload" });
+    expect(getSupabaseAdminClient).not.toHaveBeenCalled();
+  });
+
   it("returns 404 when profile is missing", async () => {
     const maybeSingle = vi.fn(async () => ({ data: null, error: null }));
     const select = vi.fn(() => ({ maybeSingle }));

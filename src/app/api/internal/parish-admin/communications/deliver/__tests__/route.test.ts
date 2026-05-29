@@ -64,4 +64,64 @@ describe("/api/internal/parish-admin/communications/deliver", () => {
       requeued: 1,
     });
   });
+
+  it("processes pending jobs with valid token and empty body", async () => {
+    process.env.PARISH_COMMUNICATIONS_WORKER_TOKEN = "expected-token";
+    vi.mocked(processPendingParishMessageDeliveryJobs).mockResolvedValue({
+      processed: 0,
+      sent: 0,
+      failed: 0,
+      requeued: 0,
+    });
+
+    const response = await POST(
+      new Request("http://localhost/api/internal/parish-admin/communications/deliver", {
+        method: "POST",
+        headers: {
+          "x-parish-worker-token": "expected-token",
+        },
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(processPendingParishMessageDeliveryJobs).toHaveBeenCalledWith({ limit: undefined });
+  });
+
+  it("returns 400 for malformed JSON", async () => {
+    process.env.PARISH_COMMUNICATIONS_WORKER_TOKEN = "expected-token";
+
+    const response = await POST(
+      new Request("http://localhost/api/internal/parish-admin/communications/deliver", {
+        method: "POST",
+        headers: {
+          "x-parish-worker-token": "expected-token",
+          "content-type": "application/json",
+        },
+        body: "{",
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "Invalid delivery request payload" });
+    expect(processPendingParishMessageDeliveryJobs).not.toHaveBeenCalled();
+  });
+
+  it("returns 400 for invalid limits", async () => {
+    process.env.PARISH_COMMUNICATIONS_WORKER_TOKEN = "expected-token";
+
+    const response = await POST(
+      new Request("http://localhost/api/internal/parish-admin/communications/deliver", {
+        method: "POST",
+        headers: {
+          "x-parish-worker-token": "expected-token",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ limit: 51 }),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "Invalid delivery request payload" });
+    expect(processPendingParishMessageDeliveryJobs).not.toHaveBeenCalled();
+  });
 });
