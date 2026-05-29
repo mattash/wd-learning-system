@@ -138,4 +138,20 @@ describe("LessonPage", () => {
 
     expect(screen.getByText("Video player: abc123")).toBeInTheDocument();
   });
+
+  it("returns not found for missing lessons before checking enrollment", async () => {
+    vi.mocked(getLessonWithQuestions).mockResolvedValue(null);
+    vi.mocked(isUserEnrolledForLesson).mockResolvedValue(false);
+    navigationMocks.notFound.mockImplementationOnce(() => {
+      throw new Error("NEXT_NOT_FOUND");
+    });
+
+    await expect(LessonPage({ params: Promise.resolve({ lessonId: "missing-lesson" }) })).rejects.toThrow(
+      "NEXT_NOT_FOUND",
+    );
+
+    expect(navigationMocks.notFound).toHaveBeenCalled();
+    expect(isUserEnrolledForLesson).not.toHaveBeenCalled();
+    expect(navigationMocks.redirect).not.toHaveBeenCalled();
+  });
 });
