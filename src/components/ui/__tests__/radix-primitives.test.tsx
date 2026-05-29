@@ -50,17 +50,23 @@ describe("Radix primitives", () => {
 
   it("renders Tooltip content when open", () => {
     render(
-      <TooltipProvider delayDuration={0}>
-        <Tooltip open>
-          <TooltipTrigger asChild>
-            <button type="button">Hover me</button>
-          </TooltipTrigger>
-          <TooltipContent>Helpful context</TooltipContent>
-        </Tooltip>
-      </TooltipProvider>,
+      <div data-testid="constrained-parent" className="overflow-hidden">
+        <TooltipProvider delayDuration={0}>
+          <Tooltip open>
+            <TooltipTrigger asChild>
+              <button type="button">Hover me</button>
+            </TooltipTrigger>
+            <TooltipContent>Helpful context</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>,
     );
 
-    expect(screen.getByRole("tooltip")).toHaveTextContent("Helpful context");
+    const tooltip = screen.getByRole("tooltip");
+    expect(tooltip).toHaveTextContent("Helpful context");
+    expect(screen.getByTestId("constrained-parent")).not.toContainElement(
+      tooltip,
+    );
   });
 
   it("renders Sheet content on the right side", () => {
