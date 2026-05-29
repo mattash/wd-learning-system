@@ -26,7 +26,14 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ clerkUserId: 
     return NextResponse.json({ error: "Invalid user id" }, { status: 400 });
   }
 
-  const parsedPayload = updateSchema.safeParse(await req.json());
+  let rawPayload: unknown;
+  try {
+    rawPayload = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON payload" }, { status: 400 });
+  }
+
+  const parsedPayload = updateSchema.safeParse(rawPayload);
   if (!parsedPayload.success) {
     return NextResponse.json(
       { error: parsedPayload.error.issues[0]?.message ?? "Invalid profile update payload" },
