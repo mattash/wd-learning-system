@@ -120,6 +120,36 @@ describe("/api/admin/courses", () => {
     await expect(response.json()).resolves.toEqual({ course: { id: "c1", title: "Updated" } });
   });
 
+  it("preserves omitted optional course fields on update", async () => {
+    const single = vi.fn(async () => ({ data: { id: "c1", title: "Updated" }, error: null }));
+    const select = vi.fn(() => ({ single }));
+    const eq = vi.fn(() => ({ select }));
+    const update = vi.fn((_values: Record<string, unknown>) => ({ eq }));
+
+    vi.mocked(getSupabaseAdminClient).mockReturnValue({
+      from: vi.fn(() => ({ update })),
+    } as never);
+
+    const response = await PATCH(
+      new Request("http://localhost/api/admin/courses/c1", {
+        method: "PATCH",
+        body: JSON.stringify({ title: "Updated", scope: "PARISH", published: true }),
+      }),
+      { params: Promise.resolve({ courseId: "11111111-1111-4111-8111-111111111111" }) },
+    );
+
+    expect(response.status).toBe(200);
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Updated",
+        scope: "PARISH",
+        published: true,
+      }),
+    );
+    expect(update.mock.calls[0][0]).not.toHaveProperty("description");
+    expect(update.mock.calls[0][0]).not.toHaveProperty("thumbnail_url");
+  });
+
   it("returns 400 when update fails", async () => {
     const single = vi.fn(async () => ({ data: null, error: { message: "not found" } }));
     const select = vi.fn(() => ({ single }));
