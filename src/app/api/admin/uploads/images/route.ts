@@ -63,6 +63,7 @@ export async function POST(req: Request) {
     const upload = await createPresignedImageUpload({
       key: objectKey,
       contentType: normalizedContentType,
+      contentLengthBytes: payload.size,
     });
 
     return NextResponse.json(upload, { status: 201 });
