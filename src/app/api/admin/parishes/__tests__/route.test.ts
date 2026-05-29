@@ -166,6 +166,33 @@ describe("/api/admin/parishes", () => {
     await expect(response.json()).resolves.toEqual({ error: "not found" });
   });
 
+  it("returns updated parish when audit logging fails after successful update", async () => {
+    const parish = { id: "p1", name: "St Mark", slug: "st-mark", allow_self_signup: false };
+    const single = vi.fn(async () => ({ data: parish, error: null }));
+    const select = vi.fn(() => ({ single }));
+    const eq = vi.fn(() => ({ select }));
+    const update = vi.fn(() => ({ eq }));
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    vi.mocked(getSupabaseAdminClient).mockReturnValue({
+      from: vi.fn(() => ({ update })),
+    } as never);
+    vi.mocked(recordAdminAuditLog).mockRejectedValue(new Error("audit unavailable"));
+
+    const response = await PATCH(
+      new Request("http://localhost/api/admin/parishes/p1", {
+        method: "PATCH",
+        body: JSON.stringify({ name: "St Mark", slug: "st-mark", allowSelfSignup: false }),
+      }),
+      { params: Promise.resolve({ parishId: "11111111-1111-4111-8111-111111111111" }) },
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ parish });
+
+    consoleError.mockRestore();
+  });
+
   it("deletes a parish", async () => {
     const eq = vi.fn(async () => ({ error: null }));
     const del = vi.fn(() => ({ eq }));
@@ -242,6 +269,27 @@ describe("/api/admin/parishes", () => {
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({ error: "cannot archive" });
+  });
+
+  it("deletes a parish when audit logging fails after successful deletion", async () => {
+    const eq = vi.fn(async () => ({ error: null }));
+    const del = vi.fn(() => ({ eq }));
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    vi.mocked(getSupabaseAdminClient).mockReturnValue({
+      from: vi.fn(() => ({ delete: del })),
+    } as never);
+    vi.mocked(recordAdminAuditLog).mockRejectedValue(new Error("audit unavailable"));
+
+    const response = await DELETE(
+      new Request("http://localhost/api/admin/parishes/p1", { method: "DELETE" }),
+      { params: Promise.resolve({ parishId: "11111111-1111-4111-8111-111111111111" }) },
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ ok: true });
+
+    consoleError.mockRestore();
   });
 
   it("returns the archived parish when audit logging fails after the update succeeds", async () => {
