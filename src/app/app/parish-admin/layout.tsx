@@ -1,5 +1,3 @@
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ParishAdminNav } from "@/components/parish-admin-nav";
 import { requireParishRole } from "@/lib/authz";
 import { getParishAdminDashboardDataForUser } from "@/lib/repositories/parish-admin";

@@ -103,38 +103,59 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Selected course is not available for enrollment." }, { status: 400 });
   }
 
+  let data: {
+    id: string;
+    clerk_user_id: string;
+    course_id: string;
+    cohort_id: string | null;
+    created_at: string;
+  };
+
   if (course.scope === "PARISH") {
-    const { data: adoption, error: adoptionError } = await supabase
-      .from("course_parishes")
-      .select("course_id")
-      .eq("course_id", payload.courseId)
-      .eq("parish_id", parishId)
-      .maybeSingle();
+    const { data: result, error: rpcError } = await supabase.rpc("create_parish_course_enrollment", {
+      p_parish_id: parishId,
+      p_course_id: payload.courseId,
+      p_clerk_user_id: payload.clerkUserId,
+    });
 
-    if (adoptionError) {
-      return NextResponse.json({ error: adoptionError.message }, { status: 400 });
+    if (rpcError) {
+      return NextResponse.json({ error: rpcError.message }, { status: 400 });
     }
 
-    if (!adoption) {
-      return NextResponse.json({ error: "Adopt this parish-scoped course before enrolling learners." }, { status: 400 });
+    const rpcResult = result as {
+      error?: string;
+      ok?: boolean;
+      enrollment?: typeof data;
+    } | null;
+
+    if (rpcResult?.error) {
+      return NextResponse.json({ error: rpcResult.error }, { status: 400 });
     }
-  }
 
-  const { data, error } = await supabase
-    .from("enrollments")
-    .upsert(
-      {
-        parish_id: parishId,
-        clerk_user_id: payload.clerkUserId,
-        course_id: payload.courseId,
-      },
-      { onConflict: "parish_id,clerk_user_id,course_id" },
-    )
-    .select("id,clerk_user_id,course_id,cohort_id,created_at")
-    .single();
+    if (!rpcResult?.enrollment) {
+      return NextResponse.json({ error: "Failed to create enrollment." }, { status: 400 });
+    }
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
+    data = rpcResult.enrollment;
+  } else {
+    const { data: enrollment, error } = await supabase
+      .from("enrollments")
+      .upsert(
+        {
+          parish_id: parishId,
+          clerk_user_id: payload.clerkUserId,
+          course_id: payload.courseId,
+        },
+        { onConflict: "parish_id,clerk_user_id,course_id" },
+      )
+      .select("id,clerk_user_id,course_id,cohort_id,created_at")
+      .single();
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
+    data = enrollment as typeof data;
   }
 
   await recordAdminAuditLog({

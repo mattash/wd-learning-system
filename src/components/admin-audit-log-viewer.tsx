@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import type { AdminAuditLogRow } from "@/lib/audit-log";
 import { Button } from "@/components/ui/button";
@@ -45,6 +45,7 @@ export function AdminAuditLogViewer({ initialLogs }: AdminAuditLogViewerProps) {
   const [filters, setFilters] = useState<AuditFilters>(defaultFilters);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const requestIdRef = useRef(0);
 
   async function loadLogs(activeFilters: AuditFilters) {
     setLoading(true);
@@ -57,6 +58,8 @@ export function AdminAuditLogViewer({ initialLogs }: AdminAuditLogViewerProps) {
     if (activeFilters.startDate) params.set("startDate", activeFilters.startDate);
     if (activeFilters.endDate) params.set("endDate", activeFilters.endDate);
 
+    const requestId = ++requestIdRef.current;
+
     try {
       const response = await fetch(`/api/admin/audit-logs?${params.toString()}`);
       let data: { error?: string; logs?: unknown } = {};
@@ -66,6 +69,9 @@ export function AdminAuditLogViewer({ initialLogs }: AdminAuditLogViewerProps) {
         data = {};
       }
 
+      // Ignore stale responses from earlier requests
+      if (requestId !== requestIdRef.current) return;
+
       if (!response.ok) {
         setMessage(data.error ?? "Failed to load audit logs.");
         return;
@@ -73,9 +79,12 @@ export function AdminAuditLogViewer({ initialLogs }: AdminAuditLogViewerProps) {
 
       setLogs((data.logs ?? []) as AdminAuditLogRow[]);
     } catch {
+      if (requestId !== requestIdRef.current) return;
       setMessage("Failed to load audit logs.");
     } finally {
-      setLoading(false);
+      if (requestId === requestIdRef.current) {
+        setLoading(false);
+      }
     }
   }
 

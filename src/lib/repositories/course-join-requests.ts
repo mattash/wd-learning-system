@@ -192,7 +192,21 @@ export async function approveJoinRequest({
     throw new Error("Request not found or not pending");
   }
 
-  // Create enrollment (upsert to handle race condition)
+  // Mark request as approved first (only if still PENDING) — guard against concurrent rejection
+  const { error: updateError, data: updated } = await supabase
+    .from("course_join_requests")
+    .update({ status: "APPROVED" })
+    .eq("id", requestId)
+    .eq("status", "PENDING")
+    .select("id")
+    .maybeSingle();
+
+  if (updateError) throw updateError;
+  if (!updated) {
+    throw new Error("Request status changed before approval completed");
+  }
+
+  // Create enrollment (after successfully transitioning the request)
   const { error: enrollmentError } = await supabase
     .from("enrollments")
     .upsert(
@@ -204,15 +218,14 @@ export async function approveJoinRequest({
       { onConflict: "parish_id,clerk_user_id,course_id" }
     );
 
-  if (enrollmentError) throw enrollmentError;
-
-  // Mark request as approved
-  const { error: updateError } = await supabase
-    .from("course_join_requests")
-    .update({ status: "APPROVED" })
-    .eq("id", requestId);
-
-  if (updateError) throw updateError;
+  if (enrollmentError) {
+    // Roll back the approval if enrollment creation fails
+    await supabase
+      .from("course_join_requests")
+      .update({ status: "PENDING" })
+      .eq("id", requestId);
+    throw enrollmentError;
+  }
 
   // Audit log
   const { recordAdminAuditLog } = await import("@/lib/audit-log");
@@ -253,13 +266,19 @@ export async function rejectJoinRequest({
     throw new Error("Request not found or not pending");
   }
 
-  // Mark request as rejected
-  const { error: updateError } = await supabase
+  // Mark request as rejected (only if still PENDING)
+  const { error: updateError, data: updated } = await supabase
     .from("course_join_requests")
     .update({ status: "REJECTED" })
-    .eq("id", requestId);
+    .eq("id", requestId)
+    .eq("status", "PENDING")
+    .select("id")
+    .maybeSingle();
 
   if (updateError) throw updateError;
+  if (!updated) {
+    throw new Error("Request status changed before rejection completed");
+  }
 
   // Audit log
   const { recordAdminAuditLog } = await import("@/lib/audit-log");
