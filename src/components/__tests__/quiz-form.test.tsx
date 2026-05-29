@@ -100,7 +100,7 @@ describe("QuizForm", () => {
     fireEvent.click(screen.getByText("5"));
     fireEvent.click(screen.getByRole("button", { name: "Submit answers" }));
 
-    expect(await screen.findByText("Score: 50%")).toBeInTheDocument();
+    expect(await screen.findAllByText("Score: 50%")).toHaveLength(3);
   });
 
   it("shows error when quiz submission fails with server message", async () => {
