@@ -8,6 +8,53 @@ describe("AdminMembershipForm", () => {
     vi.unstubAllGlobals();
   });
 
+  it("shows error when membership request rejects", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network error")));
+
+    render(<AdminMembershipForm />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Add membership" }));
+
+    expect(await screen.findByText("Request failed. Check your connection and try again.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add membership" })).toBeEnabled();
+  });
+
+  it("shows fallback error when membership response is not json", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        json: async () => {
+          throw new SyntaxError("Unexpected end of JSON input");
+        },
+      }),
+    );
+
+    render(<AdminMembershipForm />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Add membership" }));
+
+    expect(await screen.findByText("Request failed. Check your connection and try again.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add membership" })).toBeEnabled();
+  });
+
+  it("shows server error message on non-ok response", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: false,
+        json: async () => ({ error: "User not found" }),
+      }),
+    );
+
+    render(<AdminMembershipForm />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Add membership" }));
+
+    expect(await screen.findByText("User not found")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add membership" })).toBeEnabled();
+  });
+
   it("prevents duplicate membership submissions while saving", async () => {
     let resolveFetch: (response: Response) => void;
     const fetchMock = vi.fn(
