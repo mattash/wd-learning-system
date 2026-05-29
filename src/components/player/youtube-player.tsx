@@ -96,7 +96,7 @@ export function YoutubePlayer({
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const playerContainerId = useMemo(
-    () => `yt-player-${lessonId.replaceAll("-", "")}`,
+    () => `yt-player-${lessonId}`,
     [lessonId],
   );
 
