@@ -121,6 +121,61 @@ describe("/api/parish-admin/cohorts/[cohortId]", () => {
     expect(auditDetails).not.toHaveProperty("next_session_at");
   });
 
+  it("clears optional fields when null is provided", async () => {
+    const existingMaybeSingle = vi.fn(async () => ({
+      data: {
+        id: "cohort-1",
+        facilitator_clerk_user_id: "facilitator-1",
+      },
+      error: null,
+    }));
+    const existingEqParish = vi.fn(() => ({ maybeSingle: existingMaybeSingle }));
+    const existingEqId = vi.fn(() => ({ eq: existingEqParish }));
+    const cohortSelect = vi.fn(() => ({ eq: existingEqId }));
+
+    const updateSingle = vi.fn(async () => ({
+      data: {
+        id: "cohort-1",
+        name: "Updated",
+        facilitator_clerk_user_id: null,
+        next_session_at: null,
+      },
+      error: null,
+    }));
+    const updateSelect = vi.fn(() => ({ single: updateSingle }));
+    const updateEqParish = vi.fn(() => ({ select: updateSelect }));
+    const updateEqId = vi.fn(() => ({ eq: updateEqParish }));
+    const cohortUpdate = vi.fn(() => ({ eq: updateEqId }));
+
+    vi.mocked(getSupabaseAdminClient).mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "cohorts") return { select: cohortSelect, update: cohortUpdate };
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    } as never);
+
+    const response = await PATCH(
+      new Request("http://localhost/api/parish-admin/cohorts/11111111-1111-4111-8111-111111111111", {
+        method: "PATCH",
+        body: JSON.stringify({
+          name: "Updated",
+          facilitatorClerkUserId: null,
+          cadence: "biweekly",
+          nextSessionAt: null,
+        }),
+      }),
+      { params: Promise.resolve({ cohortId: "11111111-1111-4111-8111-111111111111" }) },
+    );
+
+    expect(response.status).toBe(200);
+    expect(cohortUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        facilitator_clerk_user_id: null,
+        next_session_at: null,
+      }),
+    );
+  });
+
   it("returns 403 when instructor tries to update unassigned cohort", async () => {
     vi.mocked(requireParishRole).mockResolvedValue({
       clerkUserId: "instructor-1",
