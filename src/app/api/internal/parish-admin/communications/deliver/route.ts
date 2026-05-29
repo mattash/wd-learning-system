@@ -32,10 +32,10 @@ export async function POST(req: Request) {
 
   let parsedBody: z.infer<typeof requestSchema>;
   try {
-    const raw = await req.json();
-    parsedBody = requestSchema.parse(raw);
+    const rawBody = await req.text();
+    parsedBody = rawBody.trim() ? requestSchema.parse(JSON.parse(rawBody)) : undefined;
   } catch {
-    parsedBody = undefined;
+    return NextResponse.json({ error: "Invalid delivery request payload" }, { status: 400 });
   }
 
   const result = await processPendingParishMessageDeliveryJobs({
