@@ -55,7 +55,6 @@ export function ParishPeopleManager({ members }: { members: ParishAdminMemberRow
 
   // Sync drafts when members prop refreshes (e.g. after router.refresh())
   useEffect(() => {
-    const prevMembers = prevMembersRef.current;
     // Always rebuild drafts from current members so server-side role changes
     // are reflected after a refresh. Any unsubmitted edits are lost on refresh,
     // which is correct: the page refreshes with new server data.
