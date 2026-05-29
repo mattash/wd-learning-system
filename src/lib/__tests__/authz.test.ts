@@ -21,7 +21,9 @@ vi.mock("@/lib/supabase/server", () => ({
   getSupabaseAdminClient: vi.fn(),
 }));
 
-import { hasCompletedOnboarding } from "@/lib/authz";
+import { clerkClient } from "@clerk/nextjs/server";
+
+import { getUserLabel, hasCompletedOnboarding } from "@/lib/authz";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 
 function createQuery(result: unknown) {
@@ -71,5 +73,27 @@ describe("hasCompletedOnboarding", () => {
     await expect(hasCompletedOnboarding("user-1")).resolves.toBe(false);
 
     expect(from).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("getUserLabel", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("falls back to email when the Clerk user has no name", async () => {
+    const getUser = vi.fn(async () => ({
+      fullName: null,
+      firstName: null,
+      lastName: null,
+      primaryEmailAddress: { emailAddress: "user@example.com" },
+    }));
+    vi.mocked(clerkClient).mockResolvedValue({
+      users: { getUser },
+    } as never);
+
+    await expect(getUserLabel("clerk-user-1")).resolves.toBe("user@example.com");
+
+    expect(getUser).toHaveBeenCalledWith("clerk-user-1");
   });
 });
