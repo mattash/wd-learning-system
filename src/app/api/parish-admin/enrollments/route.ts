@@ -104,6 +104,15 @@ export async function POST(req: Request) {
   }
 
   if (course.scope === "PARISH") {
+    // Acquire advisory lock to serialize with adoption removal
+    const { error: lockError } = await supabase.rpc("acquire_adoption_lock", {
+      p_parish_id: parishId,
+      p_course_id: payload.courseId,
+    });
+    if (lockError) {
+      return NextResponse.json({ error: lockError.message }, { status: 400 });
+    }
+
     const { data: adoption, error: adoptionError } = await supabase
       .from("course_parishes")
       .select("course_id")

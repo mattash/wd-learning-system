@@ -193,14 +193,16 @@ export async function approveJoinRequest({
   }
 
   // Mark request as approved first (only if still PENDING) — guard against concurrent rejection
-  const { error: updateError, count } = await supabase
+  const { error: updateError, data: updated } = await supabase
     .from("course_join_requests")
     .update({ status: "APPROVED" })
     .eq("id", requestId)
-    .eq("status", "PENDING");
+    .eq("status", "PENDING")
+    .select("id")
+    .maybeSingle();
 
   if (updateError) throw updateError;
-  if ((count ?? 0) === 0) {
+  if (!updated) {
     throw new Error("Request status changed before approval completed");
   }
 
@@ -265,14 +267,16 @@ export async function rejectJoinRequest({
   }
 
   // Mark request as rejected (only if still PENDING)
-  const { error: updateError, count } = await supabase
+  const { error: updateError, data: updated } = await supabase
     .from("course_join_requests")
     .update({ status: "REJECTED" })
     .eq("id", requestId)
-    .eq("status", "PENDING");
+    .eq("status", "PENDING")
+    .select("id")
+    .maybeSingle();
 
   if (updateError) throw updateError;
-  if ((count ?? 0) === 0) {
+  if (!updated) {
     throw new Error("Request status changed before rejection completed");
   }
 
