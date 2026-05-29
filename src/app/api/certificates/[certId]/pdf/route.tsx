@@ -34,16 +34,26 @@ export async function GET(
   }
 
   // Get lesson count for this course
-  const { data: modules } = await supabase
+  const { data: modules, error: modulesError } = await supabase
     .from("modules")
     .select("id")
     .eq("course_id", c.course_id);
+  if (modulesError) {
+    return NextResponse.json({ error: "Could not load course lesson count" }, { status: 500 });
+  }
+
   const moduleIds = ((modules ?? []) as Array<{ id: string }>).map((m) => m.id);
-  const { data: lessons } = await supabase
-    .from("lessons")
-    .select("id")
-    .in("module_id", moduleIds);
-  const lessonCount = (lessons ?? []).length;
+  let lessonCount = 0;
+  if (moduleIds.length > 0) {
+    const { data: lessons, error: lessonsError } = await supabase
+      .from("lessons")
+      .select("id")
+      .in("module_id", moduleIds);
+    if (lessonsError) {
+      return NextResponse.json({ error: "Could not load course lesson count" }, { status: 500 });
+    }
+    lessonCount = (lessons ?? []).length;
+  }
 
   const data = { ...pdfData, courseLessonCount: lessonCount };
 
