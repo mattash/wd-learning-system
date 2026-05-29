@@ -275,4 +275,47 @@ describe("GET /api/admin/users", () => {
       users: [{ clerk_user_id: "target-user" }],
     });
   });
+
+  it("applies diocese admin exclusion before limiting user profiles", async () => {
+    const events: string[] = [];
+
+    vi.mocked(getSupabaseAdminClient).mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "user_profiles") {
+          return {
+            select: vi.fn(() =>
+              createUserProfilesQuery({
+                data: [
+                  {
+                    clerk_user_id: "older-non-admin",
+                    email: "older@example.com",
+                    display_name: "Older Non Admin",
+                    onboarding_completed_at: "2024-01-01",
+                    created_at: "2024-01-01",
+                  },
+                ],
+                events,
+              }),
+            ),
+          };
+        }
+
+        if (table === "diocese_admins") {
+          return { select: vi.fn(async () => ({ data: [{ clerk_user_id: "newest-admin" }], error: null })) };
+        }
+
+        return {
+          select: vi.fn(async () => ({ data: [], error: null })),
+        };
+      }),
+    } as never);
+
+    const response = await GET(new Request("http://localhost/api/admin/users?dioceseAdmin=no&limit=1"));
+
+    expect(response.status).toBe(200);
+    expect(events).toEqual(["not", "order", "limit"]);
+    await expect(response.json()).resolves.toMatchObject({
+      users: [{ clerk_user_id: "older-non-admin", is_diocese_admin: false }],
+    });
+  });
 });
