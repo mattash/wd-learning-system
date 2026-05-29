@@ -40,12 +40,17 @@ export async function GET(req: Request) {
   }
 
   const supabase = getSupabaseAdminClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("parish_memberships")
     .select("id")
     .eq("parish_id", parishId)
     .eq("clerk_user_id", userId)
     .maybeSingle();
+
+  if (error) {
+    console.error("[select-parish] membership lookup failed:", error);
+    throw new Error("Unable to verify parish membership");
+  }
 
   if (!data) {
     return buildRedirect("/app/select-parish?error=invalid_membership", req.url);
