@@ -115,7 +115,10 @@ describe("LessonPage", () => {
 
     expect(screen.getByRole("heading", { name: "Reading lesson" })).toBeInTheDocument();
     expect(screen.getByText("Document review: Pages 2-4")).toBeInTheDocument();
-    expect(screen.getByTitle("Reading lesson document")).toHaveAttribute("src", "/docs/reading.pdf#page=2");
+    const documentFrame = screen.getByTitle("Reading lesson document");
+    expect(documentFrame).toHaveAttribute("src", "/docs/reading.pdf#page=2");
+    expect(documentFrame).toHaveAttribute("sandbox", "allow-downloads");
+    expect(documentFrame).toHaveAttribute("referrerpolicy", "no-referrer");
     expect(screen.getByText("Quiz questions: 1")).toBeInTheDocument();
   });
 
