@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { readErrorMessage } from "@/lib/errors";
+
 import type { DioceseCourseRow } from "@/lib/repositories/diocese-admin";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -144,44 +146,51 @@ export function AdminCourseManager({ courses }: { courses: DioceseCourseRow[] })
     const url = isEdit ? `/api/admin/courses/${editorMode.id}` : "/api/admin/courses";
     const method = isEdit ? "PATCH" : "POST";
 
-    const response = await fetch(url, {
-      method,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title,
-        description: form.description.trim() || null,
-        thumbnailUrl: form.thumbnailUrl || null,
-        scope: form.scope,
-        published: form.published,
-      }),
-    });
+    try {
+      const response = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title,
+          description: form.description.trim() || null,
+          thumbnailUrl: form.thumbnailUrl || null,
+          scope: form.scope,
+          published: form.published,
+        }),
+      });
 
-    const data = await response.json();
-    setSubmitting(false);
+      if (!response.ok) {
+        setFormError(await readErrorMessage(response, isEdit ? "Failed to update course." : "Failed to create course."));
+        return;
+      }
 
-    if (!response.ok) {
-      setFormError(data.error ?? (isEdit ? "Failed to update course." : "Failed to create course."));
-      return;
+      setMessage(isEdit ? "Course updated." : "Course created.");
+      closeEditor();
+      router.refresh();
+    } catch {
+      setFormError(isEdit ? "Failed to update course." : "Failed to create course.");
+    } finally {
+      setSubmitting(false);
     }
-
-    setMessage(isEdit ? "Course updated." : "Course created.");
-    closeEditor();
-    router.refresh();
   }
 
   async function confirmDelete() {
     if (!pendingDelete) return;
     setDeleting(true);
-    const response = await fetch(`/api/admin/courses/${pendingDelete.id}`, { method: "DELETE" });
-    const data = await response.json();
-    setDeleting(false);
-    if (!response.ok) {
-      setMessage(data.error ?? "Failed to delete course.");
-      return;
+    try {
+      const response = await fetch(`/api/admin/courses/${pendingDelete.id}`, { method: "DELETE" });
+      if (!response.ok) {
+        setMessage(await readErrorMessage(response, "Failed to delete course."));
+        return;
+      }
+      setMessage("Course deleted.");
+      setPendingDelete(null);
+      router.refresh();
+    } catch {
+      setMessage("Failed to delete course.");
+    } finally {
+      setDeleting(false);
     }
-    setMessage("Course deleted.");
-    setPendingDelete(null);
-    router.refresh();
   }
 
   const isEditMode = editorMode?.kind === "edit";

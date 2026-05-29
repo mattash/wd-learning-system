@@ -90,4 +90,28 @@ describe("DocumentReviewCard", () => {
     expect(await screen.findByText("Unable to update review status.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Mark section reviewed" })).toBeEnabled();
   });
+
+  it("reenables review action when the error response is not json", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValue({
+      ok: false,
+      json: async () => {
+        throw new SyntaxError("Unexpected end of JSON input");
+      },
+    } as unknown as Response);
+
+    render(
+      <DocumentReviewCard
+        documentLabel="Assigned document"
+        documentUrl="/docs/reading.pdf"
+        initiallyCompleted={false}
+        lessonId="11111111-1111-4111-8111-111111111111"
+        parishId="22222222-2222-4222-8222-222222222222"
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Mark section reviewed" }));
+
+    expect(await screen.findByText("Unable to update review status.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Mark section reviewed" })).toBeEnabled();
+  });
 });

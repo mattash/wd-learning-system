@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { readErrorMessage } from "@/lib/errors";
+
 import type {
   ParishAdminCourseRow,
   ParishAdminEnrollmentRow,
@@ -45,31 +47,45 @@ export function ParishEnrollmentManager({
   async function addEnrollment() {
     if (!selectedUserIdValue || !selectedCourseIdValue) return;
 
-    const response = await fetch("/api/parish-admin/enrollments", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ clerkUserId: selectedUserIdValue, courseId: selectedCourseIdValue }),
-    });
-    const data = await response.json();
-    setMessage(response.ok ? "Enrollment saved." : data.error ?? "Failed to save enrollment.");
-    if (response.ok) {
+    try {
+      const response = await fetch("/api/parish-admin/enrollments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clerkUserId: selectedUserIdValue, courseId: selectedCourseIdValue }),
+      });
+
+      if (!response.ok) {
+        setMessage(await readErrorMessage(response, "Failed to save enrollment."));
+        return;
+      }
+
+      setMessage("Enrollment saved.");
       router.refresh();
+    } catch {
+      setMessage("Failed to save enrollment.");
     }
   }
 
   async function removeEnrollment(item: ParishAdminEnrollmentRow) {
-    const response = await fetch("/api/parish-admin/enrollments", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        clerkUserId: item.clerk_user_id,
-        courseId: item.course_id,
-      }),
-    });
-    const data = await response.json();
-    setMessage(response.ok ? "Enrollment removed." : data.error ?? "Failed to remove enrollment.");
-    if (response.ok) {
+    try {
+      const response = await fetch("/api/parish-admin/enrollments", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clerkUserId: item.clerk_user_id,
+          courseId: item.course_id,
+        }),
+      });
+
+      if (!response.ok) {
+        setMessage(await readErrorMessage(response, "Failed to remove enrollment."));
+        return;
+      }
+
+      setMessage("Enrollment removed.");
       router.refresh();
+    } catch {
+      setMessage("Failed to remove enrollment.");
     }
   }
 

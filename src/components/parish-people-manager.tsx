@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import type { ParishAdminMemberRow } from "@/lib/repositories/parish-admin";
@@ -40,6 +40,7 @@ export function ParishPeopleManager({ members }: { members: ParishAdminMemberRow
   const [importDefaultRole, setImportDefaultRole] = useState<"parish_admin" | "instructor" | "student">("student");
   const [importResults, setImportResults] = useState<ImportResultRow[]>([]);
   const [message, setMessage] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const [drafts, setDrafts] = useState<Record<string, MemberDraft>>(
     Object.fromEntries(
       members.map((member) => [
@@ -50,6 +51,18 @@ export function ParishPeopleManager({ members }: { members: ParishAdminMemberRow
       ]),
     ),
   );
+
+  // Sync drafts when members prop refreshes (e.g. after router.refresh())
+  useEffect(() => {
+    // Always rebuild drafts from current members so server-side role changes
+    // are reflected after a refresh. Any unsubmitted edits are lost on refresh,
+    // which is correct: the page refreshes with new server data.
+    setDrafts(
+      Object.fromEntries(
+        members.map((member) => [member.clerk_user_id, { role: member.role }]),
+      ),
+    );
+  }, [members]);
 
   const filteredMembers = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -66,66 +79,117 @@ export function ParishPeopleManager({ members }: { members: ParishAdminMemberRow
   }, [members, search]);
 
   async function addMember() {
-    const response = await fetch("/api/parish-admin/people", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        identifier,
-        role: newRole,
-      }),
-    });
+    setSubmitting(true);
+    setMessage("");
 
-    const data = await response.json();
-    setMessage(response.ok ? "Member added." : data.error ?? "Failed to add member.");
-    if (!response.ok) return;
+    try {
+      const response = await fetch("/api/parish-admin/people", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          identifier,
+          role: newRole,
+        }),
+      });
 
-    setIdentifier("");
-    router.refresh();
+      const data = (await response.json().catch(() => ({}))) as { error?: string };
+
+      if (response.ok) {
+        setMessage("Member added.");
+        setIdentifier("");
+        router.refresh();
+      } else {
+        setMessage(data.error ?? "Failed to add member.");
+      }
+    } catch {
+      setMessage("Failed to add member.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   async function updateRole(clerkUserId: string) {
     const draft = drafts[clerkUserId];
     if (!draft) return;
 
-    const response = await fetch(`/api/parish-admin/people/${encodeURIComponent(clerkUserId)}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        role: draft.role,
-      }),
-    });
-    const data = await response.json();
-    setMessage(response.ok ? "Role updated." : data.error ?? "Failed to update role.");
-    if (response.ok) {
-      router.refresh();
+    setSubmitting(true);
+    setMessage("");
+
+    try {
+      const response = await fetch(`/api/parish-admin/people/${encodeURIComponent(clerkUserId)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          role: draft.role,
+        }),
+      });
+
+      const data = (await response.json().catch(() => ({}))) as { error?: string };
+
+      if (response.ok) {
+        setMessage("Role updated.");
+        router.refresh();
+      } else {
+        setMessage(data.error ?? "Failed to update role.");
+      }
+    } catch {
+      setMessage("Failed to update role.");
+    } finally {
+      setSubmitting(false);
     }
   }
 
   async function removeMember(clerkUserId: string) {
-    const response = await fetch(`/api/parish-admin/people/${encodeURIComponent(clerkUserId)}`, {
-      method: "DELETE",
-    });
-    const data = await response.json();
-    setMessage(response.ok ? "Member removed." : data.error ?? "Failed to remove member.");
-    if (response.ok) {
-      router.refresh();
+    setSubmitting(true);
+    setMessage("");
+
+    try {
+      const response = await fetch(`/api/parish-admin/people/${encodeURIComponent(clerkUserId)}`, {
+        method: "DELETE",
+      });
+
+      const data = (await response.json().catch(() => ({}))) as { error?: string };
+
+      if (response.ok) {
+        setMessage("Member removed.");
+        router.refresh();
+      } else {
+        setMessage(data.error ?? "Failed to remove member.");
+      }
+    } catch {
+      setMessage("Failed to remove member.");
+    } finally {
+      setSubmitting(false);
     }
   }
 
   async function importMembers() {
-    const response = await fetch("/api/parish-admin/people", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        csvText: importCsvText,
-        defaultRole: importDefaultRole,
-      }),
-    });
-    const data = await response.json();
-    setMessage(response.ok ? `Import finished: ${data.summary.importedCount} imported, ${data.summary.skippedCount} skipped.` : data.error ?? "Failed to import members.");
-    setImportResults((data.results ?? []) as ImportResultRow[]);
-    if (response.ok) {
-      router.refresh();
+    setSubmitting(true);
+    setMessage("");
+
+    try {
+      const response = await fetch("/api/parish-admin/people", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          csvText: importCsvText,
+          defaultRole: importDefaultRole,
+        }),
+      });
+
+      const data = (await response.json().catch(() => ({}))) as { error?: string; summary?: { importedCount: number; skippedCount: number }; results?: ImportResultRow[] };
+
+      if (response.ok) {
+        setMessage(`Import finished: ${data.summary?.importedCount ?? 0} imported, ${data.summary?.skippedCount ?? 0} skipped.`);
+        setImportResults((data.results ?? []) as ImportResultRow[]);
+        router.refresh();
+      } else {
+        setMessage(data.error ?? "Failed to import members.");
+      }
+    } catch {
+      setMessage("Failed to import members.");
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -142,7 +206,7 @@ export function ParishPeopleManager({ members }: { members: ParishAdminMemberRow
           <option value="instructor">instructor</option>
           <option value="parish_admin">parish_admin</option>
         </Select>
-        <Button disabled={!identifier.trim()} onClick={addMember} type="button">
+        <Button disabled={!identifier.trim() || submitting} onClick={addMember} type="button">
           Add member
         </Button>
       </div>
@@ -157,7 +221,7 @@ export function ParishPeopleManager({ members }: { members: ParishAdminMemberRow
             <option value="instructor">Default role: instructor</option>
             <option value="parish_admin">Default role: parish_admin</option>
           </Select>
-          <Button onClick={importMembers} type="button" variant="secondary">
+          <Button disabled={submitting} onClick={importMembers} type="button" variant="secondary">
             Import CSV
           </Button>
         </div>
@@ -217,10 +281,10 @@ export function ParishPeopleManager({ members }: { members: ParishAdminMemberRow
               </td>
               <td className="py-2 pr-4">
                 <div className="flex gap-2">
-                  <Button onClick={() => updateRole(member.clerk_user_id)} size="sm" type="button" variant="secondary">
+                  <Button disabled={submitting} onClick={() => updateRole(member.clerk_user_id)} size="sm" type="button" variant="secondary">
                     Save role
                   </Button>
-                  <Button onClick={() => removeMember(member.clerk_user_id)} size="sm" type="button" variant="destructive">
+                  <Button disabled={submitting} onClick={() => removeMember(member.clerk_user_id)} size="sm" type="button" variant="destructive">
                     Remove
                   </Button>
                 </div>

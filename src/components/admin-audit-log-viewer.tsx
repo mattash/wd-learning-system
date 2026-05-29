@@ -57,16 +57,26 @@ export function AdminAuditLogViewer({ initialLogs }: AdminAuditLogViewerProps) {
     if (activeFilters.startDate) params.set("startDate", activeFilters.startDate);
     if (activeFilters.endDate) params.set("endDate", activeFilters.endDate);
 
-    const response = await fetch(`/api/admin/audit-logs?${params.toString()}`);
-    const data = await response.json();
-    if (!response.ok) {
-      setLoading(false);
-      setMessage(data.error ?? "Failed to load audit logs.");
-      return;
-    }
+    try {
+      const response = await fetch(`/api/admin/audit-logs?${params.toString()}`);
+      let data: { error?: string; logs?: unknown } = {};
+      try {
+        data = (await response.json()) as { error?: string; logs?: unknown };
+      } catch {
+        data = {};
+      }
 
-    setLogs((data.logs ?? []) as AdminAuditLogRow[]);
-    setLoading(false);
+      if (!response.ok) {
+        setMessage(data.error ?? "Failed to load audit logs.");
+        return;
+      }
+
+      setLogs((data.logs ?? []) as AdminAuditLogRow[]);
+    } catch {
+      setMessage("Failed to load audit logs.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function applyFilters() {

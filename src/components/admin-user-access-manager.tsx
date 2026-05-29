@@ -17,25 +17,58 @@ export function AdminUserAccessManager() {
   const [removeDioceseAdmin, setRemoveDioceseAdmin] = useState(false);
   const [removeParishMembership, setRemoveParishMembership] = useState(false);
   const [message, setMessage] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  function handleMakeDioceseAdmin(checked: boolean) {
+    setMakeDioceseAdmin(checked);
+    if (checked) setRemoveDioceseAdmin(false);
+  }
+
+  function handleRemoveDioceseAdmin(checked: boolean) {
+    setRemoveDioceseAdmin(checked);
+    if (checked) setMakeDioceseAdmin(false);
+  }
 
   async function submit() {
-    const response = await fetch("/api/admin/users/access", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        clerkUserId,
-        parishId: parishId || undefined,
-        role,
-        makeDioceseAdmin,
-        removeDioceseAdmin,
-        removeParishMembership,
-      }),
-    });
+    if (submitting) return;
 
-    const data = await response.json();
-    setMessage(response.ok ? "Access updated." : data.error ?? "Failed to update access.");
-    if (response.ok) {
+    if (makeDioceseAdmin && removeDioceseAdmin) {
+      setMessage("Cannot both make and remove diocese admin at the same time.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const response = await fetch("/api/admin/users/access", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clerkUserId,
+          parishId: parishId || undefined,
+          role,
+          makeDioceseAdmin,
+          removeDioceseAdmin,
+          removeParishMembership,
+        }),
+      });
+
+      if (!response.ok) {
+        let data: { error?: string } = {};
+        try {
+          data = await response.json();
+        } catch {
+          data = {};
+        }
+        setMessage(data.error ?? "Failed to update access.");
+        return;
+      }
+
+      setMessage("Access updated.");
       router.refresh();
+    } catch {
+      setMessage("Failed to update access.");
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -49,11 +82,11 @@ export function AdminUserAccessManager() {
         <option value="parish_admin">parish_admin</option>
       </Select>
       <label className="flex items-center gap-2 text-sm">
-        <Checkbox checked={makeDioceseAdmin} onChange={(e) => setMakeDioceseAdmin(e.target.checked)} />
+        <Checkbox checked={makeDioceseAdmin} onChange={(e) => handleMakeDioceseAdmin(e.target.checked)} />
         Make diocese admin
       </label>
       <label className="flex items-center gap-2 text-sm">
-        <Checkbox checked={removeDioceseAdmin} onChange={(e) => setRemoveDioceseAdmin(e.target.checked)} />
+        <Checkbox checked={removeDioceseAdmin} onChange={(e) => handleRemoveDioceseAdmin(e.target.checked)} />
         Remove diocese admin
       </label>
       <label className="flex items-center gap-2 text-sm">
@@ -63,8 +96,8 @@ export function AdminUserAccessManager() {
         />
         Remove parish membership (requires parish_id)
       </label>
-      <Button onClick={submit} type="button">
-        Apply access update
+      <Button disabled={submitting} onClick={submit} type="button">
+        {submitting ? "Submitting..." : "Apply access update"}
       </Button>
       {message ? <p className="text-sm text-muted-foreground">{message}</p> : null}
     </div>

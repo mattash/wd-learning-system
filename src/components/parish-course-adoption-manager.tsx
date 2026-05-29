@@ -17,6 +17,7 @@ export function ParishCourseAdoptionManager({
   const router = useRouter();
   const [selectedCourseId, setSelectedCourseId] = useState(availableCourses[0]?.id ?? "");
   const [message, setMessage] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const selectedCourseIdValue = availableCourses.some((course) => course.id === selectedCourseId)
     ? selectedCourseId
     : (availableCourses[0]?.id ?? "");
@@ -24,28 +25,54 @@ export function ParishCourseAdoptionManager({
   async function adoptCourse() {
     if (!selectedCourseIdValue) return;
 
-    const response = await fetch("/api/parish-admin/course-adoptions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ courseId: selectedCourseIdValue }),
-    });
-    const data = await response.json();
-    setMessage(response.ok ? "Course adopted for this parish." : data.error ?? "Failed to adopt course.");
-    if (!response.ok) return;
+    setSubmitting(true);
+    setMessage("");
 
-    router.refresh();
+    try {
+      const response = await fetch("/api/parish-admin/course-adoptions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ courseId: selectedCourseIdValue }),
+      });
+
+      const data = (await response.json().catch(() => ({}))) as { error?: string };
+
+      if (response.ok) {
+        setMessage("Course adopted for this parish.");
+        router.refresh();
+      } else {
+        setMessage(data.error ?? "Failed to adopt course.");
+      }
+    } catch {
+      setMessage("Failed to adopt course.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   async function removeAdoption(courseId: string) {
-    const response = await fetch("/api/parish-admin/course-adoptions", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ courseId }),
-    });
-    const data = await response.json();
-    setMessage(response.ok ? "Course removed from parish adoptions." : data.error ?? "Failed to remove course.");
-    if (response.ok) {
-      router.refresh();
+    setSubmitting(true);
+    setMessage("");
+
+    try {
+      const response = await fetch("/api/parish-admin/course-adoptions", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ courseId }),
+      });
+
+      const data = (await response.json().catch(() => ({}))) as { error?: string };
+
+      if (response.ok) {
+        setMessage("Course removed from parish adoptions.");
+        router.refresh();
+      } else {
+        setMessage(data.error ?? "Failed to remove course.");
+      }
+    } catch {
+      setMessage("Failed to remove course.");
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -63,7 +90,7 @@ export function ParishCourseAdoptionManager({
             <option value="">No additional parish courses available</option>
           )}
         </Select>
-        <Button disabled={!selectedCourseIdValue} onClick={adoptCourse} type="button">
+        <Button disabled={!selectedCourseIdValue || submitting} onClick={adoptCourse} type="button">
           Adopt course
         </Button>
       </div>
@@ -83,7 +110,7 @@ export function ParishCourseAdoptionManager({
                 <td className="py-2 pr-4">{course.title}</td>
                 <td className="py-2 pr-4 text-muted-foreground">{course.description ?? "No description"}</td>
                 <td className="py-2 pr-4">
-                  <Button onClick={() => removeAdoption(course.id)} size="sm" type="button" variant="destructive">
+                  <Button disabled={submitting} onClick={() => removeAdoption(course.id)} size="sm" type="button" variant="destructive">
                     Remove
                   </Button>
                 </td>

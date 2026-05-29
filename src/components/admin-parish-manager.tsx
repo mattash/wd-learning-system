@@ -51,6 +51,7 @@ export function AdminParishManager({ parishes }: { parishes: DioceseParishRow[] 
   const [drafts, setDrafts] = useState<Record<string, ParishDraft>>(() => buildParishDrafts(parishes));
   const previousPropDrafts = useRef<Record<string, ParishDraft>>(buildParishDrafts(parishes));
   const [message, setMessage] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     setDrafts((prev) => {
@@ -68,24 +69,33 @@ export function AdminParishManager({ parishes }: { parishes: DioceseParishRow[] 
   }, [parishes]);
 
   async function createParish() {
-    const response = await fetch("/api/admin/parishes", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: newName, slug: newSlug, allowSelfSignup: newAllowSelfSignup }),
-    });
+    setSubmitting(true);
+    setMessage("");
 
-    const data = await response.json();
-    if (!response.ok) {
-      setMessage(data.error ?? "Failed to create parish.");
-      return;
+    try {
+      const response = await fetch("/api/admin/parishes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newName, slug: newSlug, allowSelfSignup: newAllowSelfSignup }),
+      });
+
+      const data = (await response.json().catch(() => ({}))) as { error?: string };
+
+      if (response.ok) {
+        setMessage("Parish created.");
+        setNewName("");
+        setNewSlug("");
+        setNewAllowSelfSignup(true);
+        setShowCreateForm(false);
+        router.refresh();
+      } else {
+        setMessage(data.error ?? "Failed to create parish.");
+      }
+    } catch {
+      setMessage("Failed to create parish.");
+    } finally {
+      setSubmitting(false);
     }
-
-    setMessage("Parish created.");
-    setNewName("");
-    setNewSlug("");
-    setNewAllowSelfSignup(true);
-    setShowCreateForm(false);
-    router.refresh();
   }
 
   async function saveParish(id: string) {
@@ -96,45 +106,87 @@ export function AdminParishManager({ parishes }: { parishes: DioceseParishRow[] 
       return;
     }
 
-    const response = await fetch(`/api/admin/parishes/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: draft.name,
-        slug: draft.slug,
-        allowSelfSignup: draft.allowSelfSignup,
-      }),
-    });
+    setSubmitting(true);
+    setMessage("");
 
-    const data = await response.json();
-    setMessage(response.ok ? "Parish updated." : data.error ?? "Failed to update parish.");
-    if (response.ok) router.refresh();
+    try {
+      const response = await fetch(`/api/admin/parishes/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: draft.name,
+          slug: draft.slug,
+          allowSelfSignup: draft.allowSelfSignup,
+        }),
+      });
+
+      const data = (await response.json().catch(() => ({}))) as { error?: string };
+
+      if (response.ok) {
+        setMessage("Parish updated.");
+        router.refresh();
+      } else {
+        setMessage(data.error ?? "Failed to update parish.");
+      }
+    } catch {
+      setMessage("Failed to update parish.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   async function deleteParish(id: string) {
-    const response = await fetch(`/api/admin/parishes/${id}`, { method: "DELETE" });
-    const data = await response.json();
-    setMessage(response.ok ? "Parish deleted." : data.error ?? "Failed to delete parish.");
-    if (response.ok) router.refresh();
+    setSubmitting(true);
+    setMessage("");
+
+    try {
+      const response = await fetch(`/api/admin/parishes/${id}`, { method: "DELETE" });
+
+      const data = (await response.json().catch(() => ({}))) as { error?: string };
+
+      if (response.ok) {
+        setMessage("Parish deleted.");
+        router.refresh();
+      } else {
+        setMessage(data.error ?? "Failed to delete parish.");
+      }
+    } catch {
+      setMessage("Failed to delete parish.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   async function setArchived(id: string, archive: boolean) {
-    const response = await fetch(`/api/admin/parishes/${id}/archive`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ archive }),
-    });
-    const data = await response.json();
-    setMessage(response.ok ? (archive ? "Parish archived." : "Parish restored.") : data.error ?? "Failed to update parish archive status.");
-    if (response.ok) {
-      setDrafts((prev) => ({
-        ...prev,
-        [id]: {
-          ...prev[id],
-          archivedAt: archive ? new Date().toISOString() : null,
-        },
-      }));
-      router.refresh();
+    setSubmitting(true);
+    setMessage("");
+
+    try {
+      const response = await fetch(`/api/admin/parishes/${id}/archive`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ archive }),
+      });
+
+      const data = (await response.json().catch(() => ({}))) as { error?: string };
+
+      if (response.ok) {
+        setMessage(archive ? "Parish archived." : "Parish restored.");
+        setDrafts((prev) => ({
+          ...prev,
+          [id]: {
+            ...prev[id],
+            archivedAt: archive ? new Date().toISOString() : null,
+          },
+        }));
+        router.refresh();
+      } else {
+        setMessage(data.error ?? "Failed to update parish archive status.");
+      }
+    } catch {
+      setMessage("Failed to update parish archive status.");
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -165,8 +217,8 @@ export function AdminParishManager({ parishes }: { parishes: DioceseParishRow[] 
               Self-signup
             </label>
             <div className="flex gap-1.5">
-              <Button onClick={createParish} size="sm" type="button">Create</Button>
-              <Button onClick={() => setShowCreateForm(false)} size="sm" type="button" variant="ghost">Cancel</Button>
+              <Button disabled={submitting} onClick={createParish} size="sm" type="button">Create</Button>
+              <Button disabled={submitting} onClick={() => setShowCreateForm(false)} size="sm" type="button" variant="ghost">Cancel</Button>
             </div>
           </div>
         </div>
@@ -247,10 +299,11 @@ export function AdminParishManager({ parishes }: { parishes: DioceseParishRow[] 
                 </td>
                 <td className="px-3.5 py-3 text-right">
                   <div className="flex justify-end gap-1.5">
-                    <Button onClick={() => saveParish(parish.id)} size="xs" type="button" variant="secondary">
+                    <Button disabled={submitting} onClick={() => saveParish(parish.id)} size="xs" type="button" variant="secondary">
                       Save
                     </Button>
                     <Button
+                      disabled={submitting}
                       onClick={() => setArchived(parish.id, !isArchived)}
                       size="xs"
                       type="button"
@@ -258,7 +311,7 @@ export function AdminParishManager({ parishes }: { parishes: DioceseParishRow[] 
                     >
                       {isArchived ? "Restore" : "Archive"}
                     </Button>
-                    <Button onClick={() => deleteParish(parish.id)} size="xs" type="button" variant="destructive">
+                    <Button disabled={submitting} onClick={() => deleteParish(parish.id)} size="xs" type="button" variant="destructive">
                       Delete
                     </Button>
                   </div>

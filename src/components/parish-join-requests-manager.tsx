@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 
 import type { CourseJoinRequestWithDetails } from "@/lib/repositories/course-join-requests";
 import { Button } from "@/components/ui/button";
@@ -14,7 +13,6 @@ interface ParishJoinRequestsManagerProps {
 }
 
 export function ParishJoinRequestsManager({ initialRequests }: ParishJoinRequestsManagerProps) {
-  const router = useRouter();
   const [requests, setRequests] = useState(initialRequests);
   const [activeTab, setActiveTab] = useState<RequestStatus>("PENDING");
   const [processingId, setProcessingId] = useState<string | null>(null);

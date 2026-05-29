@@ -34,6 +34,30 @@ declare global {
   }
 }
 
+const youtubeApiReadyListeners = new Set<() => void>();
+
+function notifyYouTubeApiReady() {
+  youtubeApiReadyListeners.forEach((listener) => listener());
+}
+
+function subscribeToYouTubeApiReady(listener: () => void) {
+  if (typeof window === "undefined") {
+    return () => {};
+  }
+
+  if (window.YT?.Player) {
+    listener();
+    return () => {};
+  }
+
+  youtubeApiReadyListeners.add(listener);
+  window.onYouTubeIframeAPIReady = notifyYouTubeApiReady;
+
+  return () => {
+    youtubeApiReadyListeners.delete(listener);
+  };
+}
+
 async function saveProgress(payload: {
   lessonId: string;
   parishId: string;
@@ -41,11 +65,15 @@ async function saveProgress(payload: {
   percentWatched: number;
   completed: boolean;
 }) {
-  await fetch("/api/progress", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
+  try {
+    await fetch("/api/progress", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  } catch {
+    // Progress save is best-effort; silently ignore network failures
+  }
 }
 
 function saveProgressOnUnload(payload: {
@@ -58,18 +86,24 @@ function saveProgressOnUnload(payload: {
   const body = JSON.stringify(payload);
 
   if (navigator.sendBeacon) {
-    navigator.sendBeacon(
-      "/api/progress",
-      new Blob([body], { type: "application/json" }),
-    );
+    try {
+      navigator.sendBeacon(
+        "/api/progress",
+        new Blob([body], { type: "application/json" }),
+      );
+    } catch {
+      // Best-effort on unload
+    }
     return;
   }
 
-  void fetch("/api/progress", {
+  fetch("/api/progress", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body,
     keepalive: true,
+  }).catch(() => {
+    // Best-effort on unload
   });
 }
 
@@ -86,7 +120,7 @@ export function YoutubePlayer({
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const playerContainerId = useMemo(
-    () => `yt-player-${lessonId.replaceAll("-", "")}`,
+    () => `yt-player-${lessonId}`,
     [lessonId],
   );
 
@@ -122,7 +156,7 @@ export function YoutubePlayer({
   }, [buildProgressPayload]);
 
   useEffect(() => {
-    window.onYouTubeIframeAPIReady = () => setApiReady(true);
+    return subscribeToYouTubeApiReady(() => setApiReady(true));
   }, []);
 
   useEffect(() => {
