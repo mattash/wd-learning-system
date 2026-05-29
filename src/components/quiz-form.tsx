@@ -158,7 +158,7 @@ export function QuizForm({
                       className={`flex items-start gap-3 rounded-lg border-[1.5px] px-3.5 py-3 text-left transition-all ${borderClass} ${bgClass} ${
                         submitted ? "cursor-default" : "cursor-pointer hover:border-brand-muted hover:bg-brand-subtle"
                       }`}
-                      disabled={submitted}
+                      disabled={submitted && score !== null && score >= 100}
                       key={idx}
                       onClick={() =>
                         setAnswers((prev) => ({ ...prev, [q.id]: idx }))
@@ -228,7 +228,7 @@ export function QuizForm({
               </Link>
             </Button>
           ) : (
-            <Button disabled={!allAnswered || submitted || submitting} onClick={submit} size="sm" type="button">
+            <Button disabled={!allAnswered || submitting || (submitted && score !== null && score >= 100)} onClick={submit} size="sm" type="button">
               {submitting ? "Submitting…" : "Submit answers"}
             </Button>
           )}
