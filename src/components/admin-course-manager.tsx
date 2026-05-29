@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { readErrorMessage } from "@/lib/errors";
+
 import type { DioceseCourseRow } from "@/lib/repositories/diocese-admin";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -42,19 +44,6 @@ const emptyForm: CourseFormState = {
 };
 
 type EditorMode = { kind: "create" } | { kind: "edit"; id: string };
-
-async function readErrorMessage(response: Response, fallback: string) {
-  try {
-    const data: unknown = await response.json();
-    if (data && typeof data === "object" && "error" in data && typeof data.error === "string") {
-      return data.error;
-    }
-  } catch {
-    // Use the fallback when the server returns an empty or non-JSON error body.
-  }
-
-  return fallback;
-}
 
 export function AdminCourseManager({ courses }: { courses: DioceseCourseRow[] }) {
   const router = useRouter();

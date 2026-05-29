@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { readErrorMessage } from "@/lib/errors";
 
 import type { DioceseCourseRow, DioceseEnrollmentRow, DioceseParishRow } from "@/lib/repositories/diocese-admin";
 import { Badge } from "@/components/ui/badge";
@@ -12,19 +13,6 @@ import { Select } from "@/components/ui/select";
 interface EnrollmentView extends DioceseEnrollmentRow {
   parishName: string;
   courseTitle: string;
-}
-
-async function readErrorMessage(response: Response, fallback: string) {
-  try {
-    const data: unknown = await response.json();
-    if (data && typeof data === "object" && "error" in data && typeof data.error === "string") {
-      return data.error;
-    }
-  } catch {
-    // Use the fallback when the server returns an empty or non-JSON error body.
-  }
-
-  return fallback;
 }
 
 export function AdminEnrollmentManager({

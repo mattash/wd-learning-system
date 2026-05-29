@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import type {
@@ -65,7 +65,6 @@ export function ParishCohortManager({
   const [selectedAssignmentCohortId, setSelectedAssignmentCohortId] = useState("");
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const prevCohortsRef = useRef(cohorts);
   const [drafts, setDrafts] = useState<Record<string, CohortDraft>>(
     Object.fromEntries(
       cohorts.map((cohort) => [
@@ -97,7 +96,6 @@ export function ParishCohortManager({
         ]),
       ),
     );
-    prevCohortsRef.current = cohorts;
   }, [cohorts]);
 
   const memberById = useMemo(

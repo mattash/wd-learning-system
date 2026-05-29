@@ -156,7 +156,7 @@ export function QuizForm({
                   return (
                     <button
                       className={`flex items-start gap-3 rounded-lg border-[1.5px] px-3.5 py-3 text-left transition-all ${borderClass} ${bgClass} ${
-                        submitted ? "cursor-default" : "cursor-pointer hover:border-brand-muted hover:bg-brand-subtle"
+                        submitted && score !== null && score >= 100 ? "cursor-default" : "cursor-pointer hover:border-brand-muted hover:bg-brand-subtle"
                       }`}
                       disabled={submitted && score !== null && score >= 100}
                       key={idx}

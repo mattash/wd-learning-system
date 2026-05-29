@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import type { ParishAdminMemberRow } from "@/lib/repositories/parish-admin";
@@ -41,7 +41,6 @@ export function ParishPeopleManager({ members }: { members: ParishAdminMemberRow
   const [importResults, setImportResults] = useState<ImportResultRow[]>([]);
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const prevMembersRef = useRef(members);
   const [drafts, setDrafts] = useState<Record<string, MemberDraft>>(
     Object.fromEntries(
       members.map((member) => [
@@ -63,7 +62,6 @@ export function ParishPeopleManager({ members }: { members: ParishAdminMemberRow
         members.map((member) => [member.clerk_user_id, { role: member.role }]),
       ),
     );
-    prevMembersRef.current = members;
   }, [members]);
 
   const filteredMembers = useMemo(() => {
