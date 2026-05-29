@@ -17,8 +17,17 @@ describe("POST /api/admin/uploads/documents", () => {
     vi.mocked(getDocumentUploadMaxBytes).mockReturnValue(5 * 1024 * 1024);
   });
 
-  function buildRequest(file: { arrayBuffer: () => Promise<ArrayBuffer>; name: string; size: number; type: string } | string | null) {
+  function buildRequest(
+    file: { arrayBuffer: () => Promise<ArrayBuffer>; name: string; size: number; type: string } | string | null,
+    headers?: Headers,
+  ) {
+    const requestHeaders = headers ?? new Headers();
+    if (!headers && typeof file === "object" && file !== null) {
+      requestHeaders.set("content-length", String(file.size));
+    }
+
     return {
+      headers: requestHeaders,
       formData: vi.fn().mockResolvedValue({
         get: vi.fn((key: string) => (key === "file" ? file : null)),
       }),
@@ -103,5 +112,47 @@ describe("POST /api/admin/uploads/documents", () => {
     await expect(response.json()).resolves.toEqual({
       error: "PDF exceeds the 1 MB upload limit.",
     });
+  });
+
+  it("rejects oversized content-length before parsing multipart form data", async () => {
+    vi.mocked(getDocumentUploadMaxBytes).mockReturnValue(3);
+
+    const file = {
+      arrayBuffer: vi.fn().mockResolvedValue(new TextEncoder().encode("%PDF-large").buffer),
+      name: "reading.pdf",
+      size: 9,
+      type: "application/pdf",
+    };
+    const request = buildRequest(file, new Headers({ "content-length": String(1024 * 1024 + 4) }));
+
+    const response = await POST(request);
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: "PDF exceeds the 1 MB upload limit.",
+    });
+    expect(request.formData).not.toHaveBeenCalled();
+    expect(file.arrayBuffer).not.toHaveBeenCalled();
+    expect(uploadDocumentToR2).not.toHaveBeenCalled();
+  });
+
+  it("rejects requests without a valid content-length before parsing multipart form data", async () => {
+    const file = {
+      arrayBuffer: vi.fn().mockResolvedValue(new TextEncoder().encode("%PDF-1.7").buffer),
+      name: "reading.pdf",
+      size: 8,
+      type: "application/pdf",
+    };
+    const request = buildRequest(file, new Headers());
+
+    const response = await POST(request);
+
+    expect(response.status).toBe(411);
+    await expect(response.json()).resolves.toEqual({
+      error: "Content-Length header is required.",
+    });
+    expect(request.formData).not.toHaveBeenCalled();
+    expect(file.arrayBuffer).not.toHaveBeenCalled();
+    expect(uploadDocumentToR2).not.toHaveBeenCalled();
   });
 });
