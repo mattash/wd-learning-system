@@ -56,20 +56,14 @@ export function ParishPeopleManager({ members }: { members: ParishAdminMemberRow
   // Sync drafts when members prop refreshes (e.g. after router.refresh())
   useEffect(() => {
     const prevMembers = prevMembersRef.current;
-    setDrafts((prev) => {
-      const next: Record<string, MemberDraft> = {};
-      for (const member of members) {
-        const prevMember = prevMembers.find((m) => m.clerk_user_id === member.clerk_user_id);
-        const prevDraft = prev[member.clerk_user_id];
-        // Preserve deliberate edits (draft differs from previous server role)
-        if (prevMember && prevDraft && prevDraft.role !== prevMember.role) {
-          next[member.clerk_user_id] = prevDraft;
-        } else {
-          next[member.clerk_user_id] = { role: member.role };
-        }
-      }
-      return next;
-    });
+    // Always rebuild drafts from current members so server-side role changes
+    // are reflected after a refresh. Any unsubmitted edits are lost on refresh,
+    // which is correct: the page refreshes with new server data.
+    setDrafts(
+      Object.fromEntries(
+        members.map((member) => [member.clerk_user_id, { role: member.role }]),
+      ),
+    );
     prevMembersRef.current = members;
   }, [members]);
 
