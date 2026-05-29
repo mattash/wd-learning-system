@@ -64,6 +64,7 @@ export function ParishCohortManager({
   const [selectedEnrollmentId, setSelectedEnrollmentId] = useState(enrollments[0]?.id ?? "");
   const [selectedAssignmentCohortId, setSelectedAssignmentCohortId] = useState("");
   const [message, setMessage] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const [drafts, setDrafts] = useState<Record<string, CohortDraft>>(
     Object.fromEntries(
       cohorts.map((cohort) => [
@@ -104,73 +105,126 @@ export function ParishCohortManager({
       : (selectedEnrollment?.cohort_id ?? "");
 
   async function createCohort() {
-    const response = await fetch("/api/parish-admin/cohorts", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: newName,
-        facilitatorClerkUserId: newFacilitatorId || null,
-        cadence: newCadence,
-        nextSessionAt: toIsoDateTimeOrNull(newNextSessionAt),
-      }),
-    });
-    const data = await response.json();
-    setMessage(response.ok ? "Cohort created." : data.error ?? "Failed to create cohort.");
-    if (!response.ok) return;
+    setSubmitting(true);
+    setMessage("");
 
-    setNewName("");
-    setNewFacilitatorId("");
-    setNewCadence("weekly");
-    setNewNextSessionAt("");
-    router.refresh();
+    try {
+      const response = await fetch("/api/parish-admin/cohorts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newName,
+          facilitatorClerkUserId: newFacilitatorId || null,
+          cadence: newCadence,
+          nextSessionAt: toIsoDateTimeOrNull(newNextSessionAt),
+        }),
+      });
+
+      const data = (await response.json().catch(() => ({}))) as { error?: string };
+
+      if (response.ok) {
+        setMessage("Cohort created.");
+        setNewName("");
+        setNewFacilitatorId("");
+        setNewCadence("weekly");
+        setNewNextSessionAt("");
+        router.refresh();
+      } else {
+        setMessage(data.error ?? "Failed to create cohort.");
+      }
+    } catch {
+      setMessage("Failed to create cohort.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   async function saveCohort(cohortId: string) {
     const draft = drafts[cohortId];
     if (!draft) return;
 
-    const response = await fetch(`/api/parish-admin/cohorts/${cohortId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: draft.name,
-        facilitatorClerkUserId: draft.facilitatorClerkUserId || null,
-        cadence: draft.cadence,
-        nextSessionAt: toIsoDateTimeOrNull(draft.nextSessionAt),
-      }),
-    });
-    const data = await response.json();
-    setMessage(response.ok ? "Cohort updated." : data.error ?? "Failed to update cohort.");
-    if (response.ok) {
-      router.refresh();
+    setSubmitting(true);
+    setMessage("");
+
+    try {
+      const response = await fetch(`/api/parish-admin/cohorts/${cohortId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: draft.name,
+          facilitatorClerkUserId: draft.facilitatorClerkUserId || null,
+          cadence: draft.cadence,
+          nextSessionAt: toIsoDateTimeOrNull(draft.nextSessionAt),
+        }),
+      });
+
+      const data = (await response.json().catch(() => ({}))) as { error?: string };
+
+      if (response.ok) {
+        setMessage("Cohort updated.");
+        router.refresh();
+      } else {
+        setMessage(data.error ?? "Failed to update cohort.");
+      }
+    } catch {
+      setMessage("Failed to update cohort.");
+    } finally {
+      setSubmitting(false);
     }
   }
 
   async function deleteCohort(cohortId: string) {
-    const response = await fetch(`/api/parish-admin/cohorts/${cohortId}`, {
-      method: "DELETE",
-    });
-    const data = await response.json();
-    setMessage(response.ok ? "Cohort deleted." : data.error ?? "Failed to delete cohort.");
-    if (response.ok) {
-      router.refresh();
+    setSubmitting(true);
+    setMessage("");
+
+    try {
+      const response = await fetch(`/api/parish-admin/cohorts/${cohortId}`, {
+        method: "DELETE",
+      });
+
+      const data = (await response.json().catch(() => ({}))) as { error?: string };
+
+      if (response.ok) {
+        setMessage("Cohort deleted.");
+        router.refresh();
+      } else {
+        setMessage(data.error ?? "Failed to delete cohort.");
+      }
+    } catch {
+      setMessage("Failed to delete cohort.");
+    } finally {
+      setSubmitting(false);
     }
   }
 
   async function assignEnrollmentToCohort() {
     if (!selectedEnrollmentIdValue) return;
-    const response = await fetch("/api/parish-admin/cohort-assignments", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        enrollmentId: selectedEnrollmentIdValue,
-        cohortId: selectedAssignmentCohortIdValue || null,
-      }),
-    });
-    const data = await response.json();
-    setMessage(response.ok ? "Enrollment assignment updated." : data.error ?? "Failed to assign enrollment.");
-    if (response.ok) {
-      router.refresh();
+
+    setSubmitting(true);
+    setMessage("");
+
+    try {
+      const response = await fetch("/api/parish-admin/cohort-assignments", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          enrollmentId: selectedEnrollmentIdValue,
+          cohortId: selectedAssignmentCohortIdValue || null,
+        }),
+      });
+
+      const data = (await response.json().catch(() => ({}))) as { error?: string };
+
+      if (response.ok) {
+        setMessage("Enrollment assignment updated.");
+        router.refresh();
+      } else {
+        setMessage(data.error ?? "Failed to assign enrollment.");
+      }
+    } catch {
+      setMessage("Failed to assign enrollment.");
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -203,7 +257,7 @@ export function ParishCohortManager({
             value={newNextSessionAt}
           />
 
-          <Button disabled={!newName.trim()} onClick={createCohort} type="button">
+          <Button disabled={!newName.trim() || submitting} onClick={createCohort} type="button">
             Create cohort
           </Button>
         </div>
@@ -252,7 +306,7 @@ export function ParishCohortManager({
           </div>
 
           <Button
-            disabled={!selectedEnrollmentIdValue}
+            disabled={!selectedEnrollmentIdValue || submitting}
             onClick={assignEnrollmentToCohort}
             type="button"
             variant="secondary"
@@ -345,11 +399,11 @@ export function ParishCohortManager({
                   <td className="py-2 pr-4">{enrollmentCountByCohort.get(cohort.id) ?? 0}</td>
                   <td className="py-2 pr-4">
                     <div className="flex gap-2">
-                      <Button onClick={() => saveCohort(cohort.id)} size="sm" type="button" variant="secondary">
+                      <Button disabled={submitting} onClick={() => saveCohort(cohort.id)} size="sm" type="button" variant="secondary">
                         Save
                       </Button>
                       {canManageAll ? (
-                        <Button onClick={() => deleteCohort(cohort.id)} size="sm" type="button" variant="destructive">
+                        <Button disabled={submitting} onClick={() => deleteCohort(cohort.id)} size="sm" type="button" variant="destructive">
                           Delete
                         </Button>
                       ) : null}
