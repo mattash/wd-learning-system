@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import type {
@@ -65,6 +65,7 @@ export function ParishCohortManager({
   const [selectedAssignmentCohortId, setSelectedAssignmentCohortId] = useState("");
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const prevCohortsRef = useRef(cohorts);
   const [drafts, setDrafts] = useState<Record<string, CohortDraft>>(
     Object.fromEntries(
       cohorts.map((cohort) => [
@@ -79,6 +80,25 @@ export function ParishCohortManager({
       ]),
     ),
   );
+
+  // Sync drafts when cohorts prop refreshes (e.g. after router.refresh())
+  useEffect(() => {
+    setDrafts(
+      Object.fromEntries(
+        cohorts.map((cohort) => [
+          cohort.id,
+          {
+            id: cohort.id,
+            name: cohort.name,
+            facilitatorClerkUserId: cohort.facilitator_clerk_user_id ?? "",
+            cadence: cohort.cadence,
+            nextSessionAt: toDateTimeLocalValue(cohort.next_session_at),
+          },
+        ]),
+      ),
+    );
+    prevCohortsRef.current = cohorts;
+  }, [cohorts]);
 
   const memberById = useMemo(
     () => new Map(members.map((member) => [member.clerk_user_id, member])),
