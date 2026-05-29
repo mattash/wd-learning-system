@@ -49,7 +49,18 @@ export async function hasCompletedOnboarding(clerkUserId: string) {
     .eq("clerk_user_id", clerkUserId)
     .maybeSingle();
 
-  return Boolean(data?.onboarding_completed_at);
+  if (!data?.onboarding_completed_at) {
+    return false;
+  }
+
+  const { data: membership } = await supabase
+    .from("parish_memberships")
+    .select("parish_id")
+    .eq("clerk_user_id", clerkUserId)
+    .limit(1)
+    .maybeSingle();
+
+  return Boolean(membership?.parish_id);
 }
 
 export async function requireOnboardingComplete(clerkUserId?: string) {
