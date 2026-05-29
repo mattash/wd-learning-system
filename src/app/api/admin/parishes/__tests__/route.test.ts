@@ -194,7 +194,9 @@ describe("/api/admin/parishes", () => {
   });
 
   it("deletes a parish", async () => {
-    const eq = vi.fn(async () => ({ error: null }));
+    const maybeSingle = vi.fn(async () => ({ data: { id: "11111111-1111-4111-8111-111111111111" }, error: null }));
+    const select = vi.fn(() => ({ maybeSingle }));
+    const eq = vi.fn(() => ({ select }));
     const del = vi.fn(() => ({ eq }));
 
     vi.mocked(getSupabaseAdminClient).mockReturnValue({
@@ -210,7 +212,9 @@ describe("/api/admin/parishes", () => {
   });
 
   it("returns 400 when delete fails", async () => {
-    const eq = vi.fn(async () => ({ error: { message: "cannot delete" } }));
+    const maybeSingle = vi.fn(async () => ({ data: null, error: { message: "cannot delete" } }));
+    const select = vi.fn(() => ({ maybeSingle }));
+    const eq = vi.fn(() => ({ select }));
     const del = vi.fn(() => ({ eq }));
 
     vi.mocked(getSupabaseAdminClient).mockReturnValue({
@@ -223,6 +227,25 @@ describe("/api/admin/parishes", () => {
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({ error: "cannot delete" });
+  });
+
+  it("returns 404 and skips audit logging when no parish is deleted", async () => {
+    const maybeSingle = vi.fn(async () => ({ data: null, error: null }));
+    const select = vi.fn(() => ({ maybeSingle }));
+    const eq = vi.fn(() => ({ select }));
+    const del = vi.fn(() => ({ eq }));
+
+    vi.mocked(getSupabaseAdminClient).mockReturnValue({
+      from: vi.fn(() => ({ delete: del })),
+    } as never);
+
+    const response = await DELETE(new Request("http://localhost/api/admin/parishes/p1", { method: "DELETE" }), {
+      params: Promise.resolve({ parishId: "11111111-1111-4111-8111-111111111111" }),
+    });
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({ error: "Parish not found" });
+    expect(recordAdminAuditLog).not.toHaveBeenCalled();
   });
 
   it("archives a parish", async () => {
@@ -272,7 +295,9 @@ describe("/api/admin/parishes", () => {
   });
 
   it("deletes a parish when audit logging fails after successful deletion", async () => {
-    const eq = vi.fn(async () => ({ error: null }));
+    const maybeSingle = vi.fn(async () => ({ data: { id: "11111111-1111-4111-8111-111111111111" }, error: null }));
+    const select = vi.fn(() => ({ maybeSingle }));
+    const eq = vi.fn(() => ({ select }));
     const del = vi.fn(() => ({ eq }));
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
 

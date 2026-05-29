@@ -81,10 +81,13 @@ export async function DELETE(_req: Request, ctx: { params: Promise<{ parishId: s
   const { parishId } = parsedParams.data;
 
   const supabase = getSupabaseAdminClient();
-  const { error } = await supabase.from("parishes").delete().eq("id", parishId);
+  const { data, error } = await supabase.from("parishes").delete().eq("id", parishId).select("id").maybeSingle();
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });
+  }
+  if (!data) {
+    return NextResponse.json({ error: "Parish not found" }, { status: 404 });
   }
 
   try {
