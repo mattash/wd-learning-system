@@ -46,6 +46,14 @@ interface SendDetailsResponse {
   }>;
 }
 
+async function parseJsonResponse(response: Response) {
+  try {
+    return (await response.json()) as { error?: string; deliveryNote?: string };
+  } catch {
+    return null;
+  }
+}
+
 function isAudienceType(value: string | null): value is AudienceType {
   return value === "all_members" || value === "stalled_learners" || value === "cohort" || value === "course";
 }
@@ -188,17 +196,19 @@ export function ParishCommunicationsManager({
           body,
         }),
       });
-      const data = await response.json();
+      const data = await parseJsonResponse(response);
 
       if (!response.ok) {
-        setMessage(data.error ?? "Failed to log message.");
+        setMessage(data?.error ?? "Failed to log message.");
         return;
       }
 
-      setMessage(data.deliveryNote ?? "Message logged.");
+      setMessage(data?.deliveryNote ?? "Message logged.");
       setSubject("");
       setBody("");
       router.refresh();
+    } catch {
+      setMessage("Failed to log message.");
     } finally {
       setSubmitting(false);
     }
@@ -216,17 +226,26 @@ export function ParishCommunicationsManager({
     }
 
     setDetailsLoadingSendId(sendId);
-    const response = await fetch(`/api/parish-admin/communications/${sendId}`);
-    const data = await response.json();
-    setDetailsLoadingSendId(null);
+    try {
+      const response = await fetch(`/api/parish-admin/communications/${sendId}`);
+      const data = await parseJsonResponse(response);
 
-    if (!response.ok) {
-      setMessage(data.error ?? "Failed to load send details.");
-      return;
+      if (!response.ok) {
+        setMessage(data?.error ?? "Failed to load send details.");
+        return;
+      }
+      if (!data) {
+        setMessage("Failed to load send details.");
+        return;
+      }
+
+      setDetailsBySendId((prev) => ({ ...prev, [sendId]: data as SendDetailsResponse }));
+      setExpandedSendId(sendId);
+    } catch {
+      setMessage("Failed to load send details.");
+    } finally {
+      setDetailsLoadingSendId(null);
     }
-
-    setDetailsBySendId((prev) => ({ ...prev, [sendId]: data as SendDetailsResponse }));
-    setExpandedSendId(sendId);
   }
 
   return (
