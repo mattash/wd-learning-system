@@ -76,4 +76,21 @@ describe("Radix primitives", () => {
 
     expect(screen.getByText("Sheet Title")).toBeInTheDocument();
   });
+
+  it("renders Sheet close control as a non-submit button", () => {
+    render(
+      <form>
+        <Sheet open onOpenChange={() => {}}>
+          <SheetContent>
+            <SheetTitle>Sheet Title</SheetTitle>
+          </SheetContent>
+        </Sheet>
+      </form>,
+    );
+
+    expect(screen.getByRole("button", { name: "Close" })).toHaveAttribute(
+      "type",
+      "button",
+    );
+  });
 });
