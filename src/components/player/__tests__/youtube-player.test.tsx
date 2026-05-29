@@ -1,4 +1,4 @@
-import { cleanup, render, waitFor } from "@testing-library/react";
+import { act, cleanup, render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { YoutubePlayer } from "@/components/player/youtube-player";
@@ -85,6 +85,55 @@ describe("YoutubePlayer", () => {
         percentWatched: 38,
         completed: false,
       }),
+    );
+  });
+
+  it("initializes all mounted players when the iframe API becomes ready", async () => {
+    delete window.YT;
+
+    render(
+      <>
+        <YoutubePlayer
+          lessonId="lesson-1"
+          parishId="parish-1"
+          videoId="video-1"
+        />
+        <YoutubePlayer
+          lessonId="lesson-2"
+          parishId="parish-1"
+          videoId="video-2"
+        />
+      </>,
+    );
+
+    expect(playerConstructor).not.toHaveBeenCalled();
+
+    Object.defineProperty(window, "YT", {
+      configurable: true,
+      value: {
+        Player: playerConstructor,
+        PlayerState: {
+          PLAYING: 1,
+          PAUSED: 2,
+          ENDED: 0,
+        },
+      },
+    });
+
+    act(() => {
+      window.onYouTubeIframeAPIReady?.();
+    });
+
+    await waitFor(() => {
+      expect(playerConstructor).toHaveBeenCalledTimes(2);
+    });
+    expect(playerConstructor).toHaveBeenCalledWith(
+      "yt-player-lesson-1",
+      expect.objectContaining({ videoId: "video-1" }),
+    );
+    expect(playerConstructor).toHaveBeenCalledWith(
+      "yt-player-lesson-2",
+      expect.objectContaining({ videoId: "video-2" }),
     );
   });
 });

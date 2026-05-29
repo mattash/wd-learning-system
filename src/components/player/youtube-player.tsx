@@ -34,6 +34,30 @@ declare global {
   }
 }
 
+const youtubeApiReadyListeners = new Set<() => void>();
+
+function notifyYouTubeApiReady() {
+  youtubeApiReadyListeners.forEach((listener) => listener());
+}
+
+function subscribeToYouTubeApiReady(listener: () => void) {
+  if (typeof window === "undefined") {
+    return () => {};
+  }
+
+  if (window.YT?.Player) {
+    listener();
+    return () => {};
+  }
+
+  youtubeApiReadyListeners.add(listener);
+  window.onYouTubeIframeAPIReady = notifyYouTubeApiReady;
+
+  return () => {
+    youtubeApiReadyListeners.delete(listener);
+  };
+}
+
 async function saveProgress(payload: {
   lessonId: string;
   parishId: string;
@@ -132,7 +156,7 @@ export function YoutubePlayer({
   }, [buildProgressPayload]);
 
   useEffect(() => {
-    window.onYouTubeIframeAPIReady = () => setApiReady(true);
+    return subscribeToYouTubeApiReady(() => setApiReady(true));
   }, []);
 
   useEffect(() => {
