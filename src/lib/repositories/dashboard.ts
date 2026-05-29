@@ -58,12 +58,13 @@ export async function getStudentDashboardData(
 
   const supabase = getSupabaseAdminClient();
 
-  // Get visible courses the learner is enrolled in (respects publish/visibility)
-  const { data: visibleCourses } = await supabase
-    .from("courses")
-    .select("id, title, description")
-    .eq("published", true)
-    .order("created_at", { ascending: false });
+  // Get visible courses the learner is enrolled in (respects publish/parish visibility)
+  const { data: visibleCourses, error: visibleCoursesError } = await supabase.rpc(
+    "get_visible_courses",
+    { p_parish_id: parishId },
+  );
+
+  if (visibleCoursesError) throw visibleCoursesError;
 
   const visibleCourseIds = new Set(
     ((visibleCourses ?? []) as Array<{ id: string }>).map((c) => c.id),
