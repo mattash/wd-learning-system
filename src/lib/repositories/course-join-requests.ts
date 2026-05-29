@@ -192,7 +192,19 @@ export async function approveJoinRequest({
     throw new Error("Request not found or not pending");
   }
 
-  // Create enrollment (upsert to handle race condition)
+  // Mark request as approved first (only if still PENDING) — guard against concurrent rejection
+  const { error: updateError, count } = await supabase
+    .from("course_join_requests")
+    .update({ status: "APPROVED" })
+    .eq("id", requestId)
+    .eq("status", "PENDING");
+
+  if (updateError) throw updateError;
+  if ((count ?? 0) === 0) {
+    throw new Error("Request status changed before approval completed");
+  }
+
+  // Create enrollment (after successfully transitioning the request)
   const { error: enrollmentError } = await supabase
     .from("enrollments")
     .upsert(
@@ -204,18 +216,13 @@ export async function approveJoinRequest({
       { onConflict: "parish_id,clerk_user_id,course_id" }
     );
 
-  if (enrollmentError) throw enrollmentError;
-
-  // Mark request as approved (only if still PENDING)
-  const { error: updateError, count } = await supabase
-    .from("course_join_requests")
-    .update({ status: "APPROVED" })
-    .eq("id", requestId)
-    .eq("status", "PENDING");
-
-  if (updateError) throw updateError;
-  if ((count ?? 0) === 0) {
-    throw new Error("Request status changed before approval completed");
+  if (enrollmentError) {
+    // Roll back the approval if enrollment creation fails
+    await supabase
+      .from("course_join_requests")
+      .update({ status: "PENDING" })
+      .eq("id", requestId);
+    throw enrollmentError;
   }
 
   // Audit log

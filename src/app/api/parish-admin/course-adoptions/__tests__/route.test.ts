@@ -64,21 +64,14 @@ describe("/api/parish-admin/course-adoptions", () => {
     const courseEq = vi.fn(() => ({ maybeSingle: courseMaybeSingle }));
     const courseSelect = vi.fn(() => ({ eq: courseEq }));
 
-    const enrollmentEqCourse = vi.fn(async () => ({ count: 0, error: null }));
-    const enrollmentEqParish = vi.fn(() => ({ eq: enrollmentEqCourse }));
-    const enrollmentSelect = vi.fn(() => ({ eq: enrollmentEqParish }));
-
-    const deleteEqCourse = vi.fn(async () => ({ error: null }));
-    const deleteEqParish = vi.fn(() => ({ eq: deleteEqCourse }));
-    const del = vi.fn(() => ({ eq: deleteEqParish }));
+    const rpc = vi.fn(async () => ({ data: { ok: true }, error: null }));
 
     vi.mocked(getSupabaseAdminClient).mockReturnValue({
       from: vi.fn((table: string) => {
         if (table === "courses") return { select: courseSelect };
-        if (table === "enrollments") return { select: enrollmentSelect };
-        if (table === "course_parishes") return { delete: del };
         throw new Error(`Unexpected table: ${table}`);
       }),
+      rpc,
     } as never);
 
     const response = await DELETE(
@@ -90,6 +83,10 @@ describe("/api/parish-admin/course-adoptions", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ ok: true });
+    expect(rpc).toHaveBeenCalledWith("remove_course_adoption", {
+      p_parish_id: "11111111-1111-4111-8111-111111111111",
+      p_course_id: "22222222-2222-4222-8222-222222222222",
+    });
     expect(recordAdminAuditLog).toHaveBeenCalledTimes(1);
   });
 
@@ -101,17 +98,17 @@ describe("/api/parish-admin/course-adoptions", () => {
     const courseEq = vi.fn(() => ({ maybeSingle: courseMaybeSingle }));
     const courseSelect = vi.fn(() => ({ eq: courseEq }));
 
-    const enrollmentEqCourse = vi.fn(async () => ({ count: 2, error: null }));
-    const enrollmentEqParish = vi.fn(() => ({ eq: enrollmentEqCourse }));
-    const enrollmentSelect = vi.fn(() => ({ eq: enrollmentEqParish }));
+    const rpc = vi.fn(async () => ({
+      data: { error: "Remove learner enrollments from this course before removing adoption.", code: "ENROLLMENTS_EXIST" },
+      error: null,
+    }));
 
     vi.mocked(getSupabaseAdminClient).mockReturnValue({
       from: vi.fn((table: string) => {
         if (table === "courses") return { select: courseSelect };
-        if (table === "enrollments") return { select: enrollmentSelect };
-        if (table === "course_parishes") return { delete: vi.fn() };
         throw new Error(`Unexpected table: ${table}`);
       }),
+      rpc,
     } as never);
 
     const response = await DELETE(
