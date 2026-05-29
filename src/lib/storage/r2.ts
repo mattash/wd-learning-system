@@ -122,6 +122,10 @@ export async function createPresignedImageUpload(params: {
   contentType: string;
   expiresInSeconds?: number;
 }) {
+  if (!isAllowedImageContentType(params.contentType)) {
+    throw new Error(`Unsupported image content type: ${params.contentType}`);
+  }
+
   const config = getConfig();
   const client = getClient();
   const expiresInSeconds = params.expiresInSeconds ?? DEFAULT_UPLOAD_EXPIRATION_SECONDS;
