@@ -57,16 +57,20 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
-  await recordAdminAuditLog({
-    actorClerkUserId: actorUserId,
-    action: "parish.enrollment_cohort_updated",
-    resourceType: "enrollment",
-    resourceId: payload.enrollmentId,
-    details: {
-      parish_id: parishId,
-      cohort_id: payload.cohortId,
-    },
-  });
+  try {
+    await recordAdminAuditLog({
+      actorClerkUserId: actorUserId,
+      action: "parish.enrollment_cohort_updated",
+      resourceType: "enrollment",
+      resourceId: payload.enrollmentId,
+      details: {
+        parish_id: parishId,
+        cohort_id: payload.cohortId,
+      },
+    });
+  } catch (error) {
+    console.error("[audit-log] cohort assignment audit log failed:", error);
+  }
 
   return NextResponse.json({ enrollment: data });
 }

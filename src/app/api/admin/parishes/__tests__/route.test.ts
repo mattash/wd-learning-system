@@ -8,16 +8,22 @@ vi.mock("@/lib/supabase/server", () => ({
   getSupabaseAdminClient: vi.fn(),
 }));
 
+vi.mock("@/lib/audit-log", () => ({
+  recordAdminAuditLog: vi.fn(),
+}));
+
 import { GET, POST } from "@/app/api/admin/parishes/route";
 import { DELETE, PATCH } from "@/app/api/admin/parishes/[parishId]/route";
 import { POST as POST_ARCHIVE } from "@/app/api/admin/parishes/[parishId]/archive/route";
 import { requireDioceseAdmin } from "@/lib/authz";
+import { recordAdminAuditLog } from "@/lib/audit-log";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 
 describe("/api/admin/parishes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(requireDioceseAdmin).mockResolvedValue("admin-1");
+    vi.mocked(recordAdminAuditLog).mockResolvedValue(undefined);
   });
 
   it("lists parishes", async () => {
@@ -91,6 +97,31 @@ describe("/api/admin/parishes", () => {
     await expect(response.json()).resolves.toEqual({ error: "duplicate slug" });
   });
 
+  it("returns created parish when audit logging fails after successful creation", async () => {
+    const parish = { id: "p1", name: "St Mary", slug: "st-mary", allow_self_signup: true, archived_at: null, created_at: "2024-01-01T00:00:00.000Z" };
+    const single = vi.fn(async () => ({ data: parish, error: null }));
+    const select = vi.fn(() => ({ single }));
+    const insert = vi.fn(() => ({ select }));
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    vi.mocked(getSupabaseAdminClient).mockReturnValue({
+      from: vi.fn(() => ({ insert })),
+    } as never);
+    vi.mocked(recordAdminAuditLog).mockRejectedValue(new Error("audit unavailable"));
+
+    const response = await POST(
+      new Request("http://localhost/api/admin/parishes", {
+        method: "POST",
+        body: JSON.stringify({ name: "St Mary", slug: "st-mary", allowSelfSignup: true }),
+      }),
+    );
+
+    expect(response.status).toBe(201);
+    await expect(response.json()).resolves.toEqual({ parish });
+
+    consoleError.mockRestore();
+  });
+
   it("updates a parish", async () => {
     const single = vi.fn(async () => ({ data: { id: "p1", name: "St Mark" }, error: null }));
     const select = vi.fn(() => ({ single }));
@@ -133,6 +164,33 @@ describe("/api/admin/parishes", () => {
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({ error: "not found" });
+  });
+
+  it("returns updated parish when audit logging fails after successful update", async () => {
+    const parish = { id: "p1", name: "St Mark", slug: "st-mark", allow_self_signup: false };
+    const single = vi.fn(async () => ({ data: parish, error: null }));
+    const select = vi.fn(() => ({ single }));
+    const eq = vi.fn(() => ({ select }));
+    const update = vi.fn(() => ({ eq }));
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    vi.mocked(getSupabaseAdminClient).mockReturnValue({
+      from: vi.fn(() => ({ update })),
+    } as never);
+    vi.mocked(recordAdminAuditLog).mockRejectedValue(new Error("audit unavailable"));
+
+    const response = await PATCH(
+      new Request("http://localhost/api/admin/parishes/p1", {
+        method: "PATCH",
+        body: JSON.stringify({ name: "St Mark", slug: "st-mark", allowSelfSignup: false }),
+      }),
+      { params: Promise.resolve({ parishId: "11111111-1111-4111-8111-111111111111" }) },
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ parish });
+
+    consoleError.mockRestore();
   });
 
   it("deletes a parish", async () => {
@@ -211,5 +269,57 @@ describe("/api/admin/parishes", () => {
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({ error: "cannot archive" });
+  });
+
+  it("deletes a parish when audit logging fails after successful deletion", async () => {
+    const eq = vi.fn(async () => ({ error: null }));
+    const del = vi.fn(() => ({ eq }));
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    vi.mocked(getSupabaseAdminClient).mockReturnValue({
+      from: vi.fn(() => ({ delete: del })),
+    } as never);
+    vi.mocked(recordAdminAuditLog).mockRejectedValue(new Error("audit unavailable"));
+
+    const response = await DELETE(
+      new Request("http://localhost/api/admin/parishes/p1", { method: "DELETE" }),
+      { params: Promise.resolve({ parishId: "11111111-1111-4111-8111-111111111111" }) },
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ ok: true });
+
+    consoleError.mockRestore();
+  });
+
+  it("returns the archived parish when audit logging fails after the update succeeds", async () => {
+    const parish = { id: "p1", archived_at: "2024-01-01T00:00:00.000Z" };
+    const single = vi.fn(async () => ({ data: parish, error: null }));
+    const select = vi.fn(() => ({ single }));
+    const eq = vi.fn(() => ({ select }));
+    const update = vi.fn(() => ({ eq }));
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    vi.mocked(getSupabaseAdminClient).mockReturnValue({
+      from: vi.fn(() => ({ update })),
+    } as never);
+    vi.mocked(recordAdminAuditLog).mockRejectedValue(new Error("audit unavailable"));
+
+    const response = await POST_ARCHIVE(
+      new Request("http://localhost/api/admin/parishes/p1/archive", {
+        method: "POST",
+        body: JSON.stringify({ archive: true }),
+      }),
+      { params: Promise.resolve({ parishId: "11111111-1111-4111-8111-111111111111" }) },
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ parish });
+    expect(consoleError).toHaveBeenCalledWith(
+      "[audit-log] parish archive audit log failed:",
+      expect.any(Error),
+    );
+
+    consoleError.mockRestore();
   });
 });

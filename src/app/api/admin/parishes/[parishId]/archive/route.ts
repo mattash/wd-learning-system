@@ -49,15 +49,19 @@ export async function POST(req: Request, ctx: { params: Promise<{ parishId: stri
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
-  await recordAdminAuditLog({
-    actorClerkUserId: actorUserId,
-    action: payload.archive ? "parish.archived" : "parish.restored",
-    resourceType: "parish",
-    resourceId: parishId,
-    details: {
-      archived_at: archivedAt,
-    },
-  });
+  try {
+    await recordAdminAuditLog({
+      actorClerkUserId: actorUserId,
+      action: payload.archive ? "parish.archived" : "parish.restored",
+      resourceType: "parish",
+      resourceId: parishId,
+      details: {
+        archived_at: archivedAt,
+      },
+    });
+  } catch (error) {
+    console.error("[audit-log] parish archive audit log failed:", error);
+  }
 
   return NextResponse.json({ parish: data });
 }

@@ -67,17 +67,21 @@ export async function POST(req: Request) {
     created_at: string;
   };
 
-  await recordAdminAuditLog({
-    actorClerkUserId: actorUserId,
-    action: "parish.created",
-    resourceType: "parish",
-    resourceId: parish.id,
-    details: {
-      parish_name: parish.name,
-      parish_slug: parish.slug,
-      allow_self_signup: parish.allow_self_signup,
-    },
-  });
+  try {
+    await recordAdminAuditLog({
+      actorClerkUserId: actorUserId,
+      action: "parish.created",
+      resourceType: "parish",
+      resourceId: parish.id,
+      details: {
+        parish_name: parish.name,
+        parish_slug: parish.slug,
+        allow_self_signup: parish.allow_self_signup,
+      },
+    });
+  } catch (error) {
+    console.error("[audit-log] parish creation audit log failed:", error);
+  }
 
   return NextResponse.json({ parish }, { status: 201 });
 }

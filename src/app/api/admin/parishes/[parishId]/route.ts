@@ -53,17 +53,21 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ parishId: str
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
-  await recordAdminAuditLog({
-    actorClerkUserId: actorUserId,
-    action: "parish.updated",
-    resourceType: "parish",
-    resourceId: parishId,
-    details: {
-      parish_name: payload.name,
-      parish_slug: payload.slug,
-      allow_self_signup: payload.allowSelfSignup,
-    },
-  });
+  try {
+    await recordAdminAuditLog({
+      actorClerkUserId: actorUserId,
+      action: "parish.updated",
+      resourceType: "parish",
+      resourceId: parishId,
+      details: {
+        parish_name: payload.name,
+        parish_slug: payload.slug,
+        allow_self_signup: payload.allowSelfSignup,
+      },
+    });
+  } catch (error) {
+    console.error("[audit-log] parish update audit log failed:", error);
+  }
 
   return NextResponse.json({ parish: data });
 }
@@ -83,13 +87,17 @@ export async function DELETE(_req: Request, ctx: { params: Promise<{ parishId: s
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
-  await recordAdminAuditLog({
-    actorClerkUserId: actorUserId,
-    action: "parish.deleted",
-    resourceType: "parish",
-    resourceId: parishId,
-    details: {},
-  });
+  try {
+    await recordAdminAuditLog({
+      actorClerkUserId: actorUserId,
+      action: "parish.deleted",
+      resourceType: "parish",
+      resourceId: parishId,
+      details: {},
+    });
+  } catch (error) {
+    console.error("[audit-log] parish delete audit log failed:", error);
+  }
 
   return NextResponse.json({ ok: true });
 }

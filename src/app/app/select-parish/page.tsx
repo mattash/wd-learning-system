@@ -76,17 +76,27 @@ async function joinParish(formData: FormData) {
     redirect("/app/select-parish?manage=1&error=invalid_parish");
   }
 
-  const { error } = await supabase.from("parish_memberships").upsert(
-    {
+  const { data: existingMembership, error: membershipLookupError } = await supabase
+    .from("parish_memberships")
+    .select("id")
+    .eq("parish_id", parishId)
+    .eq("clerk_user_id", userId)
+    .maybeSingle();
+
+  if (membershipLookupError) {
+    redirect("/app/select-parish?manage=1&error=join_failed");
+  }
+
+  if (!existingMembership) {
+    const { error } = await supabase.from("parish_memberships").insert({
       parish_id: parishId,
       clerk_user_id: userId,
       role: "student",
-    },
-    { onConflict: "parish_id,clerk_user_id", ignoreDuplicates: true },
-  );
+    });
 
-  if (error) {
-    redirect("/app/select-parish?manage=1&error=join_failed");
+    if (error) {
+      redirect("/app/select-parish?manage=1&error=join_failed");
+    }
   }
 
   await setActiveParishCookie(parishId);
