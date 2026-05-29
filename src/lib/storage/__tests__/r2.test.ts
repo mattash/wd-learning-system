@@ -41,6 +41,7 @@ describe("createPresignedImageUpload", () => {
       createPresignedImageUpload({
         key: "course-thumbnails/key.html",
         contentType: "text/html",
+        contentLengthBytes: 500,
       }),
     ).rejects.toThrow("Unsupported image content type: text/html");
 
@@ -53,6 +54,7 @@ describe("createPresignedImageUpload", () => {
       createPresignedImageUpload({
         key: "course-thumbnails/key.jpg",
         contentType: "image/jpeg",
+        contentLengthBytes: 12345,
       }),
     ).resolves.toEqual({
       uploadUrl: "https://upload.example.com",
@@ -65,6 +67,7 @@ describe("createPresignedImageUpload", () => {
       Bucket: "bucket",
       Key: "course-thumbnails/key.jpg",
       ContentType: "image/jpeg",
+      ContentLength: 12345,
     });
     expect(getSignedUrl).toHaveBeenCalledWith(
       expect.anything(),
@@ -73,9 +76,23 @@ describe("createPresignedImageUpload", () => {
           Bucket: "bucket",
           Key: "course-thumbnails/key.jpg",
           ContentType: "image/jpeg",
+          ContentLength: 12345,
         },
       },
       { expiresIn: 300 },
     );
+  });
+
+  it("rejects invalid upload content lengths before presigning", async () => {
+    await expect(
+      createPresignedImageUpload({
+        key: "course-thumbnails/key.jpg",
+        contentType: "image/jpeg",
+        contentLengthBytes: 0,
+      }),
+    ).rejects.toThrow("Image upload content length must be a positive integer.");
+
+    expect(getSignedUrl).not.toHaveBeenCalled();
+    expect(s3ClientMock).not.toHaveBeenCalled();
   });
 });

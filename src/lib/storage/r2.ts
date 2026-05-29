@@ -120,10 +120,14 @@ export function getPublicObjectUrl(key: string) {
 export async function createPresignedImageUpload(params: {
   key: string;
   contentType: string;
+  contentLengthBytes: number;
   expiresInSeconds?: number;
 }) {
   if (!isAllowedImageContentType(params.contentType)) {
     throw new Error(`Unsupported image content type: ${params.contentType}`);
+  }
+  if (!Number.isSafeInteger(params.contentLengthBytes) || params.contentLengthBytes <= 0) {
+    throw new Error("Image upload content length must be a positive integer.");
   }
 
   const config = getConfig();
@@ -136,6 +140,7 @@ export async function createPresignedImageUpload(params: {
       Bucket: config.bucket,
       Key: params.key,
       ContentType: params.contentType,
+      ContentLength: params.contentLengthBytes,
     }),
     { expiresIn: expiresInSeconds },
   );
