@@ -79,7 +79,8 @@ export async function POST(req: Request) {
   });
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
+    console.error("[quiz-attempt] failed to insert quiz attempt:", error);
+    return NextResponse.json({ error: "Could not save quiz attempt" }, { status: 400 });
   }
 
   // Check for course completion and issue certificate if all lessons done

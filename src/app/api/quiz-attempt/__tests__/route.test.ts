@@ -133,6 +133,41 @@ describe("POST /api/quiz-attempt", () => {
     await expect(response.json()).resolves.toEqual({ error: "Could not fetch questions" });
   });
 
+  it("does not expose raw database errors when saving attempts fails", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const insert = vi.fn(async () => fail("duplicate key value violates unique constraint quiz_attempts_pkey"));
+    const order = vi.fn(async () => ok([{ correct_option_index: 1 }]));
+    const eq = vi.fn(() => ({ order }));
+    const select = vi.fn(() => ({ eq }));
+
+    vi.mocked(getSupabaseAdminClient).mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "questions") return { select };
+        if (table === "quiz_attempts") return { insert };
+        throw new Error(`Unexpected table ${table}`);
+      }),
+    } as never);
+
+    const response = await POST(
+      new Request("http://localhost/api/quiz-attempt", {
+        method: "POST",
+        body: JSON.stringify({
+          lessonId: "22222222-2222-4222-8222-222222222222",
+          parishId: "11111111-1111-4111-8111-111111111111",
+          answers: [1],
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "Could not save quiz attempt" });
+    expect(consoleError).toHaveBeenCalledWith(
+      "[quiz-attempt] failed to insert quiz attempt:",
+      expect.objectContaining({ message: "duplicate key value violates unique constraint quiz_attempts_pkey" }),
+    );
+    consoleError.mockRestore();
+  });
+
   it("returns 403 when learner is not enrolled in the lesson course", async () => {
     vi.mocked(isUserEnrolledForLesson).mockResolvedValue(false);
     vi.mocked(getSupabaseAdminClient).mockReturnValue({ from: vi.fn() } as never);
