@@ -113,6 +113,7 @@ export function ParishCommunicationsManager({
   const [subject, setSubject] = useState((prefill?.subject ?? "").slice(0, 160));
   const [body, setBody] = useState((prefill?.body ?? "").slice(0, 5000));
   const [message, setMessage] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const [expandedSendId, setExpandedSendId] = useState<string | null>(null);
   const [detailsLoadingSendId, setDetailsLoadingSendId] = useState<string | null>(null);
   const [detailsBySendId, setDetailsBySendId] = useState<Record<string, SendDetailsResponse | undefined>>({});
@@ -174,27 +175,33 @@ export function ParishCommunicationsManager({
   }
 
   async function logMessage() {
-    const response = await fetch("/api/parish-admin/communications", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        audienceType,
-        audienceValue: needsAudienceValue ? selectedAudienceValue : undefined,
-        subject,
-        body,
-      }),
-    });
-    const data = await response.json();
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      const response = await fetch("/api/parish-admin/communications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          audienceType,
+          audienceValue: needsAudienceValue ? selectedAudienceValue : undefined,
+          subject,
+          body,
+        }),
+      });
+      const data = await response.json();
 
-    if (!response.ok) {
-      setMessage(data.error ?? "Failed to log message.");
-      return;
+      if (!response.ok) {
+        setMessage(data.error ?? "Failed to log message.");
+        return;
+      }
+
+      setMessage(data.deliveryNote ?? "Message logged.");
+      setSubject("");
+      setBody("");
+      router.refresh();
+    } finally {
+      setSubmitting(false);
     }
-
-    setMessage(data.deliveryNote ?? "Message logged.");
-    setSubject("");
-    setBody("");
-    router.refresh();
   }
 
   async function toggleDetails(sendId: string) {
@@ -261,11 +268,16 @@ export function ParishCommunicationsManager({
         <Input maxLength={160} onChange={(e) => setSubject(e.target.value)} placeholder="Subject" value={subject} />
 
         <Button
-          disabled={!subject.trim() || !body.trim() || (needsAudienceValue && !selectedAudienceValue)}
+          disabled={
+            !subject.trim() ||
+            !body.trim() ||
+            (needsAudienceValue && !selectedAudienceValue) ||
+            submitting
+          }
           onClick={logMessage}
           type="button"
         >
-          Log message
+          {submitting ? "Logging..." : "Log message"}
         </Button>
       </div>
 

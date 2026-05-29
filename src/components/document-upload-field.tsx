@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ChangeEvent } from "react";
+import { useRef, useState, type ChangeEvent } from "react";
 
 import { Input } from "@/components/ui/input";
 
@@ -13,6 +13,7 @@ export function DocumentUploadField({
 }) {
   const [isUploading, setIsUploading] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
+  const requestIdRef = useRef(0);
 
   async function handleChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -27,12 +28,17 @@ export function DocumentUploadField({
     setIsUploading(true);
     setStatus(null);
 
+    const requestId = ++requestIdRef.current;
+
     try {
       const response = await fetch("/api/admin/uploads/documents", {
         method: "POST",
         body: formData,
       });
       const payload = (await response.json()) as { error?: string; url?: string };
+
+      // Ignore stale results from earlier uploads
+      if (requestId !== requestIdRef.current) return;
 
       if (!response.ok || !payload.url) {
         throw new Error(payload.error ?? "Failed to upload PDF.");
@@ -42,11 +48,15 @@ export function DocumentUploadField({
       onMessage("PDF uploaded. Save lesson to keep the document link.");
       setStatus(file.name);
     } catch (error) {
+      // Ignore stale errors from earlier uploads
+      if (requestId !== requestIdRef.current) return;
       const message = error instanceof Error ? error.message : "Failed to upload PDF.";
       onMessage(message);
       setStatus(null);
     } finally {
-      setIsUploading(false);
+      if (requestId === requestIdRef.current) {
+        setIsUploading(false);
+      }
     }
   }
 

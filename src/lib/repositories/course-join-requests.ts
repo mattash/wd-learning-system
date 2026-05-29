@@ -206,13 +206,17 @@ export async function approveJoinRequest({
 
   if (enrollmentError) throw enrollmentError;
 
-  // Mark request as approved
-  const { error: updateError } = await supabase
+  // Mark request as approved (only if still PENDING)
+  const { error: updateError, count } = await supabase
     .from("course_join_requests")
     .update({ status: "APPROVED" })
-    .eq("id", requestId);
+    .eq("id", requestId)
+    .eq("status", "PENDING");
 
   if (updateError) throw updateError;
+  if ((count ?? 0) === 0) {
+    throw new Error("Request status changed before approval completed");
+  }
 
   // Audit log
   const { recordAdminAuditLog } = await import("@/lib/audit-log");
@@ -253,13 +257,17 @@ export async function rejectJoinRequest({
     throw new Error("Request not found or not pending");
   }
 
-  // Mark request as rejected
-  const { error: updateError } = await supabase
+  // Mark request as rejected (only if still PENDING)
+  const { error: updateError, count } = await supabase
     .from("course_join_requests")
     .update({ status: "REJECTED" })
-    .eq("id", requestId);
+    .eq("id", requestId)
+    .eq("status", "PENDING");
 
   if (updateError) throw updateError;
+  if ((count ?? 0) === 0) {
+    throw new Error("Request status changed before rejection completed");
+  }
 
   // Audit log
   const { recordAdminAuditLog } = await import("@/lib/audit-log");

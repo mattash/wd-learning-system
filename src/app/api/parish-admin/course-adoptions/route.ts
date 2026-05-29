@@ -99,31 +99,20 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ error: "Only parish-scoped adoptions can be removed." }, { status: 400 });
   }
 
-  const { count, error: enrollmentCountError } = await supabase
-    .from("enrollments")
-    .select("id", { count: "exact", head: true })
-    .eq("parish_id", parishId)
-    .eq("course_id", payload.courseId);
+  const { data: result, error: rpcError } = await supabase.rpc("remove_course_adoption", {
+    p_parish_id: parishId,
+    p_course_id: payload.courseId,
+  });
 
-  if (enrollmentCountError) {
-    return NextResponse.json({ error: enrollmentCountError.message }, { status: 400 });
+  if (rpcError) {
+    return NextResponse.json({ error: rpcError.message }, { status: 400 });
   }
 
-  if ((count ?? 0) > 0) {
-    return NextResponse.json(
-      { error: "Remove learner enrollments from this course before removing adoption." },
-      { status: 409 },
-    );
-  }
+  const rpcResult = result as { error?: string; ok?: boolean; code?: string } | null;
 
-  const { error } = await supabase
-    .from("course_parishes")
-    .delete()
-    .eq("parish_id", parishId)
-    .eq("course_id", payload.courseId);
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
+  if (rpcResult?.error) {
+    const status = rpcResult.code === "ENROLLMENTS_EXIST" ? 409 : 400;
+    return NextResponse.json({ error: rpcResult.error }, { status });
   }
 
   await recordAdminAuditLog({
