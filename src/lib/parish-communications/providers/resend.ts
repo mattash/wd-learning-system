@@ -65,6 +65,10 @@ export async function sendEmailViaResend(
             failed.push({ clerkUserId: recipient.clerkUserId, error: errMsg });
           }
         }
+
+        for (const recipient of recipientsWithoutEmail) {
+          failed.push({ clerkUserId: recipient.clerkUserId, error: "Recipient has no email on file." });
+        }
       } else {
         const errorBody = await response.text();
         const errMsg = `Resend API error ${response.status}: ${errorBody}`;

@@ -103,7 +103,7 @@ describe("sendEmailViaResend", () => {
     ]);
   });
 
-  it("skips recipients with null emails", async () => {
+  it("marks recipients with null emails as failed on success response", async () => {
     mockFetch({ data: [{ id: "resend-id-1" }] });
     const mixedRequest = {
       ...baseRequest,
@@ -117,7 +117,9 @@ describe("sendEmailViaResend", () => {
       mixedRequest,
     );
     expect(result.sent).toEqual(["u-1"]);
-    expect(result.failed).toHaveLength(0);
+    expect(result.failed).toEqual([
+      { clerkUserId: "u-2", error: "Recipient has no email on file." },
+    ]);
   });
 
   it("handles batch split when recipients exceed 100", async () => {
