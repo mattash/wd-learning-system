@@ -230,7 +230,7 @@ export function AdminEngagementReport({ parishes, courses }: { parishes: Diocese
         </div>
       ) : null}
       {rowsError ? (
-        <div className="mx-5 mt-3 rounded-md border border-destructive-subtle bg-red-50 px-4 py-3">
+        <div className="mx-5 mt-3 rounded-md border border-destructive-subtle bg-destructive-subtle px-4 py-3">
           <p className="text-[13px] text-destructive">{rowsError}</p>
         </div>
       ) : null}
@@ -339,7 +339,7 @@ export function AdminEngagementReport({ parishes, courses }: { parishes: Diocese
             </div>
           ) : null}
           {learnersError ? (
-            <div className="mx-4 my-3 rounded-md border border-destructive-subtle bg-red-50 px-4 py-3">
+            <div className="mx-4 my-3 rounded-md border border-destructive-subtle bg-destructive-subtle px-4 py-3">
               <p className="text-[13px] text-destructive">{learnersError}</p>
             </div>
           ) : null}
