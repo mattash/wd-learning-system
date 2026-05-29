@@ -68,6 +68,10 @@ export async function POST(req: Request) {
     );
   }
 
+  if (userProfile.clerk_user_id === actorUserId) {
+    return NextResponse.json({ error: "You cannot change your own parish role." }, { status: 400 });
+  }
+
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("parish_memberships")
@@ -236,6 +240,17 @@ export async function PUT(req: Request) {
         role,
         status: "skipped",
         message: "No platform account found.",
+      });
+      continue;
+    }
+
+    if (userProfile.clerk_user_id === actorUserId) {
+      results.push({
+        row: rowNumber,
+        identifier,
+        role,
+        status: "skipped",
+        message: "You cannot change your own parish role.",
       });
       continue;
     }

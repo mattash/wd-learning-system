@@ -4,12 +4,13 @@ import { requireParishRole } from "@/lib/authz";
 import { getParishAdminDashboardDataForUser } from "@/lib/repositories/parish-admin";
 
 export default async function EnrollmentsPage() {
-  const { parishId, role, clerkUserId } = await requireParishRole("instructor");
-  const data = await getParishAdminDashboardDataForUser({ parishId, role, clerkUserId });
+  const { parishId, role, clerkUserId } = await requireParishRole("parish_admin");
 
   if (role !== "parish_admin") {
     return null;
   }
+
+  const data = await getParishAdminDashboardDataForUser({ parishId, role, clerkUserId });
 
   return (
     <Card id="enrollment-section">
