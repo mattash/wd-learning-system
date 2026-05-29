@@ -97,7 +97,7 @@ describe("DocumentReviewCard", () => {
       json: async () => {
         throw new SyntaxError("Unexpected end of JSON input");
       },
-    } as Response);
+    } as unknown as Response);
 
     render(
       <DocumentReviewCard
