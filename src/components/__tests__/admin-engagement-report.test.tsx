@@ -124,6 +124,46 @@ describe("AdminEngagementReport", () => {
     expect(await screen.findByText("Failed to load learner details.")).toBeInTheDocument();
   });
 
+  it("shows error when learners response is non-ok", async () => {
+    vi.spyOn(global, "fetch")
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ rows: [engagementRow], trends: [] }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ error: "Database error" }),
+      } as Response);
+
+    render(<AdminEngagementReport parishes={baseParishes} courses={baseCourses} />);
+
+    await screen.findByText("St. Mary");
+    fireEvent.click(screen.getByRole("button", { name: "View learners" }));
+
+    expect(await screen.findByText("Database error")).toBeInTheDocument();
+  });
+
+  it("shows error when learners response is not json", async () => {
+    vi.spyOn(global, "fetch")
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ rows: [engagementRow], trends: [] }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => {
+          throw new SyntaxError("Unexpected end of JSON input");
+        },
+      } as unknown as Response);
+
+    render(<AdminEngagementReport parishes={baseParishes} courses={baseCourses} />);
+
+    await screen.findByText("St. Mary");
+    fireEvent.click(screen.getByRole("button", { name: "View learners" }));
+
+    expect(await screen.findByText("Failed to load learner details.")).toBeInTheDocument();
+  });
+
   it("clears drill-down when parish filter changes", async () => {
     vi.spyOn(global, "fetch").mockResolvedValue({
       ok: true,
