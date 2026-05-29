@@ -11,6 +11,7 @@ interface CourseSidebarProps {
   modules: CourseModuleWithProgress[];
   currentLessonId: string;
   showHeader?: boolean;
+  onLessonSelect?: () => void;
 }
 
 function lessonTypeIcon(contentType: CourseLesson["content_type"], isActive: boolean) {
@@ -21,7 +22,14 @@ function lessonTypeIcon(contentType: CourseLesson["content_type"], isActive: boo
   return <span className={`text-[12px] ${color}`}>▶</span>;
 }
 
-export function CourseSidebar({ courseTitle, courseId, modules, currentLessonId, showHeader = true }: CourseSidebarProps) {
+export function CourseSidebar({
+  courseTitle,
+  courseId,
+  modules,
+  currentLessonId,
+  showHeader = true,
+  onLessonSelect,
+}: CourseSidebarProps) {
   const allLessons = modules.flatMap((m) => m.lessons);
   const completedCount = allLessons.filter((l) => l.status === "completed").length;
   const progressPercent = allLessons.length > 0
@@ -68,6 +76,7 @@ export function CourseSidebar({ courseTitle, courseId, modules, currentLessonId,
                   }`}
                   href={`/app/lessons/${lesson.id}`}
                   key={lesson.id}
+                  onClick={onLessonSelect}
                 >
                   {/* Completion icon */}
                   <div
