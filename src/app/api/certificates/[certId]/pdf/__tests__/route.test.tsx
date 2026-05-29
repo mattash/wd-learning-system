@@ -59,6 +59,32 @@ describe("GET /api/certificates/:certId/pdf", () => {
     vi.mocked(getCertificatePdfData).mockResolvedValue(pdfData);
   });
 
+  it("returns 500 without rendering when the certificate lookup fails", async () => {
+    const from = vi.fn((table: string) => {
+      if (table === "certificates") {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              single: vi.fn(async () => ({ data: null, error: { message: "db down" } })),
+            })),
+          })),
+        };
+      }
+      throw new Error(`Unexpected table ${table}`);
+    });
+
+    vi.mocked(getSupabaseAdminClient).mockReturnValue({ from } as never);
+
+    const response = await GET(new Request("http://localhost/api/certificates/cert-1/pdf"), {
+      params: Promise.resolve({ certId: "cert-1" }),
+    });
+
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toEqual({ error: "Could not load certificate" });
+    expect(getCertificatePdfData).not.toHaveBeenCalled();
+    expect(renderToBuffer).not.toHaveBeenCalled();
+  });
+
   it("returns 500 without rendering when modules cannot be loaded", async () => {
     const lessonsFrom = vi.fn();
     const from = vi.fn((table: string) => {
