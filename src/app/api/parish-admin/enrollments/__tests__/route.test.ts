@@ -3,10 +3,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/authz", () => ({ requireParishRole: vi.fn() }));
 vi.mock("@/lib/audit-log", () => ({ recordAdminAuditLog: vi.fn() }));
 vi.mock("@/lib/supabase/server", () => ({ getSupabaseAdminClient: vi.fn() }));
+vi.mock("@/lib/parish-communications/notifications", () => ({ notifyEnrollmentConfirmed: vi.fn() }));
 
 import { DELETE, GET, POST } from "@/app/api/parish-admin/enrollments/route";
 import { requireParishRole } from "@/lib/authz";
 import { recordAdminAuditLog } from "@/lib/audit-log";
+import { notifyEnrollmentConfirmed } from "@/lib/parish-communications/notifications";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 
 describe("/api/parish-admin/enrollments", () => {
@@ -17,6 +19,7 @@ describe("/api/parish-admin/enrollments", () => {
       parishId: "11111111-1111-4111-8111-111111111111",
       role: "parish_admin",
     });
+    vi.mocked(notifyEnrollmentConfirmed).mockResolvedValue();
   });
 
   it("lists enrollments for the active parish", async () => {
@@ -77,6 +80,12 @@ describe("/api/parish-admin/enrollments", () => {
     const courseEq = vi.fn(() => ({ maybeSingle: courseMaybeSingle }));
     const courseSelect = vi.fn(() => ({ eq: courseEq }));
 
+    const existingMaybeSingle = vi.fn(async () => ({ data: null, error: null }));
+    const existingEqCourse = vi.fn(() => ({ maybeSingle: existingMaybeSingle }));
+    const existingEqUser = vi.fn(() => ({ eq: existingEqCourse }));
+    const existingEqParish = vi.fn(() => ({ eq: existingEqUser }));
+    const existingSelect = vi.fn(() => ({ eq: existingEqParish }));
+
     const enrollmentSingle = vi.fn(async () => ({ data: { id: "e1" }, error: null }));
     const enrollmentSelect = vi.fn(() => ({ single: enrollmentSingle }));
     const enrollmentUpsert = vi.fn(() => ({ select: enrollmentSelect }));
@@ -87,7 +96,7 @@ describe("/api/parish-admin/enrollments", () => {
       from: vi.fn((table: string) => {
         if (table === "parish_memberships") return { select: memberSelect };
         if (table === "courses") return { select: courseSelect };
-        if (table === "enrollments") return { upsert: enrollmentUpsert };
+        if (table === "enrollments") return { select: existingSelect, upsert: enrollmentUpsert };
         throw new Error(`Unexpected table: ${table}`);
       }),
       rpc,
@@ -106,6 +115,62 @@ describe("/api/parish-admin/enrollments", () => {
     expect(response.status).toBe(201);
     await expect(response.json()).resolves.toEqual({ enrollment: { id: "e1" } });
     expect(recordAdminAuditLog).toHaveBeenCalledTimes(1);
+    expect(notifyEnrollmentConfirmed).toHaveBeenCalledWith({
+      clerkUserId: "user-1",
+      parishId: "11111111-1111-4111-8111-111111111111",
+      courseId: "22222222-2222-4222-8222-222222222222",
+    });
+  });
+
+  it("does not send enrollment confirmation for existing enrollments", async () => {
+    const memberMaybeSingle = vi.fn(async () => ({ data: { clerk_user_id: "user-1" }, error: null }));
+    const memberEqUser = vi.fn(() => ({ maybeSingle: memberMaybeSingle }));
+    const memberEqParish = vi.fn(() => ({ eq: memberEqUser }));
+    const memberSelect = vi.fn(() => ({ eq: memberEqParish }));
+
+    const courseMaybeSingle = vi.fn(async () => ({ data: { id: "c1", scope: "DIOCESE", published: true }, error: null }));
+    const courseEq = vi.fn(() => ({ maybeSingle: courseMaybeSingle }));
+    const courseSelect = vi.fn(() => ({ eq: courseEq }));
+
+    const existingEnrollment = {
+      id: "e1",
+      clerk_user_id: "user-1",
+      course_id: "22222222-2222-4222-8222-222222222222",
+      cohort_id: null,
+      created_at: "2026-01-01",
+    };
+    const existingMaybeSingle = vi.fn(async () => ({ data: existingEnrollment, error: null }));
+    const existingEqCourse = vi.fn(() => ({ maybeSingle: existingMaybeSingle }));
+    const existingEqUser = vi.fn(() => ({ eq: existingEqCourse }));
+    const existingEqParish = vi.fn(() => ({ eq: existingEqUser }));
+    const existingSelect = vi.fn(() => ({ eq: existingEqParish }));
+    const enrollmentUpsert = vi.fn();
+
+    vi.mocked(getSupabaseAdminClient).mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "parish_memberships") return { select: memberSelect };
+        if (table === "courses") return { select: courseSelect };
+        if (table === "enrollments") return { select: existingSelect, upsert: enrollmentUpsert };
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+      rpc: vi.fn(),
+    } as never);
+
+    const response = await POST(
+      new Request("http://localhost/api/parish-admin/enrollments", {
+        method: "POST",
+        body: JSON.stringify({
+          clerkUserId: "user-1",
+          courseId: "22222222-2222-4222-8222-222222222222",
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ enrollment: existingEnrollment });
+    expect(enrollmentUpsert).not.toHaveBeenCalled();
+    expect(notifyEnrollmentConfirmed).not.toHaveBeenCalled();
+    expect(recordAdminAuditLog).toHaveBeenCalledTimes(1);
   });
 
   it("creates an enrollment for a parish-scoped course atomically", async () => {
@@ -117,6 +182,12 @@ describe("/api/parish-admin/enrollments", () => {
     const courseMaybeSingle = vi.fn(async () => ({ data: { id: "c1", scope: "PARISH", published: true }, error: null }));
     const courseEq = vi.fn(() => ({ maybeSingle: courseMaybeSingle }));
     const courseSelect = vi.fn(() => ({ eq: courseEq }));
+
+    const existingMaybeSingle = vi.fn(async () => ({ data: null, error: null }));
+    const existingEqCourse = vi.fn(() => ({ maybeSingle: existingMaybeSingle }));
+    const existingEqUser = vi.fn(() => ({ eq: existingEqCourse }));
+    const existingEqParish = vi.fn(() => ({ eq: existingEqUser }));
+    const existingSelect = vi.fn(() => ({ eq: existingEqParish }));
 
     const rpc = vi.fn(async () => ({
       data: {
@@ -130,6 +201,7 @@ describe("/api/parish-admin/enrollments", () => {
       from: vi.fn((table: string) => {
         if (table === "parish_memberships") return { select: memberSelect };
         if (table === "courses") return { select: courseSelect };
+        if (table === "enrollments") return { select: existingSelect };
         throw new Error(`Unexpected table: ${table}`);
       }),
       rpc,
