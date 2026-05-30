@@ -25,6 +25,10 @@ vi.mock("@/lib/authz", () => ({
   requireAuth: vi.fn(),
 }));
 
+vi.mock("@/lib/supabase/server", () => ({
+  getSupabaseAdminClient: vi.fn(),
+}));
+
 import AppLayout from "@/app/app/layout";
 import { AppHeaderClient } from "@/components/app-header-client";
 import { getActiveParishRole, isDioceseAdmin, requireAuth } from "@/lib/authz";
