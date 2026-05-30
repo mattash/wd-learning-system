@@ -10,6 +10,7 @@ import type { DioceseCourseRow } from "@/lib/repositories/diocese-admin";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { CopyCourseLinkButton } from "@/components/copy-course-link-button";
 import {
   Dialog,
   DialogContent,
@@ -33,6 +34,7 @@ interface CourseFormState {
   thumbnailUrl: string;
   scope: CourseScope;
   published: boolean;
+  publiclyBrowseable: boolean;
 }
 
 const emptyForm: CourseFormState = {
@@ -41,6 +43,7 @@ const emptyForm: CourseFormState = {
   thumbnailUrl: "",
   scope: "DIOCESE",
   published: false,
+  publiclyBrowseable: false,
 };
 
 type EditorMode = { kind: "create" } | { kind: "edit"; id: string };
@@ -69,6 +72,7 @@ export function AdminCourseManager({ courses }: { courses: DioceseCourseRow[] })
       thumbnailUrl: course.thumbnail_url ?? "",
       scope: course.scope,
       published: course.published,
+      publiclyBrowseable: course.publicly_browseable,
     });
     setFormError("");
     setEditorMode({ kind: "edit", id: course.id });
@@ -156,6 +160,7 @@ export function AdminCourseManager({ courses }: { courses: DioceseCourseRow[] })
           thumbnailUrl: form.thumbnailUrl || null,
           scope: form.scope,
           published: form.published,
+          publiclyBrowseable: form.publiclyBrowseable,
         }),
       });
 
@@ -210,7 +215,8 @@ export function AdminCourseManager({ courses }: { courses: DioceseCourseRow[] })
         <colgroup>
           <col />
           <col className="w-[140px]" />
-          <col className="w-[120px]" />
+          <col className="w-[100px]" />
+          <col className="w-[100px]" />
           <col className="w-[280px]" />
         </colgroup>
         <thead>
@@ -218,6 +224,7 @@ export function AdminCourseManager({ courses }: { courses: DioceseCourseRow[] })
             <th className="px-3.5 py-2.5 text-[10.5px] font-bold uppercase tracking-widest text-muted-foreground">Course</th>
             <th className="px-3.5 py-2.5 text-[10.5px] font-bold uppercase tracking-widest text-muted-foreground">Scope</th>
             <th className="px-3.5 py-2.5 text-[10.5px] font-bold uppercase tracking-widest text-muted-foreground">Published</th>
+            <th className="px-3.5 py-2.5 text-[10.5px] font-bold uppercase tracking-widest text-muted-foreground">Public</th>
             <th className="px-3.5 py-2.5 text-right text-[10.5px] font-bold uppercase tracking-widest text-muted-foreground">Actions</th>
           </tr>
         </thead>
@@ -250,8 +257,16 @@ export function AdminCourseManager({ courses }: { courses: DioceseCourseRow[] })
                   <Badge>Draft</Badge>
                 )}
               </td>
+              <td className="px-3.5 py-3">
+                {course.publicly_browseable ? (
+                  <Badge variant="success">Yes</Badge>
+                ) : (
+                  <span className="text-xs text-muted-foreground">No</span>
+                )}
+              </td>
               <td className="px-3.5 py-3 text-right">
                 <div className="flex justify-end gap-1.5">
+                  <CopyCourseLinkButton courseId={course.id} published={course.published} />
                   <Button asChild size="xs" type="button" variant="secondary">
                     <Link href={`/app/admin/courses/${course.id}`}>Manage content</Link>
                   </Button>
@@ -355,7 +370,7 @@ export function AdminCourseManager({ courses }: { courses: DioceseCourseRow[] })
                   <option value="PARISH">Parish</option>
                 </Select>
               </div>
-              <div className="flex items-end">
+              <div className="flex flex-col gap-2">
                 <label className="flex cursor-pointer items-center gap-2 text-sm" htmlFor="course-published">
                   <Checkbox
                     checked={form.published}
@@ -363,6 +378,14 @@ export function AdminCourseManager({ courses }: { courses: DioceseCourseRow[] })
                     onChange={(e) => setForm((prev) => ({ ...prev, published: e.target.checked }))}
                   />
                   {isEditMode ? "Published" : "Publish immediately"}
+                </label>
+                <label className="flex cursor-pointer items-center gap-2 text-sm" htmlFor="course-publicly-browseable">
+                  <Checkbox
+                    checked={form.publiclyBrowseable}
+                    id="course-publicly-browseable"
+                    onChange={(e) => setForm((prev) => ({ ...prev, publiclyBrowseable: e.target.checked }))}
+                  />
+                  Publicly browseable
                 </label>
               </div>
             </div>

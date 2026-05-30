@@ -29,6 +29,65 @@ export interface PublicCoursePreview {
   lessonCount: number;
 }
 
+export interface PublicCatalogCourse {
+  id: string;
+  title: string;
+  description: string | null;
+  thumbnailUrl: string | null;
+  moduleCount: number;
+}
+
+export async function listPublicCatalogCourses(): Promise<PublicCatalogCourse[]> {
+  if (isE2ESmokeMode()) {
+    return [
+      {
+        id: E2E_COURSE.id,
+        title: E2E_COURSE.title,
+        description: E2E_COURSE.description,
+        thumbnailUrl: "/globe.svg",
+        moduleCount: 1,
+      },
+    ];
+  }
+
+  const supabase = getSupabaseAdminClient();
+  const { data: courses, error: coursesError } = await supabase
+    .from("courses")
+    .select("id,title,description,thumbnail_url")
+    .eq("published", true)
+    .eq("publicly_browseable", true)
+    .order("title", { ascending: true });
+
+  if (coursesError) throw coursesError;
+  if (!courses || courses.length === 0) return [];
+
+  const courseIds = (courses as Array<{ id: string }>).map((c) => c.id);
+  const { data: moduleCounts, error: countError } = await supabase
+    .from("modules")
+    .select("course_id")
+    .in("course_id", courseIds);
+
+  if (countError) throw countError;
+
+  const countByCourseId = new Map<string, number>();
+  for (const row of (moduleCounts ?? []) as Array<{ course_id: string }>) {
+    countByCourseId.set(row.course_id, (countByCourseId.get(row.course_id) ?? 0) + 1);
+  }
+
+  return (courses as Array<{
+    id: string;
+    title: string;
+    description: string | null;
+    thumbnail_url: string | null;
+  }>).map((course) => ({
+    id: course.id,
+    title: course.title,
+    description: course.description,
+    thumbnailUrl: course.thumbnail_url,
+    moduleCount: countByCourseId.get(course.id) ?? 0,
+  }));
+}
+
 export async function getPublicCoursePreview(courseId: string): Promise<PublicCoursePreview | null> {
   if (isE2ESmokeMode()) {
     if (courseId !== E2E_COURSE.id) return null;

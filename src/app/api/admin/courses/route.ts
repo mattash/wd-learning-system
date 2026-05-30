@@ -17,6 +17,7 @@ const createCourseSchema = z.object({
   thumbnailUrl: optionalThumbnailSchema,
   scope: z.enum(["DIOCESE", "PARISH"]),
   published: z.boolean().default(false),
+  publiclyBrowseable: z.boolean().default(false),
 });
 
 export async function GET() {
@@ -24,7 +25,7 @@ export async function GET() {
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("courses")
-    .select("id,title,description,thumbnail_url,scope,published,created_at,updated_at")
+    .select("id,title,description,thumbnail_url,scope,published,publicly_browseable,created_at,updated_at")
     .order("updated_at", { ascending: false });
 
   if (error) {
@@ -53,8 +54,9 @@ export async function POST(req: Request) {
       thumbnail_url: payload.thumbnailUrl,
       scope: payload.scope,
       published: payload.published,
+      publicly_browseable: payload.publiclyBrowseable,
     })
-    .select("id,title,description,thumbnail_url,scope,published,created_at,updated_at")
+    .select("id,title,description,thumbnail_url,scope,published,publicly_browseable,created_at,updated_at")
     .single();
 
   if (error) {

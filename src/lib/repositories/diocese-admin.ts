@@ -36,6 +36,7 @@ export interface DioceseCourseRow {
   thumbnail_url: string | null;
   scope: "DIOCESE" | "PARISH";
   published: boolean;
+  publicly_browseable: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -253,7 +254,7 @@ export async function listCourses(limit = 25): Promise<DioceseCourseRow[]> {
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("courses")
-    .select("id,title,description,thumbnail_url,scope,published,created_at,updated_at")
+    .select("id,title,description,thumbnail_url,scope,published,publicly_browseable,created_at,updated_at")
     .order("updated_at", { ascending: false })
     .limit(limit);
 

@@ -121,6 +121,50 @@ async function completeOnboarding(formData: FormData) {
       courseId: parsed.data.enrollCourseId,
     });
 
+    if (joinRequestCreated) {
+      if (!primaryEmail) {
+        console.warn(
+          "[onboarding] No primary email for user — skipping join request confirmation email",
+        );
+      } else {
+        // Send confirmation email (non-blocking — logged on failure)
+        try {
+          const { sendJoinRequestConfirmation } = await import(
+            "@/lib/email/send-join-request-confirmation"
+          );
+
+          const { data: courseData } = await supabase
+            .from("courses")
+            .select("title")
+            .eq("id", parsed.data.enrollCourseId)
+            .maybeSingle();
+          const courseTitle =
+            (courseData as { title: string } | null)?.title ??
+            "your requested course";
+
+          const { data: parishData } = await supabase
+            .from("parishes")
+            .select("name")
+            .eq("id", parsed.data.parishId)
+            .maybeSingle();
+          const parishName =
+            (parishData as { name: string } | null)?.name ?? "your parish";
+
+          await sendJoinRequestConfirmation({
+            toEmail: primaryEmail,
+            displayName: parsed.data.displayName,
+            courseTitle,
+            parishName,
+          });
+        } catch (emailErr) {
+          console.error(
+            "[onboarding] Failed to send confirmation email:",
+            emailErr instanceof Error ? emailErr.message : emailErr,
+          );
+        }
+      }
+    }
+
     redirect(joinRequestCreated ? "/app/catalog?enrollment=requested" : "/app");
   }
 

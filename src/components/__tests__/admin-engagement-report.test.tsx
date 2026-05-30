@@ -9,7 +9,7 @@ const baseParishes = [
 ];
 
 const baseCourses = [
-  { id: "c1", title: "Catechesis 101", description: "Intro", thumbnail_url: null, published: true, scope: "DIOCESE" as const, created_at: "2024-01-01", updated_at: "2024-01-01" },
+  { id: "c1", title: "Catechesis 101", description: "Intro", thumbnail_url: null, published: true, publicly_browseable: false, scope: "DIOCESE" as const, created_at: "2024-01-01", updated_at: "2024-01-01" },
 ];
 
 const engagementRow = {

@@ -29,6 +29,7 @@ const courses: DioceseCourseRow[] = [
     thumbnail_url: null,
     scope: "DIOCESE",
     published: true,
+    publicly_browseable: false,
     created_at: "2026-01-01T00:00:00.000Z",
     updated_at: "2026-01-01T00:00:00.000Z",
   },

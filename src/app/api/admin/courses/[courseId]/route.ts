@@ -21,6 +21,7 @@ const updateCourseSchema = z.object({
   thumbnailUrl: optionalThumbnailSchema,
   scope: z.enum(["DIOCESE", "PARISH"]),
   published: z.boolean(),
+  publiclyBrowseable: z.boolean(),
 });
 
 export async function PATCH(req: Request, ctx: { params: Promise<{ courseId: string }> }) {
@@ -45,6 +46,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ courseId: str
     title: payload.title,
     scope: payload.scope,
     published: payload.published,
+    publicly_browseable: payload.publiclyBrowseable,
     updated_at: new Date().toISOString(),
     ...(includesDescription ? { description: payload.description ?? null } : {}),
     ...(includesThumbnailUrl ? { thumbnail_url: payload.thumbnailUrl } : {}),
@@ -54,7 +56,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ courseId: str
     .from("courses")
     .update(updateValues)
     .eq("id", courseId)
-    .select("id,title,description,thumbnail_url,scope,published,created_at,updated_at")
+    .select("id,title,description,thumbnail_url,scope,published,publicly_browseable,created_at,updated_at")
     .single();
 
   if (error) {
