@@ -75,7 +75,7 @@ describe("/api/admin/enrollments", () => {
     });
   });
 
-  it("does not send enrollment confirmation for existing enrollments", async () => {
+  it("returns 200 without sending enrollment confirmation for existing enrollments", async () => {
     const existingEnrollment = {
       id: "e1",
       parish_id: "11111111-1111-4111-8111-111111111111",
@@ -112,7 +112,7 @@ describe("/api/admin/enrollments", () => {
       }),
     );
 
-    expect(response.status).toBe(201);
+    expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ enrollment: existingEnrollment });
     expect(upsert).not.toHaveBeenCalled();
     expect(rpc).not.toHaveBeenCalled();

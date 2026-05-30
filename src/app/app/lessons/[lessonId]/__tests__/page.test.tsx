@@ -117,7 +117,7 @@ describe("LessonPage", () => {
     expect(screen.getByText("Document review: Pages 2-4")).toBeInTheDocument();
     const documentFrame = screen.getByTitle("Reading lesson document");
     expect(documentFrame).toHaveAttribute("src", "/docs/reading.pdf#page=2");
-    expect(documentFrame).toHaveAttribute("sandbox", "allow-downloads");
+    expect(documentFrame).toHaveAttribute("sandbox", "allow-downloads allow-scripts allow-same-origin");
     expect(documentFrame).toHaveAttribute("referrerpolicy", "no-referrer");
     expect(screen.getByText("Quiz questions: 1")).toBeInTheDocument();
   });
