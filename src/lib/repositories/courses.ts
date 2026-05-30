@@ -18,6 +18,77 @@ export interface CourseModule {
   lessons: { id: string; title: string; sort_order: number; content_type: "VIDEO" | "DOCUMENT"; thumbnail_url: string | null }[];
 }
 
+export interface PublicCoursePreview {
+  course: VisibleCourse;
+  modules: Array<{
+    id: string;
+    title: string;
+    sort_order: number;
+    lessons: Array<{ id: string; title: string; sort_order: number }>;
+  }>;
+  lessonCount: number;
+}
+
+export async function getPublicCoursePreview(courseId: string): Promise<PublicCoursePreview | null> {
+  if (isE2ESmokeMode()) {
+    if (courseId !== E2E_COURSE.id) return null;
+    return {
+      course: E2E_COURSE,
+      modules: [
+        {
+          id: E2E_MODULE.id,
+          title: E2E_MODULE.title,
+          sort_order: E2E_MODULE.sort_order,
+          lessons: [{ id: E2E_LESSON.id, title: E2E_LESSON.title, sort_order: 1 }],
+        },
+      ],
+      lessonCount: 1,
+    };
+  }
+
+  const supabase = getSupabaseAdminClient();
+  const { data: course, error: courseError } = await supabase
+    .from("courses")
+    .select("id,title,description,published,scope,thumbnail_url")
+    .eq("id", courseId)
+    .eq("published", true)
+    .maybeSingle();
+
+  if (courseError) throw courseError;
+  if (!course) return null;
+
+  const { data: modules, error: modulesError } = await supabase
+    .from("modules")
+    .select("id,title,sort_order,lessons(id,title,sort_order)")
+    .eq("course_id", courseId)
+    .order("sort_order", { ascending: true });
+
+  if (modulesError) throw modulesError;
+
+  const previewModules = ((modules ?? []) as Array<{
+    id: string;
+    title: string;
+    sort_order: number;
+    lessons: Array<{ id: string; title: string; sort_order: number }> | null;
+  }>).map((module) => ({
+    ...module,
+    lessons: [...(module.lessons ?? [])].sort((a, b) => a.sort_order - b.sort_order),
+  }));
+
+  return {
+    course: {
+      id: course.id as string,
+      title: course.title as string,
+      description: (course.description as string | null) ?? null,
+      published: true,
+      scope: course.scope as "DIOCESE" | "PARISH",
+      thumbnailUrl: (course.thumbnail_url as string | null) ?? null,
+    },
+    modules: previewModules,
+    lessonCount: previewModules.reduce((sum, module) => sum + module.lessons.length, 0),
+  };
+}
+
 export async function listVisibleCourses(parishId: string): Promise<VisibleCourse[]> {
   if (isE2ESmokeMode()) {
     return [E2E_COURSE];
