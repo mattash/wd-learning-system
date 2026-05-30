@@ -13,6 +13,10 @@ export default async function PublicCoursePage({
   params: Promise<{ courseId: string }>;
 }) {
   const { courseId } = await params;
+
+  // Reject non-UUID courseId before querying Supabase (prevents 500 from PostgreSQL 22P02)
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(courseId)) notFound();
+
   const preview = await getPublicCoursePreview(courseId);
   if (!preview) notFound();
 
