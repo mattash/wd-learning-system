@@ -1,7 +1,8 @@
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { requireParishRole } from "@/lib/authz";
 import { getCatalogCourses } from "@/lib/repositories/catalog";
@@ -89,6 +90,8 @@ export default async function CatalogPage({
 
   const rawQ = params.q;
   const query = Array.isArray(rawQ) ? rawQ[0] : (rawQ?.trim() ?? "");
+  const enrollmentStatus = Array.isArray(params.enrollment) ? params.enrollment[0] : params.enrollment;
+  const showEnrollmentConfirmation = enrollmentStatus === "requested";
 
   // Get pending join requests so we can show "Request sent" on course cards
   const pendingRequests = await getStudentPendingRequests({ parishId, clerkUserId });
@@ -123,6 +126,14 @@ export default async function CatalogPage({
           Browse available courses and track your enrolled ones.
         </p>
       </header>
+
+      {showEnrollmentConfirmation ? (
+        <Alert>
+          <AlertDescription>
+            Your enrollment request has been submitted. A parish admin will review it shortly.
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
       {/* Search */}
       <form className="flex gap-2">
