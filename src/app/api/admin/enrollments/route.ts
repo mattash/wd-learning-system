@@ -83,6 +83,7 @@ export async function POST(req: Request) {
   }
 
   let data = existingEnrollmentQuery.data as EnrollmentRow | null;
+  const created = !data;
 
   if (!data) {
     const { data: course, error: courseError } = await supabase
@@ -154,7 +155,7 @@ export async function POST(req: Request) {
     }).catch((err) => console.error("[notifications] diocese enrollment confirmed email failed:", err));
   }
 
-  return NextResponse.json({ enrollment: data }, { status: 201 });
+  return NextResponse.json({ enrollment: data }, { status: created ? 201 : 200 });
 }
 
 export async function DELETE(req: Request) {

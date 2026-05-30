@@ -19,7 +19,7 @@ export async function GET(
     .from("certificates")
     .select("id, clerk_user_id, course_id, issued_at")
     .eq("id", certId)
-    .single();
+    .maybeSingle();
 
   if (certError) {
     return NextResponse.json({ error: "Could not load certificate" }, { status: 500 });

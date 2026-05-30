@@ -140,7 +140,7 @@ export default async function LessonPage({
               <iframe
                 className="h-[720px] w-full rounded-lg border border-border"
                 referrerPolicy="no-referrer"
-                sandbox="allow-downloads"
+                sandbox="allow-downloads allow-scripts allow-same-origin"
                 src={documentViewerUrl}
                 title={`${lesson.title} document`}
               />

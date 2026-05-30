@@ -46,7 +46,7 @@ function certificateQuery() {
   return {
     select: vi.fn(() => ({
       eq: vi.fn(() => ({
-        single: vi.fn(async () => ({ data: cert, error: null })),
+        maybeSingle: vi.fn(async () => ({ data: cert, error: null })),
       })),
     })),
   };
@@ -65,7 +65,7 @@ describe("GET /api/certificates/:certId/pdf", () => {
         return {
           select: vi.fn(() => ({
             eq: vi.fn(() => ({
-              single: vi.fn(async () => ({ data: null, error: { message: "db down" } })),
+              maybeSingle: vi.fn(async () => ({ data: null, error: { message: "db down" } })),
             })),
           })),
         };
@@ -81,6 +81,32 @@ describe("GET /api/certificates/:certId/pdf", () => {
 
     expect(response.status).toBe(500);
     await expect(response.json()).resolves.toEqual({ error: "Could not load certificate" });
+    expect(getCertificatePdfData).not.toHaveBeenCalled();
+    expect(renderToBuffer).not.toHaveBeenCalled();
+  });
+
+  it("returns 404 without rendering when the certificate does not exist", async () => {
+    const from = vi.fn((table: string) => {
+      if (table === "certificates") {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              maybeSingle: vi.fn(async () => ({ data: null, error: null })),
+            })),
+          })),
+        };
+      }
+      throw new Error(`Unexpected table ${table}`);
+    });
+
+    vi.mocked(getSupabaseAdminClient).mockReturnValue({ from } as never);
+
+    const response = await GET(new Request("http://localhost/api/certificates/missing/pdf"), {
+      params: Promise.resolve({ certId: "missing" }),
+    });
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({ error: "Certificate not found" });
     expect(getCertificatePdfData).not.toHaveBeenCalled();
     expect(renderToBuffer).not.toHaveBeenCalled();
   });
