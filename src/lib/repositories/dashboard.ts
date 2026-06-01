@@ -105,23 +105,26 @@ export async function getStudentDashboardData(
   const courseIds = enrolledCourses.map((c) => c.courseId);
   const { data: modulesData, error: modError } = await supabase
     .from("modules")
-    .select("id, course_id, lessons(id, title)")
+    .select("id, course_id, lessons(id, title, sort_order)")
     .in("course_id", courseIds)
     .order("sort_order", { ascending: true });
 
   if (modError) throw modError;
 
-  // Flatten lessons per course
+  // Flatten lessons per course in curriculum order
   const lessonsByCourse = new Map<string, Array<{ id: string; title: string }>>();
   for (const mod of (modulesData ?? []) as Array<{
     course_id: string;
-    lessons: Array<{ id: string; title: string }>;
+    lessons: Array<{ id: string; title: string; sort_order: number }>;
   }>) {
     if (!lessonsByCourse.has(mod.course_id)) {
       lessonsByCourse.set(mod.course_id, []);
     }
-    for (const lesson of mod.lessons ?? []) {
-      lessonsByCourse.get(mod.course_id)!.push(lesson);
+    const sortedLessons = [...(mod.lessons ?? [])].sort(
+      (a, b) => a.sort_order - b.sort_order,
+    );
+    for (const lesson of sortedLessons) {
+      lessonsByCourse.get(mod.course_id)!.push({ id: lesson.id, title: lesson.title });
     }
   }
 

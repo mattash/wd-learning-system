@@ -60,7 +60,8 @@ export default async function CoursesPage({
         {progress.map((course) => {
           const scope = scopeByCourseId.get(course.courseId) ?? "DIOCESE";
           const category = placeholderCategory(course.courseId);
-          const isStarted = course.progressPercent > 0;
+          const isStarted =
+            course.progressPercent > 0 || course.lastActivityAt !== null;
           const targetHref = course.resumeLessonId
             ? `/app/lessons/${course.resumeLessonId}`
             : `/app/courses/${course.courseId}`;
@@ -98,7 +99,7 @@ export default async function CoursesPage({
                   )}
                 </div>
               </Link>
-              <div className="hidden shrink-0 items-center gap-6 sm:flex">
+              <div className="flex w-full shrink-0 items-center justify-between gap-4 sm:w-auto sm:justify-start sm:gap-6">
                 <div className="w-[200px]">
                   <ProgressLine percent={course.progressPercent} />
                   <p className="mt-1.5 text-[12px] text-muted-foreground">

@@ -115,7 +115,11 @@ export default async function CourseDetailPage({
                     <circle cx="12" cy="12" r="9" />
                     <path d="m10 9 5 3-5 3V9Z" fill="currentColor" stroke="none" />
                   </svg>
-                  {progressPercent > 0 ? "Resume next lesson" : "Start course"}
+                  {firstIncomplete.status === "in_progress"
+                    ? "Resume next lesson"
+                    : completedCount > 0
+                      ? "Start next lesson"
+                      : "Start course"}
                 </Link>
               </Button>
             ) : allLessons.length > 0 ? (
