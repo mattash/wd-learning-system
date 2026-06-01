@@ -10,6 +10,8 @@ export const metadata: Metadata = {
   description: "Browse our publicly available courses on faith, leadership, and parish life.",
 };
 
+export const dynamic = "force-dynamic";
+
 export default async function PublicCatalogPage() {
   const courses = await listPublicCatalogCourses();
 
