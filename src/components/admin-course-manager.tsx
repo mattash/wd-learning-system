@@ -7,6 +7,8 @@ import { useRouter } from "next/navigation";
 import { readErrorMessage } from "@/lib/errors";
 
 import type { DioceseCourseRow } from "@/lib/repositories/diocese-admin";
+import type { CourseCategory } from "@/lib/course-metadata";
+import { COURSE_CATEGORIES } from "@/lib/course-metadata";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -31,6 +33,9 @@ type CourseScope = "DIOCESE" | "PARISH";
 interface CourseFormState {
   title: string;
   description: string;
+  instructor: string;
+  durationHours: string;
+  category: CourseCategory | "";
   thumbnailUrl: string;
   scope: CourseScope;
   published: boolean;
@@ -40,6 +45,9 @@ interface CourseFormState {
 const emptyForm: CourseFormState = {
   title: "",
   description: "",
+  instructor: "",
+  durationHours: "",
+  category: "",
   thumbnailUrl: "",
   scope: "DIOCESE",
   published: false,
@@ -69,6 +77,9 @@ export function AdminCourseManager({ courses }: { courses: DioceseCourseRow[] })
     setForm({
       title: course.title,
       description: course.description ?? "",
+      instructor: course.instructor ?? "",
+      durationHours: course.duration_hours ? String(course.duration_hours) : "",
+      category: course.category ?? "",
       thumbnailUrl: course.thumbnail_url ?? "",
       scope: course.scope,
       published: course.published,
@@ -157,6 +168,9 @@ export function AdminCourseManager({ courses }: { courses: DioceseCourseRow[] })
         body: JSON.stringify({
           title,
           description: form.description.trim() || null,
+          instructor: form.instructor.trim() || null,
+          durationHours: form.durationHours ? Number(form.durationHours) : null,
+          category: form.category || null,
           thumbnailUrl: form.thumbnailUrl || null,
           scope: form.scope,
           published: form.published,
@@ -320,6 +334,51 @@ export function AdminCourseManager({ courses }: { courses: DioceseCourseRow[] })
                 rows={3}
                 value={form.description}
               />
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold text-muted-foreground" htmlFor="course-instructor">
+                  Instructor
+                </label>
+                <Input
+                  id="course-instructor"
+                  onChange={(e) => setForm((prev) => ({ ...prev, instructor: e.target.value }))}
+                  placeholder="e.g. Fr. Hovsep Karapetian"
+                  value={form.instructor}
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold text-muted-foreground" htmlFor="course-duration-hours">
+                  Duration hours
+                </label>
+                <Input
+                  id="course-duration-hours"
+                  min="0.25"
+                  onChange={(e) => setForm((prev) => ({ ...prev, durationHours: e.target.value }))}
+                  placeholder="6"
+                  step="0.25"
+                  type="number"
+                  value={form.durationHours}
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold text-muted-foreground" htmlFor="course-category">
+                  Category
+                </label>
+                <Select
+                  id="course-category"
+                  onChange={(e) => setForm((prev) => ({ ...prev, category: e.target.value as CourseCategory | "" }))}
+                  value={form.category}
+                >
+                  <option value="">None</option>
+                  {COURSE_CATEGORIES.map((category) => (
+                    <option key={category} value={category}>
+                      {category}
+                    </option>
+                  ))}
+                </Select>
+              </div>
             </div>
 
             <div>

@@ -10,6 +10,11 @@ course:
   # courses.description
   description: "A starter course for parish learners entering diocesan formation."
 
+  # Optional redesigned learner-page metadata.
+  instructor: "Formation Team"
+  duration_hours: 2
+  category: "Leadership"
+
   # courses.thumbnail_url can be a public URL or a path served by the app.
   thumbnail_url: "/globe.svg"
 

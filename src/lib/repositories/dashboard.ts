@@ -1,5 +1,7 @@
 import { E2E_COURSE, E2E_LESSON } from "@/lib/e2e-fixtures";
 import { isE2ESmokeMode } from "@/lib/e2e-mode";
+import type { CourseCategory } from "@/lib/course-metadata";
+import { parseDurationHours } from "@/lib/course-metadata";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 
 export interface DashboardCourseProgress {
@@ -7,6 +9,8 @@ export interface DashboardCourseProgress {
   courseTitle: string;
   courseDescription: string | null;
   thumbnailUrl: string | null;
+  durationHours: number | null;
+  category: CourseCategory | null;
   totalLessons: number;
   completedLessons: number;
   progressPercent: number;
@@ -31,6 +35,45 @@ export interface LessonActivity {
 export interface StudentDashboardData {
   progress: DashboardCourseProgress[];
   recentActivity: LessonActivity[];
+  dayStreak: number;
+  certificatesEarned: number;
+}
+
+function dateKey(value: string | Date) {
+  const date = value instanceof Date ? value : new Date(value);
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-");
+}
+
+function addDays(value: Date, days: number) {
+  const next = new Date(value);
+  next.setDate(next.getDate() + days);
+  return next;
+}
+
+function calculateDayStreak(completedAtValues: string[], now = new Date()) {
+  if (completedAtValues.length === 0) return 0;
+
+  const completedDays = new Set(completedAtValues.map(dateKey));
+  let cursor = dateKey(now);
+
+  if (!completedDays.has(cursor)) {
+    const yesterday = dateKey(addDays(now, -1));
+    if (!completedDays.has(yesterday)) return 0;
+    cursor = yesterday;
+  }
+
+  let streak = 0;
+  let day = new Date(`${cursor}T00:00:00`);
+  while (completedDays.has(dateKey(day))) {
+    streak++;
+    day = addDays(day, -1);
+  }
+
+  return streak;
 }
 
 export async function getStudentDashboardData(
@@ -45,6 +88,8 @@ export async function getStudentDashboardData(
           courseTitle: E2E_COURSE.title,
           courseDescription: E2E_COURSE.description,
           thumbnailUrl: "/globe.svg",
+          durationHours: 1,
+          category: "Leadership",
           totalLessons: 2,
           completedLessons: 0,
           progressPercent: 0,
@@ -57,6 +102,8 @@ export async function getStudentDashboardData(
         },
       ],
       recentActivity: [],
+      dayStreak: 0,
+      certificatesEarned: 0,
     };
   }
 
@@ -77,7 +124,7 @@ export async function getStudentDashboardData(
   // Get enrolled courses, filtered to visible
   const { data: enrollments, error: enrollError } = await supabase
     .from("enrollments")
-    .select("course_id, courses(id, title, description, thumbnail_url)")
+    .select("course_id, courses(id, title, description, thumbnail_url, duration_hours, category)")
     .eq("parish_id", parishId)
     .eq("clerk_user_id", clerkUserId);
 
@@ -86,7 +133,14 @@ export async function getStudentDashboardData(
   const enrolledCourses = (
     (enrollments ?? []) as Array<{
       course_id: string;
-      courses: { id: string; title: string; description: string | null; thumbnail_url: string | null };
+      courses: {
+        id: string;
+        title: string;
+        description: string | null;
+        thumbnail_url: string | null;
+        duration_hours: number | string | null;
+        category: CourseCategory | null;
+      };
     }>
   )
     .filter((e) => visibleCourseIds.has(e.course_id))
@@ -95,11 +149,22 @@ export async function getStudentDashboardData(
       title: e.courses.title,
       description: e.courses.description,
       thumbnailUrl: e.courses.thumbnail_url,
+      durationHours: parseDurationHours(e.courses.duration_hours),
+      category: e.courses.category,
     }));
 
   if (enrolledCourses.length === 0) {
-    return { progress: [], recentActivity: [] };
+    return { progress: [], recentActivity: [], dayStreak: 0, certificatesEarned: 0 };
   }
+
+  const certificatesResult = await supabase
+    .from("certificates")
+    .select("id", { count: "exact", head: true })
+    .eq("parish_id", parishId)
+    .eq("clerk_user_id", clerkUserId);
+
+  if (certificatesResult.error) throw certificatesResult.error;
+  const certificatesEarned = certificatesResult.count ?? 0;
 
   // Get all lessons for all enrolled courses
   const courseIds = enrolledCourses.map((c) => c.courseId);
@@ -136,6 +201,8 @@ export async function getStudentDashboardData(
       courseTitle: course.title,
       courseDescription: course.description,
       thumbnailUrl: course.thumbnailUrl,
+      durationHours: course.durationHours,
+      category: course.category,
       totalLessons: lessons.length,
       completedLessons: 0,
       progressPercent: 0,
@@ -154,7 +221,7 @@ export async function getStudentDashboardData(
   );
 
   if (allLessonIds.length === 0) {
-    return { progress, recentActivity: [] };
+    return { progress, recentActivity: [], dayStreak: 0, certificatesEarned };
   }
 
   // Get video progress for all lessons
@@ -175,6 +242,11 @@ export async function getStudentDashboardData(
       last_position_seconds: number;
       updated_at: string;
     }>).map((p) => [p.lesson_id, p]),
+  );
+  const dayStreak = calculateDayStreak(
+    ((progressData ?? []) as Array<{ completed: boolean; updated_at: string }>)
+      .filter((row) => row.completed)
+      .map((row) => row.updated_at),
   );
 
   // Populate course progress from video_progress data
@@ -295,5 +367,5 @@ export async function getStudentDashboardData(
     )
     .slice(0, 15);
 
-  return { progress, recentActivity: allActivities };
+  return { progress, recentActivity: allActivities, dayStreak, certificatesEarned };
 }

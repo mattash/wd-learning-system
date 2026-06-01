@@ -1,5 +1,7 @@
 import { E2E_COURSE } from "@/lib/e2e-fixtures";
 import { isE2ESmokeMode } from "@/lib/e2e-mode";
+import type { CourseCategory } from "@/lib/course-metadata";
+import { parseDurationHours } from "@/lib/course-metadata";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 
 export interface CatalogCourse {
@@ -8,6 +10,9 @@ export interface CatalogCourse {
   description: string | null;
   thumbnailUrl: string | null;
   scope: "DIOCESE" | "PARISH";
+  instructor: string | null;
+  durationHours: number | null;
+  category: CourseCategory | null;
   lessonCount: number;
   enrolled: boolean;
 }
@@ -21,6 +26,9 @@ export async function getCatalogCourses(
       {
         ...E2E_COURSE,
         thumbnailUrl: "/globe.svg",
+        instructor: "Formation Team",
+        durationHours: 1,
+        category: "Leadership",
         lessonCount: 2,
         enrolled: true,
       },
@@ -44,7 +52,7 @@ export async function getCatalogCourses(
   // Build the visibility filter: DIOCESE courses OR parish-adopted PARISH courses
   let query = supabase
     .from("courses")
-    .select("id, title, description, thumbnail_url, scope")
+    .select("id, title, description, thumbnail_url, scope, instructor, duration_hours, category")
     .eq("published", true);
 
   if (adoptedIds.length > 0) {
@@ -97,12 +105,18 @@ export async function getCatalogCourses(
     description: string | null;
     thumbnail_url: string | null;
     scope: "DIOCESE" | "PARISH";
+    instructor: string | null;
+    duration_hours: number | string | null;
+    category: CourseCategory | null;
   }>).map((course) => ({
     id: course.id,
     title: course.title,
     description: course.description,
     thumbnailUrl: course.thumbnail_url,
     scope: course.scope,
+    instructor: course.instructor,
+    durationHours: parseDurationHours(course.duration_hours),
+    category: course.category,
     lessonCount: lessonCountByCourse.get(course.id) ?? 0,
     enrolled: enrolledSet.has(course.id),
   }));

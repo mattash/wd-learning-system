@@ -7,6 +7,7 @@ import { createClient, type PostgrestError } from "@supabase/supabase-js";
 import { config as loadDotenv } from "dotenv";
 import { z } from "zod";
 
+import { COURSE_CATEGORIES } from "../src/lib/course-metadata";
 import { resolveAndUploadThumbnail } from "./lib/r2-uploader";
 import {
   resolveAiThumbnail,
@@ -198,6 +199,9 @@ const contentImportSchema = z
       .object({
         title: z.string().trim().min(1),
         description: optionalNullableStringSchema,
+        instructor: z.string().trim().max(160).nullish().transform((value) => (value && value.length > 0 ? value : null)),
+        duration_hours: z.number().positive().nullish().transform((value) => value ?? null),
+        category: z.enum(COURSE_CATEGORIES).nullish().transform((value) => value ?? null),
         thumbnail_url: optionalUrlSchema,
         published: z.boolean().default(false),
         scope: z.enum(["DIOCESE", "PARISH"]),
@@ -346,6 +350,9 @@ async function importContent(
       .insert({
         title: courseInput.title,
         description: courseInput.description,
+        instructor: courseInput.instructor,
+        duration_hours: courseInput.duration_hours,
+        category: courseInput.category,
         thumbnail_url: courseThumbnailUrl,
         published: courseInput.published,
         scope: courseInput.scope,
@@ -538,6 +545,9 @@ async function main() {
     console.log(`Course:        ${content.course.title}${courseAiNote}`);
     console.log(`Scope:         ${content.course.scope}`);
     console.log(`Published:     ${content.course.published}`);
+    console.log(`Instructor:    ${content.course.instructor ?? "none"}`);
+    console.log(`Duration:      ${content.course.duration_hours ?? "none"}`);
+    console.log(`Category:      ${content.course.category ?? "none"}`);
     console.log(`AI thumbnails: ${content.course.ai_thumbnail || isAiThumbnailUrl(content.course.thumbnail_url) ? "enabled" : "disabled"}`);
     if (content.course.ai_thumbnail) {
       console.log(

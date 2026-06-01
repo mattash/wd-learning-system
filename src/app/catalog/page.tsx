@@ -2,12 +2,15 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
+import { formatCourseDuration } from "@/lib/course-metadata";
 import { listPublicCatalogCourses } from "@/lib/repositories/courses";
 
 export const metadata: Metadata = {
   title: "Course Catalog",
   description: "Browse our publicly available courses on faith, leadership, and parish life.",
 };
+
+export const dynamic = "force-dynamic";
 
 export default async function PublicCatalogPage() {
   const courses = await listPublicCatalogCourses();
@@ -71,7 +74,11 @@ export default async function PublicCatalogPage() {
                 </div>
                 <CardContent className="mt-auto pt-3">
                   <p className="text-xs text-muted-foreground">
-                    {course.moduleCount} module{course.moduleCount !== 1 ? "s" : ""}
+                    {[
+                      `${course.moduleCount} module${course.moduleCount !== 1 ? "s" : ""}`,
+                      course.category,
+                      formatCourseDuration(course.durationHours),
+                    ].filter(Boolean).join(" · ")}
                   </p>
                 </CardContent>
               </Card>

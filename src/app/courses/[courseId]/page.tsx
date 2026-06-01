@@ -5,6 +5,7 @@ import { notFound, redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { hasCompletedOnboarding, requireActiveParish } from "@/lib/authz";
+import { formatCourseDuration } from "@/lib/course-metadata";
 import { getPublicCoursePreview, isUserEnrolledInCourse } from "@/lib/repositories/courses";
 
 export default async function PublicCoursePage({
@@ -19,6 +20,7 @@ export default async function PublicCoursePage({
 
   const preview = await getPublicCoursePreview(courseId);
   if (!preview) notFound();
+  const duration = formatCourseDuration(preview.course.durationHours);
 
   const { userId } = await auth();
   if (userId) {
@@ -59,8 +61,13 @@ export default async function PublicCoursePage({
             <p className="max-w-2xl text-muted-foreground">{preview.course.description}</p>
           ) : null}
           <p className="text-sm text-muted-foreground">
-            {preview.modules.length} module{preview.modules.length !== 1 ? "s" : ""} ·{" "}
-            {preview.lessonCount} lesson{preview.lessonCount !== 1 ? "s" : ""}
+            {[
+              preview.course.category,
+              duration,
+              preview.course.instructor,
+              `${preview.modules.length} module${preview.modules.length !== 1 ? "s" : ""}`,
+              `${preview.lessonCount} lesson${preview.lessonCount !== 1 ? "s" : ""}`,
+            ].filter(Boolean).join(" · ")}
           </p>
           <Button asChild>
             <Link href={`/sign-up?enrollCourseId=${encodeURIComponent(courseId)}`}>Register & Enroll</Link>

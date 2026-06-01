@@ -4,10 +4,10 @@ values
   ('22222222-2222-2222-2222-222222222222', 'Holy Family Parish', 'holy-family')
 on conflict (id) do nothing;
 
-insert into courses (id, title, description, published, scope)
+insert into courses (id, title, description, instructor, duration_hours, category, published, scope)
 values
-  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'Diocese Onboarding', 'Core formation for all parishes', true, 'DIOCESE'),
-  ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'St. Mark Confirmation Prep', 'Parish-specific preparation track', true, 'PARISH')
+  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'Diocese Onboarding', 'Core formation for all parishes', 'Formation Team', 1.5, 'Leadership', true, 'DIOCESE'),
+  ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'St. Mark Confirmation Prep', 'Parish-specific preparation track', 'Parish Catechist Team', 2, 'Catechesis', true, 'PARISH')
 on conflict (id) do nothing;
 
 insert into course_parishes (course_id, parish_id)

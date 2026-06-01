@@ -1,5 +1,6 @@
 import { E2E_COURSE } from "@/lib/e2e-fixtures";
 import { isE2ESmokeMode } from "@/lib/e2e-mode";
+import type { CourseCategory } from "@/lib/course-metadata";
 import { ParishRole } from "@/lib/types";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 
@@ -16,6 +17,9 @@ export interface ParishAdminCourseRow {
   id: string;
   title: string;
   description: string | null;
+  instructor?: string | null;
+  duration_hours?: number | string | null;
+  category?: CourseCategory | null;
   published: boolean;
   scope: "DIOCESE" | "PARISH";
   publicly_browseable?: boolean;
@@ -195,7 +199,7 @@ export async function getParishAdminDashboardDataForUser({
       supabase.rpc("get_visible_courses", { p_parish_id: parishId }),
       supabase
         .from("courses")
-        .select("id,title,description,published,scope,publicly_browseable")
+        .select("id,title,description,instructor,duration_hours,category,published,scope,publicly_browseable")
         .eq("published", true)
         .eq("scope", "PARISH"),
       supabase.from("course_parishes").select("course_id").eq("parish_id", parishId),
