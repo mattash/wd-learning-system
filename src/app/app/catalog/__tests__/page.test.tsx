@@ -86,7 +86,7 @@ describe("CatalogPage enrollment confirmation", () => {
 
     render(await CatalogPage({ searchParams: Promise.resolve({}) }));
 
-    expect(screen.getByRole("link", { name: "Go to course" })).toHaveAttribute("href", "/app/courses/course-1");
+    expect(screen.getByRole("link", { name: "Open" })).toHaveAttribute("href", "/app/courses/course-1");
     expect(screen.getByText("Request sent")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Request course-3" })).toBeInTheDocument();
   });

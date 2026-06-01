@@ -1,21 +1,45 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CourseThumbnail } from "@/components/learning/emblem";
+import { ScopeBadge } from "@/components/learning/scope-badge";
+import { CategoryChip, MetaRow } from "@/components/learning/meta-row";
+import { ProgressLine } from "@/components/learning/progress-line";
+import {
+  placeholderCategory,
+  placeholderDuration,
+} from "@/components/learning/placeholders";
 import { requireParishRole } from "@/lib/authz";
-import { getCourseTreeWithProgress, isUserEnrolledInCourse } from "@/lib/repositories/courses";
+import {
+  getCourseTreeWithProgress,
+  isUserEnrolledInCourse,
+} from "@/lib/repositories/courses";
 import type { CourseLesson } from "@/lib/repositories/courses";
 
-function statusIcon(status: CourseLesson["status"]) {
-  switch (status) {
-    case "completed":
-      return <span className="mr-1.5" title="Completed">✓</span>;
-    case "in_progress":
-      return <span className="mr-1.5" title="In progress">▶</span>;
-    default:
-      return <span className="mr-1.5 text-muted-foreground" title="Not started">○</span>;
+function StatusDot({ status }: { status: CourseLesson["status"] }) {
+  if (status === "completed") {
+    return (
+      <span className="grid h-[22px] w-[22px] shrink-0 place-items-center rounded-full bg-success text-success-foreground">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+          <path d="m20 6-11 11-5-5" />
+        </svg>
+      </span>
+    );
   }
+  if (status === "in_progress") {
+    return (
+      <span className="grid h-[22px] w-[22px] shrink-0 place-items-center rounded-full bg-primary text-primary-foreground">
+        <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor" stroke="none">
+          <path d="m10 9 5 3-5 3V9Z" />
+        </svg>
+      </span>
+    );
+  }
+  return (
+    <span className="grid h-[22px] w-[22px] shrink-0 place-items-center rounded-full border-[1.5px] border-border-strong" />
+  );
 }
 
 export default async function CourseDetailPage({
@@ -36,113 +60,163 @@ export default async function CourseDetailPage({
   const allLessons = tree.modules.flatMap((m) => m.lessons);
   const completedCount = allLessons.filter((l) => l.status === "completed").length;
   const firstIncomplete = allLessons.find((l) => l.status !== "completed");
-  const progressPercent = allLessons.length > 0
-    ? Math.round((completedCount / allLessons.length) * 100)
-    : 0;
+  const progressPercent =
+    allLessons.length > 0 ? Math.round((completedCount / allLessons.length) * 100) : 0;
+
+  const category = placeholderCategory(tree.course.id);
+  const duration = placeholderDuration(allLessons.length);
+
+  const lessonNumbers = new Map<string, number>();
+  let n = 0;
+  for (const m of tree.modules) {
+    for (const l of m.lessons) {
+      n += 1;
+      lessonNumbers.set(l.id, n);
+    }
+  }
 
   return (
-    <div className="space-y-4">
-      <header className="flex items-start gap-4">
-        {/* Course thumbnail */}
-        <div className="h-28 w-28 shrink-0 overflow-hidden rounded-md border bg-muted">
-          {tree.course.thumbnailUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              alt={tree.course.title}
-              className="h-full w-full object-cover"
-              src={tree.course.thumbnailUrl}
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center text-muted-foreground">
-              <svg className="h-12 w-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} />
-              </svg>
-            </div>
-          )}
-        </div>
-        <div className="space-y-1">
-          <h1 className="text-2xl font-semibold">{tree.course.title}</h1>
-          <p className="text-sm text-muted-foreground">
-            {completedCount}/{allLessons.length} lessons complete ({progressPercent}%)
-          </p>
-        </div>
-      </header>
+    <div className="space-y-6">
+      <Link
+        href="/app/catalog"
+        className="inline-flex items-center text-[13px] font-semibold text-primary hover:underline"
+      >
+        ← Back to catalog
+      </Link>
 
-      {/* Resume button */}
-      {firstIncomplete && (
-        <Button asChild>
-          <Link href={`/app/lessons/${firstIncomplete.id}`}>
-            {firstIncomplete.status === "in_progress" ? "Resume" : "Start"} next lesson
-          </Link>
-        </Button>
-      )}
-
-      {/* Progress bar */}
-      {allLessons.length > 0 && (
-        <div className="h-2 w-full rounded-full bg-muted">
-          <div
-            className="h-2 rounded-full bg-primary transition-all duration-500"
-            style={{ width: `${progressPercent}%` }}
+      {/* Hero */}
+      <Card className="grid grid-cols-1 gap-6 p-6 sm:grid-cols-[200px_1fr] sm:gap-7">
+        <div className="aspect-square w-full max-w-[200px] self-start overflow-hidden rounded-[13px]">
+          <CourseThumbnail
+            alt={tree.course.title}
+            seed={tree.course.id}
+            thumbnailUrl={tree.course.thumbnailUrl ?? null}
           />
         </div>
-      )}
-
-      {tree.modules.map((module) => (
-        <Card key={module.id}>
-          <CardHeader>
-            <CardTitle className="text-base">{module.title}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-2">
-              {module.lessons.map((lesson) => (
-                <li className="flex items-center gap-3" key={lesson.id}>
-                  {/* Lesson thumbnail */}
-                  <div className="h-14 w-14 shrink-0 overflow-hidden rounded border bg-muted">
-                    {lesson.thumbnailUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        alt={lesson.title}
-                        className="h-full w-full object-cover"
-                        src={lesson.thumbnailUrl}
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center text-muted-foreground">
-                        <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9v4a1 1 0 001.552.83l3.197-2.132a1 1 0 000-1.666z" strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} />
-                          <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} />
-                        </svg>
-                      </div>
-                    )}
-                  </div>
-                  {statusIcon(lesson.status)}
-                  <Button
-                    asChild
-                    className="h-auto flex-1 justify-start p-0 font-medium"
-                    variant="link"
-                  >
-                    <Link href={`/app/lessons/${lesson.id}`}>{lesson.title}</Link>
-                  </Button>
-                  {lesson.bestScore > 0 && (
-                    <span className="ml-auto shrink-0 text-xs text-muted-foreground">
-                      {lesson.bestScore}%
-                    </span>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-      ))}
-
-      {allLessons.length === 0 && (
-        <Card>
-          <CardContent className="py-4">
-            <p className="text-sm text-muted-foreground">
-              No lessons have been added to this course yet.
+        <div className="flex min-w-0 flex-col gap-3.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <CategoryChip category={category} />
+            <ScopeBadge scope={tree.course.scope} />
+          </div>
+          <h1 className="font-display text-[28px] font-bold leading-tight tracking-tight">
+            {tree.course.title}
+          </h1>
+          {tree.course.description && (
+            <p className="m-0 max-w-[62ch] text-[15px] leading-relaxed text-[var(--ds-color-text-secondary)]">
+              {tree.course.description}
             </p>
-          </CardContent>
-        </Card>
-      )}
+          )}
+          <MetaRow lessons={allLessons.length} duration={duration} />
+          <div className="mt-auto flex flex-wrap items-center gap-4 pt-1">
+            {firstIncomplete ? (
+              <Button asChild size="lg">
+                <Link href={`/app/lessons/${firstIncomplete.id}`}>
+                  <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
+                    <circle cx="12" cy="12" r="9" />
+                    <path d="m10 9 5 3-5 3V9Z" fill="currentColor" stroke="none" />
+                  </svg>
+                  {progressPercent > 0 ? "Resume next lesson" : "Start course"}
+                </Link>
+              </Button>
+            ) : (
+              <span className="text-[14px] font-semibold text-success">
+                ✓ Course complete
+              </span>
+            )}
+            <ProgressLine className="min-w-[220px]" percent={progressPercent} />
+          </div>
+        </div>
+      </Card>
+
+      <div className="grid items-start gap-6 lg:grid-cols-[1fr_300px]">
+        <div className="flex flex-col" style={{ rowGap: 18 }}>
+          {tree.modules.map((module, mi) => (
+            <Card key={module.id} className="overflow-hidden rounded-2xl">
+              <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
+                <div className="flex items-center gap-3 font-display text-[17px] font-bold">
+                  <span className="grid h-[26px] w-[26px] place-items-center rounded-[7px] bg-brand-subtle font-sans text-[12px] font-bold text-primary">
+                    {mi + 1}
+                  </span>
+                  {module.title}
+                </div>
+                <span className="whitespace-nowrap text-[12.5px] font-medium text-muted-foreground">
+                  {module.lessons.length} lesson{module.lessons.length === 1 ? "" : "s"}
+                </span>
+              </div>
+              <ul>
+                {module.lessons.map((lesson) => (
+                    <li key={lesson.id}>
+                      <Link
+                        href={`/app/lessons/${lesson.id}`}
+                        className="flex items-center gap-4 border-b border-border px-5 py-3.5 transition-colors last:border-0 hover:bg-surface-raised"
+                      >
+                        <span className="w-[22px] shrink-0 text-[12px] text-muted-foreground">
+                          {String(lessonNumbers.get(lesson.id) ?? 0).padStart(2, "0")}
+                        </span>
+                        <div className="h-11 w-16 shrink-0 overflow-hidden rounded-lg">
+                          <CourseThumbnail
+                            alt={lesson.title}
+                            seed={`${tree.course.id}-${lesson.id}`}
+                            thumbnailUrl={lesson.thumbnailUrl}
+                          />
+                        </div>
+                        <StatusDot status={lesson.status} />
+                        <span className="min-w-0 flex-1 truncate text-[15px] font-medium">
+                          {lesson.title}
+                        </span>
+                        {lesson.bestScore > 0 && (
+                          <span className="shrink-0 text-[12px] font-semibold text-success">
+                            {lesson.bestScore}%
+                          </span>
+                        )}
+                      </Link>
+                    </li>
+                  ))}
+              </ul>
+            </Card>
+          ))}
+
+          {allLessons.length === 0 && (
+            <Card className="px-5 py-6">
+              <p className="text-sm text-muted-foreground">
+                No lessons have been added to this course yet.
+              </p>
+            </Card>
+          )}
+        </div>
+
+        <aside>
+          <Card className="sticky top-[80px] rounded-2xl p-6">
+            <h3 className="mb-3.5 font-display text-[15px] font-bold">
+              Course details
+            </h3>
+            <DetailRow label="Progress" value={`${completedCount}/${allLessons.length} (${progressPercent}%)`} />
+            <DetailRow label="Lessons" value={String(allLessons.length)} />
+            <DetailRow label="Duration" value={duration} />
+            <DetailRow label="Modules" value={String(tree.modules.length)} />
+            <DetailRow
+              label="Access"
+              value={tree.course.scope === "DIOCESE" ? "Diocese-wide" : "Parish"}
+            />
+            <Button className="mt-4 w-full" variant="outline" disabled>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className="mr-1.5">
+                <circle cx="12" cy="9" r="6" />
+                <path d="M9 14l-1.5 7L12 19l4.5 2L15 14" />
+              </svg>
+              View certificate
+            </Button>
+          </Card>
+        </aside>
+      </div>
+    </div>
+  );
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3 border-b border-border py-2 text-[13.5px] last:border-0">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="text-right font-semibold">{value}</span>
     </div>
   );
 }

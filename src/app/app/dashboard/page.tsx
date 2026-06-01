@@ -1,45 +1,13 @@
 import Link from "next/link";
 
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
+import { CourseThumbnail } from "@/components/learning/emblem";
+import { ProgressLine, ProgressRing } from "@/components/learning/progress-line";
+import { MetaRow } from "@/components/learning/meta-row";
+import { placeholderDuration } from "@/components/learning/placeholders";
 import { requireParishRole } from "@/lib/authz";
 import { getStudentDashboardData } from "@/lib/repositories/dashboard";
 import type { LessonActivity } from "@/lib/repositories/dashboard";
-
-function ProgressRing({ percent }: { percent: number }) {
-  const radius = 28;
-  const circumference = 2 * Math.PI * radius;
-  const offset = circumference - (percent / 100) * circumference;
-
-  return (
-    <div className="relative inline-flex items-center justify-center">
-      <svg className="h-16 w-16 -rotate-90" viewBox="0 0 64 64">
-        <circle
-          className="text-muted stroke-current"
-          cx="32"
-          cy="32"
-          fill="none"
-          r={radius}
-          stroke="currentColor"
-          strokeWidth="5"
-        />
-        <circle
-          className="text-primary stroke-current transition-all duration-500 ease-out"
-          cx="32"
-          cy="32"
-          fill="none"
-          r={radius}
-          stroke="currentColor"
-          strokeDasharray={circumference}
-          strokeDashoffset={offset}
-          strokeLinecap="round"
-          strokeWidth="5"
-        />
-      </svg>
-      <span className="absolute text-sm font-semibold">{percent}%</span>
-    </div>
-  );
-}
 
 function formatDate(value: string) {
   const date = new Date(value);
@@ -53,13 +21,9 @@ function formatDate(value: string) {
   return date.toLocaleDateString();
 }
 
-function activityIcon(
-  entry: LessonActivity,
-): { icon: string; label: string } {
-  if (entry.score !== null) {
-    return { icon: "📝", label: `Quiz: ${entry.score}%` };
-  }
-  return { icon: "✅", label: "Lesson completed" };
+function activityLabel(entry: LessonActivity) {
+  if (entry.score !== null) return { label: `Quiz: ${entry.score}%`, kind: "quiz" as const };
+  return { label: "Lesson completed", kind: "lesson" as const };
 }
 
 export default async function DashboardPage() {
@@ -77,84 +41,168 @@ export default async function DashboardPage() {
         new Date(a.lastActivityAt ?? 0).getTime(),
     );
 
-  const totalCompleted = progress.reduce(
-    (sum, c) => sum + c.completedLessons,
-    0,
-  );
+  const totalCompleted = progress.reduce((sum, c) => sum + c.completedLessons, 0);
   const totalLessons = progress.reduce((sum, c) => sum + c.totalLessons, 0);
+  const top = inProgress[0];
 
   if (progress.length === 0) {
     return (
       <div className="space-y-6">
-        <h1 className="text-2xl font-semibold">Dashboard</h1>
-        <Card>
-          <CardContent className="flex flex-col items-center gap-4 py-12">
-            <p className="text-lg font-medium">
-              You are not enrolled in any courses yet.
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Ask your parish admin to enroll you to get started.
-            </p>
-          </CardContent>
+        <h1 className="font-display text-[30px] font-bold tracking-tight">
+          Dashboard
+        </h1>
+        <Card className="px-6 py-12 text-center">
+          <p className="text-lg font-medium">
+            You are not enrolled in any courses yet.
+          </p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Ask your parish admin to enroll you to get started.
+          </p>
         </Card>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-semibold">Dashboard</h1>
-        <p className="text-sm text-muted-foreground">
+    <div className="space-y-9">
+      <header>
+        <h1 className="font-display text-[30px] font-bold leading-tight tracking-tight">
+          Welcome back
+        </h1>
+        <p className="mt-1.5 text-[15px] text-muted-foreground">
           {totalCompleted} of {totalLessons} lessons completed across{" "}
           {progress.length} course{progress.length !== 1 ? "s" : ""}
         </p>
       </header>
 
-      {/* Continue where you left off */}
+      {/* Continue learning hero */}
+      {top && (
+        <Card className="grid overflow-hidden rounded-2xl grid-cols-1 sm:grid-cols-[280px_1fr]">
+          <Link
+            aria-label={`Resume ${top.lastLessonTitle ?? top.courseTitle}`}
+            className="relative block min-h-[180px] sm:min-h-[220px]"
+            href={`/app/lessons/${top.lastLessonId}`}
+          >
+            <CourseThumbnail
+              alt={top.courseTitle}
+              seed={top.courseId}
+              thumbnailUrl={top.thumbnailUrl}
+              className="absolute inset-0"
+            />
+          </Link>
+          <div className="flex flex-col justify-center gap-3.5 px-7 py-7">
+            <div className="inline-flex items-center gap-2 whitespace-nowrap text-[12px] font-bold uppercase tracking-widest text-gold">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="9" />
+                <path d="m10 9 5 3-5 3V9Z" fill="currentColor" stroke="none" />
+              </svg>
+              Continue learning
+            </div>
+            <Link
+              className="font-display text-[26px] font-bold leading-tight tracking-tight hover:text-primary"
+              href={`/app/lessons/${top.lastLessonId}`}
+            >
+              {top.lastLessonTitle ?? "Resume next lesson"}
+            </Link>
+            <p className="m-0 text-[14.5px] text-muted-foreground">
+              {top.courseTitle}
+            </p>
+            <ProgressLine className="max-w-[360px]" percent={top.progressPercent} />
+            <div className="mt-1 flex flex-wrap items-center gap-4">
+              <Link
+                className="inline-flex items-center gap-2 rounded-[9px] bg-primary px-5 py-2.5 text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-[var(--ds-color-brand-hover)]"
+                href={`/app/lessons/${top.lastLessonId}`}
+              >
+                Resume lesson
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M5 12h14M13 6l6 6-6 6" />
+                </svg>
+              </Link>
+              <span className="text-[13px] text-muted-foreground">
+                {top.completedLessons}/{top.totalLessons} lessons complete
+              </span>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Stat strip */}
+      <div className="flex flex-wrap gap-3.5">
+        <Stat
+          icon={
+            <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m12 3 9 5-9 5-9-5 9-5Z" />
+              <path d="m3 13 9 5 9-5" />
+            </svg>
+          }
+          tone="brand"
+          num={totalCompleted}
+          label="Lessons completed"
+        />
+        <Stat
+          icon={
+            <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M4 5a2 2 0 0 1 2-2h12v16H6a2 2 0 0 0-2 2V5Z" />
+              <path d="M18 17H6a2 2 0 0 0-2 2" />
+            </svg>
+          }
+          tone="gold"
+          num={progress.length}
+          label={`Active course${progress.length === 1 ? "" : "s"}`}
+        />
+        <Stat
+          icon={
+            <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 3c1 3 4 4 4 8a4 4 0 0 1-8 0c0-1 .5-2 1-2.5C9 10 9 12 10 12c0-2 1-3 2-3 0-2-1-4 0-6Z" />
+            </svg>
+          }
+          tone="ok"
+          num={Math.max(0, totalLessons - totalCompleted)}
+          label="Lessons remaining"
+        />
+        <Stat
+          icon={
+            <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="9" r="6" />
+              <path d="M9 14l-1.5 7L12 19l4.5 2L15 14" />
+            </svg>
+          }
+          tone="gold"
+          num={progress.filter((c) => c.progressPercent === 100).length}
+          label="Courses complete"
+        />
+      </div>
+
+      {/* Pick up where you left off */}
       {inProgress.length > 0 && (
         <section>
-          <h2 className="mb-3 text-sm font-medium text-muted-foreground">
-            Continue where you left off
-          </h2>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <SectionHead title="Pick up where you left off" />
+          <div className="grid gap-4 grid-cols-1 lg:grid-cols-3">
             {inProgress.slice(0, 3).map((course) => (
               <Link
                 href={`/app/lessons/${course.lastLessonId}`}
                 key={`resume-${course.courseId}`}
-                className="min-w-0"
+                className="group min-w-0"
               >
-                <Card className="h-full overflow-hidden transition-colors hover:bg-secondary">
-                  <CardContent className="flex items-center gap-3 py-3">
-                    {/* Course thumbnail */}
-                    <div className="h-16 w-16 shrink-0 overflow-hidden rounded-md border bg-muted">
-                      {course.thumbnailUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          alt={course.courseTitle}
-                          className="h-full w-full object-cover"
-                          src={course.thumbnailUrl}
-                        />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center text-muted-foreground">
-                          <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} />
-                          </svg>
-                        </div>
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">
-                        {course.lastLessonTitle ?? "Resume"}
-                      </p>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {course.courseTitle}
-                      </p>
-                    </div>
-                    <span className="shrink-0 text-xs font-medium text-primary">
-                      Resume →
-                    </span>
-                  </CardContent>
+                <Card className="flex items-center gap-3.5 p-3.5 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:border-border-strong group-hover:shadow-md">
+                  <div className="h-[60px] w-[60px] shrink-0 overflow-hidden rounded-[10px]">
+                    <CourseThumbnail
+                      alt={course.courseTitle}
+                      seed={course.courseId}
+                      thumbnailUrl={course.thumbnailUrl}
+                    />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="line-clamp-1 text-[14.5px] font-semibold leading-tight">
+                      {course.lastLessonTitle ?? "Resume"}
+                    </p>
+                    <p className="mt-0.5 truncate text-[12.5px] text-muted-foreground">
+                      {course.courseTitle}
+                    </p>
+                  </div>
+                  <span className="shrink-0 whitespace-nowrap text-[13px] font-semibold text-primary">
+                    Resume →
+                  </span>
                 </Card>
               </Link>
             ))}
@@ -162,59 +210,43 @@ export default async function DashboardPage() {
         </section>
       )}
 
-      {/* Course progress */}
+      {/* Your courses */}
       <section>
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-sm font-medium text-muted-foreground">
-            Your courses
-          </h2>
-          <Link
-            className="text-xs font-medium text-primary hover:underline"
-            href="/app/courses"
-          >
-            View all
-          </Link>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-1 lg:grid-cols-2">
+        <SectionHead
+          title="Your courses"
+          link={{ href: "/app/courses", label: "View all" }}
+        />
+        <div className="grid gap-5 grid-cols-1 lg:grid-cols-2">
           {progress.map((course) => (
             <Link
               href={`/app/courses/${course.courseId}`}
               key={course.courseId}
-              className="min-w-0"
+              className="group min-w-0"
             >
-              <Card className="h-full overflow-hidden transition-colors hover:bg-secondary">
-                <CardContent className="flex items-center gap-4 py-4">
-                  {/* Thumbnail */}
-                  <div className="h-20 w-20 shrink-0 overflow-hidden rounded-md border bg-muted">
-                    {course.thumbnailUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        alt={course.courseTitle}
-                        className="h-full w-full object-cover"
-                        src={course.thumbnailUrl}
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center text-muted-foreground">
-                        <svg className="h-10 w-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} />
-                        </svg>
-                      </div>
-                    )}
-                  </div>
-                  <ProgressRing percent={course.progressPercent} />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium">{course.courseTitle}</p>
-                    {course.courseDescription && (
-                      <p className="truncate text-xs text-muted-foreground">
-                        {course.courseDescription}
-                      </p>
-                    )}
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {course.completedLessons}/{course.totalLessons} lessons
-                      complete
+              <Card className="flex items-center gap-4 p-4 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:border-border-strong group-hover:shadow-md">
+                <div className="h-[88px] w-[88px] shrink-0 overflow-hidden rounded-xl">
+                  <CourseThumbnail
+                    alt={course.courseTitle}
+                    seed={course.courseId}
+                    thumbnailUrl={course.thumbnailUrl}
+                  />
+                </div>
+                <ProgressRing percent={course.progressPercent} />
+                <div className="min-w-0 flex-1">
+                  <p className="font-display text-[16px] font-bold leading-tight">
+                    {course.courseTitle}
+                  </p>
+                  {course.courseDescription && (
+                    <p className="mt-1 line-clamp-1 text-[13px] text-muted-foreground">
+                      {course.courseDescription}
                     </p>
-                  </div>
-                </CardContent>
+                  )}
+                  <MetaRow
+                    className="mt-2.5"
+                    lessons={course.totalLessons}
+                    duration={placeholderDuration(course.totalLessons)}
+                  />
+                </div>
               </Card>
             </Link>
           ))}
@@ -224,44 +256,106 @@ export default async function DashboardPage() {
       {/* Recent activity */}
       {recentActivity.length > 0 && (
         <section>
-          <h2 className="mb-3 text-sm font-medium text-muted-foreground">
-            Recent activity
-          </h2>
-          <Card>
-            <CardContent className="py-2">
-              <ul className="divide-y divide-border">
-                {recentActivity.map((entry, index) => {
-                  const { icon, label } = activityIcon(entry);
-                  return (
-                    <li
-                      className="flex items-center gap-3 py-2.5"
-                      key={`${entry.lessonId}-${entry.activityAt}-${index}`}
+          <SectionHead title="Recent activity" />
+          <Card className="px-5 py-1">
+            <ul>
+              {recentActivity.map((entry, index) => {
+                const { label, kind } = activityLabel(entry);
+                return (
+                  <li
+                    className="flex items-center gap-3.5 border-b border-border py-3.5 last:border-0"
+                    key={`${entry.lessonId}-${entry.activityAt}-${index}`}
+                  >
+                    <div
+                      className={
+                        "grid h-[22px] w-[22px] shrink-0 place-items-center rounded-full " +
+                        (kind === "quiz"
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-success text-success-foreground")
+                      }
                     >
-                      <span className="text-lg">{icon}</span>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium">
-                          {entry.lessonTitle}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {entry.courseTitle} · {label}
-                        </p>
-                      </div>
-                      <span className="shrink-0 text-xs text-muted-foreground">
-                        {formatDate(entry.activityAt)}
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
-            </CardContent>
+                      {kind === "quiz" ? (
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="9" r="6" />
+                          <path d="M9 14l-1.5 7L12 19l4.5 2L15 14" />
+                        </svg>
+                      ) : (
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="m20 6-11 11-5-5" />
+                        </svg>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[14.5px] font-semibold">
+                        {entry.lessonTitle}
+                      </p>
+                      <p className="text-[12.5px] text-muted-foreground">
+                        {entry.courseTitle} · {label}
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-[12.5px] text-muted-foreground">
+                      {formatDate(entry.activityAt)}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
           </Card>
         </section>
       )}
+    </div>
+  );
+}
 
-      <div className="flex justify-end">
-        <Button asChild variant="outline">
-          <Link href="/app/courses">View all courses</Link>
-        </Button>
+function SectionHead({
+  title,
+  link,
+}: {
+  title: string;
+  link?: { href: string; label: string };
+}) {
+  return (
+    <div className="mb-4 flex items-baseline justify-between">
+      <h2 className="whitespace-nowrap text-[13px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+        {title}
+      </h2>
+      {link && (
+        <Link
+          className="whitespace-nowrap text-[13px] font-semibold text-primary hover:underline"
+          href={link.href}
+        >
+          {link.label}
+        </Link>
+      )}
+    </div>
+  );
+}
+
+function Stat({
+  icon,
+  tone,
+  num,
+  label,
+}: {
+  icon: React.ReactNode;
+  tone: "brand" | "gold" | "ok";
+  num: number;
+  label: string;
+}) {
+  const toneClass =
+    tone === "brand"
+      ? "bg-brand-subtle text-primary"
+      : tone === "gold"
+        ? "bg-gold-subtle text-gold"
+        : "bg-success-subtle text-success";
+  return (
+    <div className="flex min-w-[160px] flex-1 items-center gap-3.5 rounded-[13px] border border-border bg-card px-5 py-4">
+      <div className={"grid h-[42px] w-[42px] shrink-0 place-items-center rounded-[11px] " + toneClass}>
+        {icon}
+      </div>
+      <div>
+        <div className="font-display text-[22px] font-bold leading-none">{num}</div>
+        <div className="mt-1 text-[12.5px] text-muted-foreground">{label}</div>
       </div>
     </div>
   );
