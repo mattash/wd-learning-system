@@ -1,14 +1,22 @@
 import Link from "next/link";
 
-import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { CourseThumbnail } from "@/components/learning/emblem";
+import { ScopeBadge } from "@/components/learning/scope-badge";
+import { CategoryChip, MetaRow } from "@/components/learning/meta-row";
+import {
+  CATEGORY_LIST,
+  placeholderCategory,
+  placeholderDuration,
+} from "@/components/learning/placeholders";
+import { RequestJoinButton } from "@/components/course-join/request-join-button";
 import { requireParishRole } from "@/lib/authz";
 import { getCatalogCourses } from "@/lib/repositories/catalog";
 import { getStudentPendingRequests } from "@/lib/repositories/course-join-requests";
 import type { CatalogCourse } from "@/lib/repositories/catalog";
-import { RequestJoinButton } from "@/components/course-join/request-join-button";
 
 function CourseCard({
   course,
@@ -17,64 +25,56 @@ function CourseCard({
   course: CatalogCourse;
   hasPendingRequest: boolean;
 }) {
+  const category = placeholderCategory(course.id);
+  const duration = placeholderDuration(course.lessonCount);
+
   return (
-    <Card className="flex h-full flex-col overflow-hidden transition-colors hover:bg-secondary/50">
-      <div className="flex gap-3 p-4 pb-0">
-        {/* Thumbnail */}
-        <div className="h-28 w-28 shrink-0 overflow-hidden rounded-md border bg-muted">
-          {course.thumbnailUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              alt={course.title}
-              className="h-full w-full object-cover"
-              src={course.thumbnailUrl}
-            />
-          ) : (
-            <div className="flex h-full items-center justify-center text-muted-foreground">
-              <svg className="h-12 w-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} />
-              </svg>
-            </div>
-          )}
+    <Card
+      id={`course-${course.id}`}
+      className="group flex h-full scroll-mt-24 flex-col overflow-hidden rounded-2xl transition-all duration-200 hover:-translate-y-0.5 hover:border-border-strong hover:shadow-md"
+    >
+      <Link
+        aria-label={course.title}
+        className="relative block aspect-video w-full"
+        href={course.enrolled ? `/app/courses/${course.id}` : `#course-${course.id}`}
+      >
+        <div className="absolute inset-0">
+          <CourseThumbnail alt={course.title} seed={course.id} thumbnailUrl={course.thumbnailUrl} />
         </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-2">
-            <CardTitle className="text-base">{course.title}</CardTitle>
-            <span
-              className={[
-                "shrink-0 rounded-full px-2 py-0.5 text-xs font-medium",
-                course.scope === "DIOCESE"
-                  ? "bg-primary/10 text-primary"
-                  : "bg-secondary text-secondary-foreground",
-              ].join(" ")}
-            >
-              {course.scope === "DIOCESE" ? "Diocese-wide" : "Parish"}
+        <div className="absolute left-3 top-3 z-10">
+          <ScopeBadge scope={course.scope} onMedia />
+        </div>
+      </Link>
+      <div className="flex flex-1 flex-col gap-2.5 px-5 py-4">
+        <div>
+          <CategoryChip category={category} />
+        </div>
+        <Link
+          className="line-clamp-2 font-display text-[17px] font-bold leading-snug tracking-tight hover:text-primary"
+          href={course.enrolled ? `/app/courses/${course.id}` : `#course-${course.id}`}
+        >
+          {course.title}
+        </Link>
+        {course.description && (
+          <p className="line-clamp-2 text-[13.5px] leading-snug text-muted-foreground">
+            {course.description}
+          </p>
+        )}
+        <div className="mt-auto flex items-center justify-between gap-3 pt-1">
+          <MetaRow lessons={course.lessonCount} duration={duration} />
+          {course.enrolled ? (
+            <Button asChild size="sm" variant="outline">
+              <Link href={`/app/courses/${course.id}`}>Open</Link>
+            </Button>
+          ) : hasPendingRequest ? (
+            <span className="whitespace-nowrap text-[12.5px] font-semibold text-success">
+              Request sent
             </span>
-          </div>
-          {course.description && (
-            <CardDescription className="line-clamp-2 mt-0.5">
-              {course.description}
-            </CardDescription>
+          ) : (
+            <RequestJoinButton courseId={course.id} />
           )}
         </div>
       </div>
-      <CardContent className="mt-auto space-y-3 pt-3">
-        <p className="text-xs text-muted-foreground">
-          {course.lessonCount} lesson{course.lessonCount !== 1 ? "s" : ""}
-        </p>
-        {course.enrolled ? (
-          <Button asChild className="w-full" variant="outline">
-            <Link href={`/app/courses/${course.id}`}>Go to course</Link>
-          </Button>
-        ) : hasPendingRequest ? (
-          <div className="space-y-1">
-            <p className="text-sm font-medium text-success">Request sent</p>
-            <p className="text-xs text-muted-foreground">Your parish admin will review it soon.</p>
-          </div>
-        ) : (
-          <RequestJoinButton courseId={course.id} />
-        )}
-      </CardContent>
     </Card>
   );
 }
@@ -90,40 +90,34 @@ export default async function CatalogPage({
 
   const rawQ = params.q;
   const query = Array.isArray(rawQ) ? rawQ[0] : (rawQ?.trim() ?? "");
+  const rawCat = params.category;
+  const category = Array.isArray(rawCat) ? rawCat[0] : (rawCat ?? "All");
   const enrollmentStatus = Array.isArray(params.enrollment) ? params.enrollment[0] : params.enrollment;
   const showEnrollmentConfirmation = enrollmentStatus === "requested";
 
-  // Get pending join requests so we can show "Request sent" on course cards
   const pendingRequests = await getStudentPendingRequests({ parishId, clerkUserId });
   const pendingCourseIds = new Set(pendingRequests.map((r) => r.courseId));
 
-  const enrolled = allCourses.filter((c) => c.enrolled);
-  const unenrolled = allCourses.filter((c) => !c.enrolled);
+  const matchesQuery = (c: CatalogCourse) =>
+    query.length === 0 ||
+    c.title.toLowerCase().includes(query.toLowerCase()) ||
+    (c.description?.toLowerCase().includes(query.toLowerCase()) ?? false);
 
-  const filteredEnrolled =
-    query.length > 0
-      ? enrolled.filter(
-          (c) =>
-            c.title.toLowerCase().includes(query.toLowerCase()) ||
-            (c.description?.toLowerCase().includes(query.toLowerCase()) ?? false),
-        )
-      : enrolled;
+  const matchesCategory = (c: CatalogCourse) =>
+    category === "All" || placeholderCategory(c.id) === category;
 
-  const filteredUnenrolled =
-    query.length > 0
-      ? unenrolled.filter(
-          (c) =>
-            c.title.toLowerCase().includes(query.toLowerCase()) ||
-            (c.description?.toLowerCase().includes(query.toLowerCase()) ?? false),
-        )
-      : unenrolled;
+  const filtered = allCourses.filter((c) => matchesQuery(c) && matchesCategory(c));
+  const enrolled = filtered.filter((c) => c.enrolled);
+  const available = filtered.filter((c) => !c.enrolled);
 
   return (
-    <div className="space-y-6">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-semibold">Course Catalog</h1>
-        <p className="text-sm text-muted-foreground">
-          Browse available courses and track your enrolled ones.
+    <div className="space-y-9">
+      <header>
+        <h1 className="font-display text-[30px] font-bold leading-tight tracking-tight">
+          Course Catalog
+        </h1>
+        <p className="mt-1.5 text-[15px] text-muted-foreground">
+          Browse the diocese library and track the courses you&apos;re enrolled in.
         </p>
       </header>
 
@@ -135,52 +129,109 @@ export default async function CatalogPage({
         </Alert>
       ) : null}
 
-      {/* Search */}
-      <form className="flex gap-2">
-        <label className="sr-only" htmlFor="catalog-search">
-          Search courses
-        </label>
-        <Input
-          className="max-w-sm"
-          defaultValue={query}
-          id="catalog-search"
-          name="q"
-          placeholder="Search courses..."
-          type="search"
-        />
-        <Button type="submit" variant="secondary">
-          Search
-        </Button>
-        {query && (
-          <Button asChild type="button" variant="ghost">
-            <Link href="/app/catalog">Clear</Link>
+      {/* Search + categories */}
+      <div className="space-y-4">
+        <form className="flex flex-wrap gap-2.5">
+          <div className="relative w-full max-w-[460px]">
+            <svg
+              viewBox="0 0 24 24"
+              width="17"
+              height="17"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.9"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground"
+            >
+              <circle cx="11" cy="11" r="7" />
+              <path d="m21 21-4.3-4.3" />
+            </svg>
+            <Input
+              className="h-11 w-full rounded-[10px] pl-10 text-[14.5px]"
+              defaultValue={query}
+              id="catalog-search"
+              name="q"
+              placeholder="Search courses…"
+              type="search"
+            />
+            {category !== "All" && (
+              <input type="hidden" name="category" value={category} />
+            )}
+          </div>
+          <Button type="submit" variant="secondary">
+            Search
           </Button>
-        )}
-      </form>
+          {query && (
+            <Button asChild type="button" variant="ghost">
+              <Link
+                href={category === "All" ? "/app/catalog" : `/app/catalog?category=${encodeURIComponent(category)}`}
+              >
+                Clear
+              </Link>
+            </Button>
+          )}
+        </form>
+        <div className="flex flex-wrap gap-2.5">
+          {CATEGORY_LIST.map((c) => {
+            const isActive = category === c;
+            const href =
+              c === "All"
+                ? query
+                  ? `/app/catalog?q=${encodeURIComponent(query)}`
+                  : "/app/catalog"
+                : `/app/catalog?category=${encodeURIComponent(c)}${query ? `&q=${encodeURIComponent(query)}` : ""}`;
+            return (
+              <Link
+                key={c}
+                href={href}
+                className={
+                  "inline-flex items-center whitespace-nowrap rounded-full border px-3.5 py-1.5 text-[12px] font-semibold transition-colors " +
+                  (isActive
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-card text-muted-foreground hover:border-border-strong hover:text-foreground")
+                }
+              >
+                {c}
+              </Link>
+            );
+          })}
+        </div>
+      </div>
 
-      {/* Enrolled courses */}
-      {filteredEnrolled.length > 0 && (
+      {/* Enrolled */}
+      {enrolled.length > 0 && (
         <section>
-          <h2 className="mb-3 text-sm font-medium text-muted-foreground">
-            My enrolled courses
-          </h2>
-          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredEnrolled.map((course) => (
-              <CourseCard course={course} hasPendingRequest={pendingCourseIds.has(course.id)} key={course.id} />
+          <SectionHead title={`My enrolled courses · ${enrolled.length}`} />
+          <div className="grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+            {enrolled.map((course) => (
+              <CourseCard
+                course={course}
+                hasPendingRequest={pendingCourseIds.has(course.id)}
+                key={course.id}
+              />
             ))}
           </div>
         </section>
       )}
 
-      {/* Available courses */}
-      {filteredUnenrolled.length > 0 && (
+      {/* Available */}
+      {available.length > 0 && (
         <section>
-          <h2 className="mb-3 text-sm font-medium text-muted-foreground">
-            {query ? `Results for "${query}"` : "All available courses"}
-          </h2>
-          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredUnenrolled.map((course) => (
-              <CourseCard course={course} hasPendingRequest={pendingCourseIds.has(course.id)} key={course.id} />
+          <SectionHead
+            title={
+              query
+                ? `Results for "${query}" · ${available.length}`
+                : `${category === "All" ? "All courses" : category} · ${available.length}`
+            }
+          />
+          <div className="grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+            {available.map((course) => (
+              <CourseCard
+                course={course}
+                hasPendingRequest={pendingCourseIds.has(course.id)}
+                key={course.id}
+              />
             ))}
           </div>
         </section>
@@ -188,31 +239,29 @@ export default async function CatalogPage({
 
       {/* Empty states */}
       {allCourses.length === 0 && (
-        <Card>
-          <CardContent className="py-8 text-center">
-            <p className="text-sm text-muted-foreground">
-              No courses are available in the catalog yet.
-            </p>
-          </CardContent>
+        <Card className="px-6 py-12 text-center text-[14px] text-muted-foreground">
+          No courses are available in the catalog yet.
         </Card>
       )}
-      {allCourses.length > 0 &&
-        filteredEnrolled.length === 0 &&
-        filteredUnenrolled.length === 0 && (
-          <Card>
-            <CardContent className="py-8 text-center">
-              <p className="text-sm text-muted-foreground">
-                No courses match your search.
-              </p>
-            </CardContent>
-          </Card>
-        )}
+      {allCourses.length > 0 && enrolled.length === 0 && available.length === 0 && (
+        <Card className="px-6 py-12 text-center text-[14px] text-muted-foreground">
+          {query && category !== "All"
+            ? "No courses match your filters."
+            : query
+              ? "No courses match your search."
+              : "No courses match this category."}
+        </Card>
+      )}
+    </div>
+  );
+}
 
-      <div className="flex justify-end gap-2">
-        <Button asChild variant="outline">
-          <Link href="/app/dashboard">Back to dashboard</Link>
-        </Button>
-      </div>
+function SectionHead({ title }: { title: string }) {
+  return (
+    <div className="mb-4 flex items-baseline justify-between">
+      <h2 className="whitespace-nowrap text-[13px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+        {title}
+      </h2>
     </div>
   );
 }

@@ -71,7 +71,7 @@ export default async function AppLayout({
         showUserButton={showUserButton}
         activeParishId={activeParishId}
       />
-      <main className="mx-auto max-w-6xl px-6 py-7">{children}</main>
+      <main className="mx-auto max-w-[1240px] px-7 py-9">{children}</main>
       <HelpPanel />
     </div>
   );

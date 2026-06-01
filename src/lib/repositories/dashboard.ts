@@ -1,4 +1,4 @@
-import { E2E_COURSE } from "@/lib/e2e-fixtures";
+import { E2E_COURSE, E2E_LESSON } from "@/lib/e2e-fixtures";
 import { isE2ESmokeMode } from "@/lib/e2e-mode";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 
@@ -12,6 +12,8 @@ export interface DashboardCourseProgress {
   progressPercent: number;
   lastLessonId: string | null;
   lastLessonTitle: string | null;
+  resumeLessonId: string | null;
+  resumeLessonTitle: string | null;
   lastPositionSeconds: number;
   lastActivityAt: string | null;
 }
@@ -48,6 +50,8 @@ export async function getStudentDashboardData(
           progressPercent: 0,
           lastLessonId: null,
           lastLessonTitle: null,
+          resumeLessonId: E2E_LESSON.id,
+          resumeLessonTitle: E2E_LESSON.title,
           lastPositionSeconds: 0,
           lastActivityAt: null,
         },
@@ -101,23 +105,26 @@ export async function getStudentDashboardData(
   const courseIds = enrolledCourses.map((c) => c.courseId);
   const { data: modulesData, error: modError } = await supabase
     .from("modules")
-    .select("id, course_id, lessons(id, title)")
+    .select("id, course_id, lessons(id, title, sort_order)")
     .in("course_id", courseIds)
     .order("sort_order", { ascending: true });
 
   if (modError) throw modError;
 
-  // Flatten lessons per course
+  // Flatten lessons per course in curriculum order
   const lessonsByCourse = new Map<string, Array<{ id: string; title: string }>>();
   for (const mod of (modulesData ?? []) as Array<{
     course_id: string;
-    lessons: Array<{ id: string; title: string }>;
+    lessons: Array<{ id: string; title: string; sort_order: number }>;
   }>) {
     if (!lessonsByCourse.has(mod.course_id)) {
       lessonsByCourse.set(mod.course_id, []);
     }
-    for (const lesson of mod.lessons ?? []) {
-      lessonsByCourse.get(mod.course_id)!.push(lesson);
+    const sortedLessons = [...(mod.lessons ?? [])].sort(
+      (a, b) => a.sort_order - b.sort_order,
+    );
+    for (const lesson of sortedLessons) {
+      lessonsByCourse.get(mod.course_id)!.push({ id: lesson.id, title: lesson.title });
     }
   }
 
@@ -134,6 +141,8 @@ export async function getStudentDashboardData(
       progressPercent: 0,
       lastLessonId: null,
       lastLessonTitle: null,
+      resumeLessonId: null,
+      resumeLessonTitle: null,
       lastPositionSeconds: 0,
       lastActivityAt: null,
     };
@@ -182,6 +191,15 @@ export async function getStudentDashboardData(
           course.lastLessonTitle = lesson.title;
           course.lastPositionSeconds = p.last_position_seconds;
         }
+      }
+    }
+
+    for (const lesson of lessons) {
+      const p = progressByLesson.get(lesson.id);
+      if (!p?.completed) {
+        course.resumeLessonId = lesson.id;
+        course.resumeLessonTitle = lesson.title;
+        break;
       }
     }
 

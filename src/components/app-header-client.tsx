@@ -32,7 +32,7 @@ export function AppHeaderClient({
 
   return (
     <header className="sticky top-0 z-50 border-b border-nav-border bg-nav-bg shadow-sm transition-colors duration-250">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 h-[52px]">
+      <div className="mx-auto flex max-w-[1240px] items-center justify-between px-7 h-[52px]">
         {/* Logo */}
         <div className="flex items-center gap-2">
           <div className="flex h-[26px] w-[26px] items-center justify-center rounded-[5px] bg-primary">
