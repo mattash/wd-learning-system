@@ -7,10 +7,7 @@ import { CourseThumbnail } from "@/components/learning/emblem";
 import { ScopeBadge } from "@/components/learning/scope-badge";
 import { CategoryChip, MetaRow } from "@/components/learning/meta-row";
 import { ProgressLine } from "@/components/learning/progress-line";
-import {
-  placeholderCategory,
-  placeholderDuration,
-} from "@/components/learning/placeholders";
+import { formatCourseDuration } from "@/lib/course-metadata";
 import { requireParishRole } from "@/lib/authz";
 import {
   getCourseTreeWithProgress,
@@ -63,8 +60,7 @@ export default async function CourseDetailPage({
   const progressPercent =
     allLessons.length > 0 ? Math.round((completedCount / allLessons.length) * 100) : 0;
 
-  const category = placeholderCategory(tree.course.id);
-  const duration = placeholderDuration(allLessons.length);
+  const duration = formatCourseDuration(tree.course.durationHours);
 
   const lessonNumbers = new Map<string, number>();
   let n = 0;
@@ -95,7 +91,7 @@ export default async function CourseDetailPage({
         </div>
         <div className="flex min-w-0 flex-col gap-3.5">
           <div className="flex flex-wrap items-center gap-2">
-            <CategoryChip category={category} />
+            {tree.course.category ? <CategoryChip category={tree.course.category} /> : null}
             <ScopeBadge scope={tree.course.scope} />
           </div>
           <h1 className="font-display text-[28px] font-bold leading-tight tracking-tight">
@@ -106,7 +102,11 @@ export default async function CourseDetailPage({
               {tree.course.description}
             </p>
           )}
-          <MetaRow lessons={allLessons.length} duration={duration} />
+          <MetaRow
+            lessons={allLessons.length}
+            duration={duration}
+            instructor={tree.course.instructor}
+          />
           <div className="mt-auto flex flex-wrap items-center gap-4 pt-1">
             {firstIncomplete ? (
               <Button asChild size="lg">
@@ -196,7 +196,8 @@ export default async function CourseDetailPage({
             </h3>
             <DetailRow label="Progress" value={`${completedCount}/${allLessons.length} (${progressPercent}%)`} />
             <DetailRow label="Lessons" value={String(allLessons.length)} />
-            <DetailRow label="Duration" value={duration} />
+            {duration ? <DetailRow label="Duration" value={duration} /> : null}
+            {tree.course.instructor ? <DetailRow label="Instructor" value={tree.course.instructor} /> : null}
             <DetailRow label="Modules" value={String(tree.modules.length)} />
             <DetailRow
               label="Access"

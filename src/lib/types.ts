@@ -13,6 +13,9 @@ export interface Course {
   id: string;
   title: string;
   description: string | null;
+  instructor?: string | null;
+  durationHours?: number | null;
+  category?: string | null;
   published: boolean;
   scope: CourseScope;
 }

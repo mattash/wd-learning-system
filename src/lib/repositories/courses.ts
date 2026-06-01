@@ -1,5 +1,7 @@
 import { E2E_COURSE, E2E_LESSON, E2E_MODULE } from "@/lib/e2e-fixtures";
 import { isE2ESmokeMode } from "@/lib/e2e-mode";
+import type { CourseCategory } from "@/lib/course-metadata";
+import { parseDurationHours } from "@/lib/course-metadata";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 
 export interface VisibleCourse {
@@ -9,6 +11,9 @@ export interface VisibleCourse {
   published: boolean;
   scope: "DIOCESE" | "PARISH";
   thumbnailUrl?: string | null;
+  instructor?: string | null;
+  durationHours?: number | null;
+  category?: CourseCategory | null;
 }
 
 export interface CourseModule {
@@ -34,6 +39,8 @@ export interface PublicCatalogCourse {
   title: string;
   description: string | null;
   thumbnailUrl: string | null;
+  durationHours: number | null;
+  category: CourseCategory | null;
   moduleCount: number;
 }
 
@@ -45,6 +52,8 @@ export async function listPublicCatalogCourses(): Promise<PublicCatalogCourse[]>
         title: E2E_COURSE.title,
         description: E2E_COURSE.description,
         thumbnailUrl: "/globe.svg",
+        durationHours: 1,
+        category: "Leadership",
         moduleCount: 1,
       },
     ];
@@ -53,7 +62,7 @@ export async function listPublicCatalogCourses(): Promise<PublicCatalogCourse[]>
   const supabase = getSupabaseAdminClient();
   const { data: courses, error: coursesError } = await supabase
     .from("courses")
-    .select("id,title,description,thumbnail_url")
+    .select("id,title,description,thumbnail_url,duration_hours,category")
     .eq("published", true)
     .eq("publicly_browseable", true)
     .order("title", { ascending: true });
@@ -79,11 +88,15 @@ export async function listPublicCatalogCourses(): Promise<PublicCatalogCourse[]>
     title: string;
     description: string | null;
     thumbnail_url: string | null;
+    duration_hours: number | string | null;
+    category: CourseCategory | null;
   }>).map((course) => ({
     id: course.id,
     title: course.title,
     description: course.description,
     thumbnailUrl: course.thumbnail_url,
+    durationHours: parseDurationHours(course.duration_hours),
+    category: course.category,
     moduleCount: countByCourseId.get(course.id) ?? 0,
   }));
 }
@@ -108,7 +121,7 @@ export async function getPublicCoursePreview(courseId: string): Promise<PublicCo
   const supabase = getSupabaseAdminClient();
   const { data: course, error: courseError } = await supabase
     .from("courses")
-    .select("id,title,description,published,scope,thumbnail_url")
+    .select("id,title,description,published,scope,thumbnail_url,instructor,duration_hours,category")
     .eq("id", courseId)
     .eq("published", true)
     .maybeSingle();
@@ -142,6 +155,9 @@ export async function getPublicCoursePreview(courseId: string): Promise<PublicCo
       published: true,
       scope: course.scope as "DIOCESE" | "PARISH",
       thumbnailUrl: (course.thumbnail_url as string | null) ?? null,
+      instructor: (course.instructor as string | null) ?? null,
+      durationHours: parseDurationHours(course.duration_hours as number | string | null),
+      category: (course.category as CourseCategory | null) ?? null,
     },
     modules: previewModules,
     lessonCount: previewModules.reduce((sum, module) => sum + module.lessons.length, 0),
@@ -236,13 +252,25 @@ export async function getCourseTree(courseId: string, parishId: string) {
 
   if (!course) return null;
 
-  // Fetch course thumbnail separately (RPC may not return it)
+  // Fetch metadata separately; the visibility RPC returns only the core course fields.
   const { data: courseRow } = await supabase
     .from("courses")
-    .select("thumbnail_url")
+    .select("thumbnail_url,instructor,duration_hours,category")
     .eq("id", courseId)
     .single();
-  const courseWithThumbnail = { ...course, thumbnailUrl: (courseRow as { thumbnail_url?: string } | null)?.thumbnail_url ?? null };
+  const metadata = courseRow as {
+    thumbnail_url?: string | null;
+    instructor?: string | null;
+    duration_hours?: number | string | null;
+    category?: CourseCategory | null;
+  } | null;
+  const courseWithMetadata = {
+    ...course,
+    thumbnailUrl: metadata?.thumbnail_url ?? null,
+    instructor: metadata?.instructor ?? null,
+    durationHours: parseDurationHours(metadata?.duration_hours),
+    category: metadata?.category ?? null,
+  };
 
   const { data: modules, error: modulesError } = await supabase
     .from("modules")
@@ -251,7 +279,7 @@ export async function getCourseTree(courseId: string, parishId: string) {
     .order("sort_order", { ascending: true });
 
   if (modulesError) throw modulesError;
-  return { course: courseWithThumbnail, modules: ((modules ?? []) as CourseModule[]) ?? [] };
+  return { course: courseWithMetadata, modules: ((modules ?? []) as CourseModule[]) ?? [] };
 }
 
 export interface CourseLesson {

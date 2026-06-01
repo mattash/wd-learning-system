@@ -33,6 +33,9 @@ npm run content:import -- <path-to-file> [options]
 course:
   title: "Course Title"
   description: "Optional course description"
+  instructor: "Optional instructor name"
+  duration_hours: 6                  # optional numeric estimate
+  category: "Catechesis"             # Scripture, Catechesis, Leadership, or Seasonal
   thumbnail_url: "/globe.svg"         # local file, R2 upload, or https:// URL
   published: false                   # false = draft, true = live
   scope: "DIOCESE"                   # DIOCESE or PARISH

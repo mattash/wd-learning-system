@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 
 import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
+import { formatCourseDuration } from "@/lib/course-metadata";
 import { listPublicCatalogCourses } from "@/lib/repositories/courses";
 
 export const metadata: Metadata = {
@@ -71,7 +72,11 @@ export default async function PublicCatalogPage() {
                 </div>
                 <CardContent className="mt-auto pt-3">
                   <p className="text-xs text-muted-foreground">
-                    {course.moduleCount} module{course.moduleCount !== 1 ? "s" : ""}
+                    {[
+                      `${course.moduleCount} module${course.moduleCount !== 1 ? "s" : ""}`,
+                      course.category,
+                      formatCourseDuration(course.durationHours),
+                    ].filter(Boolean).join(" · ")}
                   </p>
                 </CardContent>
               </Card>

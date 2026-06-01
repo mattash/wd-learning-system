@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { CourseThumbnail } from "@/components/learning/emblem";
 import { ProgressLine, ProgressRing } from "@/components/learning/progress-line";
 import { MetaRow } from "@/components/learning/meta-row";
-import { placeholderDuration } from "@/components/learning/placeholders";
+import { formatCourseDuration } from "@/lib/course-metadata";
 import { requireParishRole } from "@/lib/authz";
 import { getStudentDashboardData } from "@/lib/repositories/dashboard";
 import type { LessonActivity } from "@/lib/repositories/dashboard";
@@ -28,7 +28,7 @@ function activityLabel(entry: LessonActivity) {
 
 export default async function DashboardPage() {
   const { parishId, clerkUserId } = await requireParishRole("student");
-  const { progress, recentActivity } = await getStudentDashboardData(
+  const { progress, recentActivity, dayStreak, certificatesEarned } = await getStudentDashboardData(
     parishId,
     clerkUserId,
   );
@@ -158,8 +158,8 @@ export default async function DashboardPage() {
             </svg>
           }
           tone="ok"
-          num={Math.max(0, totalLessons - totalCompleted)}
-          label="Lessons remaining"
+          num={dayStreak}
+          label="Day streak"
         />
         <Stat
           icon={
@@ -169,8 +169,8 @@ export default async function DashboardPage() {
             </svg>
           }
           tone="gold"
-          num={progress.filter((c) => c.progressPercent === 100).length}
-          label="Courses complete"
+          num={certificatesEarned}
+          label="Certificates"
         />
       </div>
 
@@ -245,7 +245,7 @@ export default async function DashboardPage() {
                   <MetaRow
                     className="mt-2.5"
                     lessons={course.totalLessons}
-                    duration={placeholderDuration(course.totalLessons)}
+                    duration={formatCourseDuration(course.durationHours)}
                   />
                 </div>
               </Card>

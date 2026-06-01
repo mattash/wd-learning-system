@@ -1,4 +1,5 @@
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
+import type { CourseCategory } from "@/lib/course-metadata";
 
 export interface DioceseOverview {
   parishCount: number;
@@ -34,6 +35,9 @@ export interface DioceseCourseRow {
   title: string;
   description: string | null;
   thumbnail_url: string | null;
+  instructor: string | null;
+  duration_hours: number | string | null;
+  category: CourseCategory | null;
   scope: "DIOCESE" | "PARISH";
   published: boolean;
   publicly_browseable: boolean;
@@ -254,7 +258,7 @@ export async function listCourses(limit = 25): Promise<DioceseCourseRow[]> {
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("courses")
-    .select("id,title,description,thumbnail_url,scope,published,publicly_browseable,created_at,updated_at")
+    .select("id,title,description,thumbnail_url,instructor,duration_hours,category,scope,published,publicly_browseable,created_at,updated_at")
     .order("updated_at", { ascending: false })
     .limit(limit);
 
@@ -289,7 +293,7 @@ export async function getCourseContentForAdmin(courseId: string) {
   const supabase = getSupabaseAdminClient();
   const { data: course, error: courseError } = await supabase
     .from("courses")
-    .select("id,title,description,thumbnail_url,scope,published,created_at,updated_at")
+    .select("id,title,description,thumbnail_url,instructor,duration_hours,category,scope,published,publicly_browseable,created_at,updated_at")
     .eq("id", courseId)
     .maybeSingle();
 

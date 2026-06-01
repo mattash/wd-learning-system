@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { requireDioceseAdmin } from "@/lib/authz";
+import { COURSE_CATEGORIES } from "@/lib/course-metadata";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 
 const optionalThumbnailSchema = z
@@ -14,6 +15,9 @@ const optionalThumbnailSchema = z
 const createCourseSchema = z.object({
   title: z.string().min(1),
   description: z.string().nullable().optional(),
+  instructor: z.string().trim().max(160).nullable().optional(),
+  durationHours: z.number().positive().nullable().optional(),
+  category: z.enum(COURSE_CATEGORIES).nullable().optional(),
   thumbnailUrl: optionalThumbnailSchema,
   scope: z.enum(["DIOCESE", "PARISH"]),
   published: z.boolean().default(false),
@@ -25,7 +29,7 @@ export async function GET() {
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("courses")
-    .select("id,title,description,thumbnail_url,scope,published,publicly_browseable,created_at,updated_at")
+    .select("id,title,description,thumbnail_url,instructor,duration_hours,category,scope,published,publicly_browseable,created_at,updated_at")
     .order("updated_at", { ascending: false });
 
   if (error) {
@@ -51,12 +55,15 @@ export async function POST(req: Request) {
     .insert({
       title: payload.title,
       description: payload.description ?? null,
+      instructor: payload.instructor ?? null,
+      duration_hours: payload.durationHours ?? null,
+      category: payload.category ?? null,
       thumbnail_url: payload.thumbnailUrl,
       scope: payload.scope,
       published: payload.published,
       publicly_browseable: payload.publiclyBrowseable,
     })
-    .select("id,title,description,thumbnail_url,scope,published,publicly_browseable,created_at,updated_at")
+    .select("id,title,description,thumbnail_url,instructor,duration_hours,category,scope,published,publicly_browseable,created_at,updated_at")
     .single();
 
   if (error) {

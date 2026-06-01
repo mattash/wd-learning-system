@@ -7,11 +7,7 @@ import { Button } from "@/components/ui/button";
 import { CourseThumbnail } from "@/components/learning/emblem";
 import { ScopeBadge } from "@/components/learning/scope-badge";
 import { CategoryChip, MetaRow } from "@/components/learning/meta-row";
-import {
-  CATEGORY_LIST,
-  placeholderCategory,
-  placeholderDuration,
-} from "@/components/learning/placeholders";
+import { COURSE_CATEGORY_LIST, formatCourseDuration } from "@/lib/course-metadata";
 import { RequestJoinButton } from "@/components/course-join/request-join-button";
 import { requireParishRole } from "@/lib/authz";
 import { getCatalogCourses } from "@/lib/repositories/catalog";
@@ -25,8 +21,7 @@ function CourseCard({
   course: CatalogCourse;
   hasPendingRequest: boolean;
 }) {
-  const category = placeholderCategory(course.id);
-  const duration = placeholderDuration(course.lessonCount);
+  const duration = formatCourseDuration(course.durationHours);
 
   return (
     <Card
@@ -46,9 +41,11 @@ function CourseCard({
         </div>
       </Link>
       <div className="flex flex-1 flex-col gap-2.5 px-5 py-4">
-        <div>
-          <CategoryChip category={category} />
-        </div>
+        {course.category ? (
+          <div>
+            <CategoryChip category={course.category} />
+          </div>
+        ) : null}
         <Link
           className="line-clamp-2 font-display text-[17px] font-bold leading-snug tracking-tight hover:text-primary"
           href={course.enrolled ? `/app/courses/${course.id}` : `#course-${course.id}`}
@@ -104,7 +101,7 @@ export default async function CatalogPage({
     (c.description?.toLowerCase().includes(query.toLowerCase()) ?? false);
 
   const matchesCategory = (c: CatalogCourse) =>
-    category === "All" || placeholderCategory(c.id) === category;
+    category === "All" || c.category === category;
 
   const filtered = allCourses.filter((c) => matchesQuery(c) && matchesCategory(c));
   const enrolled = filtered.filter((c) => c.enrolled);
@@ -173,7 +170,7 @@ export default async function CatalogPage({
           )}
         </form>
         <div className="flex flex-wrap gap-2.5">
-          {CATEGORY_LIST.map((c) => {
+          {COURSE_CATEGORY_LIST.map((c) => {
             const isActive = category === c;
             const href =
               c === "All"

@@ -65,6 +65,16 @@ function quizAttemptsMock(returnData: unknown) {
   };
 }
 
+function certificatesMock(count = 0) {
+  return {
+    select: vi.fn(() => ({
+      eq: vi.fn(() => ({
+        eq: vi.fn(async () => ({ count, error: null })),
+      })),
+    })),
+  };
+}
+
 describe("getStudentDashboardData", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -83,6 +93,8 @@ describe("getStudentDashboardData", () => {
               title: "Visible Course",
               description: "Available to parish",
               thumbnail_url: "/visible.png",
+              duration_hours: 3,
+              category: "Catechesis",
             },
           },
           {
@@ -92,6 +104,8 @@ describe("getStudentDashboardData", () => {
               title: "Hidden Course",
               description: "No longer adopted",
               thumbnail_url: "/hidden.png",
+              duration_hours: null,
+              category: null,
             },
           },
         ]);
@@ -120,6 +134,9 @@ describe("getStudentDashboardData", () => {
       if (table === "quiz_attempts") {
         return quizAttemptsMock([]);
       }
+      if (table === "certificates") {
+        return certificatesMock(1);
+      }
       throw new Error(`Unexpected table ${table}`);
     });
     const rpc = vi.fn(async (name: string, params: { p_parish_id: string }) => {
@@ -141,6 +158,8 @@ describe("getStudentDashboardData", () => {
       courseTitle: "Visible Course",
       completedLessons: 1,
       progressPercent: 100,
+      durationHours: 3,
+      category: "Catechesis",
     });
     expect(result.recentActivity).toHaveLength(1);
     expect(result.recentActivity[0]).toMatchObject({
@@ -162,6 +181,8 @@ describe("getStudentDashboardData", () => {
               title: "Visible Course",
               description: null,
               thumbnail_url: null,
+              duration_hours: null,
+              category: null,
             },
           },
         ]);
@@ -189,6 +210,9 @@ describe("getStudentDashboardData", () => {
       }
       if (table === "quiz_attempts") {
         return quizAttemptsMock([]);
+      }
+      if (table === "certificates") {
+        return certificatesMock();
       }
       throw new Error(`Unexpected table ${table}`);
     });

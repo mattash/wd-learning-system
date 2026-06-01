@@ -6,7 +6,6 @@ import { CourseThumbnail } from "@/components/learning/emblem";
 import { ScopeBadge } from "@/components/learning/scope-badge";
 import { CategoryChip } from "@/components/learning/meta-row";
 import { ProgressLine } from "@/components/learning/progress-line";
-import { placeholderCategory } from "@/components/learning/placeholders";
 import { requireParishRole } from "@/lib/authz";
 import { getStudentDashboardData } from "@/lib/repositories/dashboard";
 import { listVisibleCourses } from "@/lib/repositories/courses";
@@ -59,7 +58,6 @@ export default async function CoursesPage({
       <div className="flex flex-col" style={{ rowGap: 18 }}>
         {progress.map((course) => {
           const scope = scopeByCourseId.get(course.courseId) ?? "DIOCESE";
-          const category = placeholderCategory(course.courseId);
           const isStarted =
             course.progressPercent > 0 || course.lastActivityAt !== null;
           const targetHref = course.resumeLessonId
@@ -86,7 +84,7 @@ export default async function CoursesPage({
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="mb-1 flex flex-wrap items-center gap-2">
-                    <CategoryChip category={category} />
+                    {course.category ? <CategoryChip category={course.category} /> : null}
                     <ScopeBadge scope={scope} />
                   </div>
                   <p className="font-display text-[16.5px] font-bold leading-snug">
