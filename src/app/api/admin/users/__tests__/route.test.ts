@@ -16,25 +16,43 @@ function createUserProfilesQuery({
   data,
   error = null,
   onIn,
+  events,
 }: {
   data: unknown[];
   error?: { message: string } | null;
   onIn?: (column: string, values: string[]) => void;
+  events?: string[];
 }) {
   const query = {
-    or: vi.fn(() => query),
-    not: vi.fn(() => query),
-    is: vi.fn(() => query),
+    or: vi.fn(() => {
+      events?.push("or");
+      return query;
+    }),
+    not: vi.fn(() => {
+      events?.push("not");
+      return query;
+    }),
+    is: vi.fn(() => {
+      events?.push("is");
+      return query;
+    }),
     in: vi.fn((column: string, values: string[]) => {
+      events?.push("in");
       onIn?.(column, values);
       return query;
     }),
-    order: vi.fn(() => ({
-      limit: vi.fn(async () => ({
-        data,
-        error,
-      })),
-    })),
+    order: vi.fn(() => {
+      events?.push("order");
+      return {
+        limit: vi.fn(async () => {
+          events?.push("limit");
+          return {
+            data,
+            error,
+          };
+        }),
+      };
+    }),
   };
 
   return query;
@@ -210,6 +228,94 @@ describe("GET /api/admin/users", () => {
     expect(inCalls).toEqual([{ column: "clerk_user_id", values: ["late-match"] }]);
     await expect(response.json()).resolves.toMatchObject({
       users: [{ clerk_user_id: "late-match" }],
+    });
+  });
+
+  it("applies search and onboarding filters before limiting user profiles", async () => {
+    const events: string[] = [];
+
+    vi.mocked(getSupabaseAdminClient).mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "user_profiles") {
+          return {
+            select: vi.fn(() =>
+              createUserProfilesQuery({
+                data: [
+                  {
+                    clerk_user_id: "target-user",
+                    email: "target@example.com",
+                    display_name: "Target User",
+                    onboarding_completed_at: null,
+                    created_at: "2024-01-01",
+                  },
+                ],
+                events,
+              }),
+            ),
+          };
+        }
+
+        if (table === "diocese_admins") {
+          return { select: vi.fn(async () => ({ data: [], error: null })) };
+        }
+
+        return {
+          select: vi.fn(async () => ({ data: [], error: null })),
+        };
+      }),
+    } as never);
+
+    const response = await GET(
+      new Request("http://localhost/api/admin/users?q=target@example.com&onboarding=no&limit=1"),
+    );
+
+    expect(response.status).toBe(200);
+    expect(events).toEqual(["or", "is", "order", "limit"]);
+    await expect(response.json()).resolves.toMatchObject({
+      users: [{ clerk_user_id: "target-user" }],
+    });
+  });
+
+  it("applies diocese admin exclusion before limiting user profiles", async () => {
+    const events: string[] = [];
+
+    vi.mocked(getSupabaseAdminClient).mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "user_profiles") {
+          return {
+            select: vi.fn(() =>
+              createUserProfilesQuery({
+                data: [
+                  {
+                    clerk_user_id: "older-non-admin",
+                    email: "older@example.com",
+                    display_name: "Older Non Admin",
+                    onboarding_completed_at: "2024-01-01",
+                    created_at: "2024-01-01",
+                  },
+                ],
+                events,
+              }),
+            ),
+          };
+        }
+
+        if (table === "diocese_admins") {
+          return { select: vi.fn(async () => ({ data: [{ clerk_user_id: "newest-admin" }], error: null })) };
+        }
+
+        return {
+          select: vi.fn(async () => ({ data: [], error: null })),
+        };
+      }),
+    } as never);
+
+    const response = await GET(new Request("http://localhost/api/admin/users?dioceseAdmin=no&limit=1"));
+
+    expect(response.status).toBe(200);
+    expect(events).toEqual(["not", "order", "limit"]);
+    await expect(response.json()).resolves.toMatchObject({
+      users: [{ clerk_user_id: "older-non-admin", is_diocese_admin: false }],
     });
   });
 });

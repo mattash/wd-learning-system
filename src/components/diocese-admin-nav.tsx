@@ -23,7 +23,7 @@ export function DioceseAdminNav() {
       {routes.map((route) => {
         const isActive = route.exact
           ? pathname === route.href
-          : pathname.startsWith(route.href);
+          : pathname === route.href || pathname.startsWith(`${route.href}/`);
 
         return (
           <Link

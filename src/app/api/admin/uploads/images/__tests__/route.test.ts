@@ -50,6 +50,11 @@ describe("POST /api/admin/uploads/images", () => {
       assetUrl: "https://cdn.example.com/module-thumbnails/key.jpg",
     });
     expect(buildImageObjectKey).toHaveBeenCalledWith("module", "thumb.jpg", "image/jpeg");
+    expect(createPresignedImageUpload).toHaveBeenCalledWith({
+      key: "module-thumbnails/key.jpg",
+      contentType: "image/jpeg",
+      contentLengthBytes: 12345,
+    });
   });
 
   it("returns 400 for unsupported content type", async () => {
@@ -69,6 +74,19 @@ describe("POST /api/admin/uploads/images", () => {
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({ error: "Unsupported image type." });
+  });
+
+  it("returns 400 for malformed JSON", async () => {
+    const response = await POST(
+      new Request("http://localhost/api/admin/uploads/images", {
+        method: "POST",
+        body: "{",
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "Invalid upload request." });
+    expect(createPresignedImageUpload).not.toHaveBeenCalled();
   });
 
   it("returns 400 when image exceeds max size", async () => {

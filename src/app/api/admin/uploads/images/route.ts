@@ -31,7 +31,14 @@ function getMaxImageBytes() {
 export async function POST(req: Request) {
   await requireDioceseAdmin();
 
-  const parsed = requestSchema.safeParse(await req.json());
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid upload request." }, { status: 400 });
+  }
+
+  const parsed = requestSchema.safeParse(body);
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid upload request." }, { status: 400 });
   }
@@ -56,6 +63,7 @@ export async function POST(req: Request) {
     const upload = await createPresignedImageUpload({
       key: objectKey,
       contentType: normalizedContentType,
+      contentLengthBytes: payload.size,
     });
 
     return NextResponse.json(upload, { status: 201 });

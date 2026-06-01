@@ -3,6 +3,7 @@ import { getSupabaseAdminClient } from "@/lib/supabase/server";
 export interface DioceseOverview {
   parishCount: number;
   userCount: number;
+  parishMembershipCount: number;
   dioceseAdminCount: number;
   courseCount: number;
   publishedCourseCount: number;
@@ -35,6 +36,7 @@ export interface DioceseCourseRow {
   thumbnail_url: string | null;
   scope: "DIOCESE" | "PARISH";
   published: boolean;
+  publicly_browseable: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -134,6 +136,7 @@ export async function getDioceseOverview(): Promise<DioceseOverview> {
   const [
     parishCount,
     userCount,
+    parishMembershipCount,
     dioceseAdminCount,
     courseCount,
     enrollmentCount,
@@ -143,6 +146,7 @@ export async function getDioceseOverview(): Promise<DioceseOverview> {
   ] = await Promise.all([
     getTableCount("parishes"),
     getTableCount("user_profiles"),
+    getTableCount("parish_memberships"),
     supabase.from("diocese_admins").select("clerk_user_id", { count: "exact", head: true }),
     getTableCount("courses"),
     getTableCount("enrollments"),
@@ -157,6 +161,7 @@ export async function getDioceseOverview(): Promise<DioceseOverview> {
   return {
     parishCount,
     userCount,
+    parishMembershipCount,
     dioceseAdminCount: dioceseAdminCount.count ?? 0,
     courseCount,
     publishedCourseCount: publishedCoursesResult.count ?? 0,
@@ -249,7 +254,7 @@ export async function listCourses(limit = 25): Promise<DioceseCourseRow[]> {
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("courses")
-    .select("id,title,description,thumbnail_url,scope,published,created_at,updated_at")
+    .select("id,title,description,thumbnail_url,scope,published,publicly_browseable,created_at,updated_at")
     .order("updated_at", { ascending: false })
     .limit(limit);
 

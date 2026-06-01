@@ -17,6 +17,14 @@ const deleteEnrollmentSchema = z.object({
   courseId: z.string().uuid(),
 });
 
+type EnrollmentRow = {
+  id: string;
+  parish_id: string;
+  clerk_user_id: string;
+  course_id: string;
+  created_at: string;
+};
+
 async function parseJsonBody<T>(req: Request, schema: z.ZodSchema<T>) {
   try {
     return schema.safeParse(await req.json());
@@ -62,31 +70,92 @@ export async function POST(req: Request) {
   const payload = parsedPayload.data;
   const supabase = getSupabaseAdminClient();
 
-  const { data, error } = await supabase
+  const existingEnrollmentQuery = await supabase
     .from("enrollments")
-    .upsert(
-      {
-        parish_id: payload.parishId,
-        clerk_user_id: payload.clerkUserId,
-        course_id: payload.courseId,
-      },
-      { onConflict: "parish_id,clerk_user_id,course_id" },
-    )
     .select("id,parish_id,clerk_user_id,course_id,created_at")
-    .single();
+    .eq("parish_id", payload.parishId)
+    .eq("clerk_user_id", payload.clerkUserId)
+    .eq("course_id", payload.courseId)
+    .maybeSingle();
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
+  if (existingEnrollmentQuery.error) {
+    return NextResponse.json({ error: existingEnrollmentQuery.error.message }, { status: 400 });
   }
 
-  // Send enrollment confirmation email (non-blocking)
-  notifyEnrollmentConfirmed({
-    clerkUserId: payload.clerkUserId,
-    parishId: payload.parishId,
-    courseId: payload.courseId,
-  }).catch((err) => console.error("[notifications] diocese enrollment confirmed email failed:", err));
+  let data = existingEnrollmentQuery.data as EnrollmentRow | null;
+  const created = !data;
 
-  return NextResponse.json({ enrollment: data }, { status: 201 });
+  if (!data) {
+    const { data: course, error: courseError } = await supabase
+      .from("courses")
+      .select("id,scope")
+      .eq("id", payload.courseId)
+      .maybeSingle();
+
+    if (courseError) {
+      return NextResponse.json({ error: courseError.message }, { status: 400 });
+    }
+
+    if (!course) {
+      return NextResponse.json({ error: "Selected course is not available for enrollment." }, { status: 400 });
+    }
+
+    if (course.scope === "PARISH") {
+      const { data: result, error: rpcError } = await supabase.rpc("create_parish_course_enrollment", {
+        p_parish_id: payload.parishId,
+        p_course_id: payload.courseId,
+        p_clerk_user_id: payload.clerkUserId,
+      });
+
+      if (rpcError) {
+        return NextResponse.json({ error: rpcError.message }, { status: 400 });
+      }
+
+      const rpcResult = result as {
+        error?: string;
+        ok?: boolean;
+        enrollment?: EnrollmentRow;
+      } | null;
+
+      if (rpcResult?.error) {
+        return NextResponse.json({ error: rpcResult.error }, { status: 400 });
+      }
+
+      if (!rpcResult?.enrollment) {
+        return NextResponse.json({ error: "Failed to create enrollment." }, { status: 400 });
+      }
+
+      data = rpcResult.enrollment;
+    } else {
+      const { data: enrollment, error } = await supabase
+        .from("enrollments")
+        .upsert(
+          {
+            parish_id: payload.parishId,
+            clerk_user_id: payload.clerkUserId,
+            course_id: payload.courseId,
+          },
+          { onConflict: "parish_id,clerk_user_id,course_id" },
+        )
+        .select("id,parish_id,clerk_user_id,course_id,created_at")
+        .single();
+
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 400 });
+      }
+
+      data = enrollment as EnrollmentRow;
+    }
+
+    // Send enrollment confirmation email (non-blocking)
+    notifyEnrollmentConfirmed({
+      clerkUserId: payload.clerkUserId,
+      parishId: payload.parishId,
+      courseId: payload.courseId,
+    }).catch((err) => console.error("[notifications] diocese enrollment confirmed email failed:", err));
+  }
+
+  return NextResponse.json({ enrollment: data }, { status: created ? 201 : 200 });
 }
 
 export async function DELETE(req: Request) {

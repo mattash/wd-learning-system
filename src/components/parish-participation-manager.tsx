@@ -24,9 +24,11 @@ const STATUS_BADGES: Record<
   completed: { label: "Completed", variant: "success" },
 };
 
+const DATE_FORMATTER = new Intl.DateTimeFormat("en-US", { timeZone: "UTC" });
+
 function formatDate(value: string | null) {
   if (!value) return "No activity yet";
-  return new Date(value).toLocaleDateString();
+  return DATE_FORMATTER.format(new Date(value));
 }
 
 function toLearnerLabel(member: ParishAdminMemberRow | undefined, clerkUserId: string) {
@@ -231,7 +233,7 @@ export function ParishParticipationManager({
                 <Badge variant={STATUS_BADGES[row.status].variant}>{STATUS_BADGES[row.status].label}</Badge>
               </td>
               <td className="py-2 pr-4">{formatDate(row.last_activity_at)}</td>
-              <td className="py-2 pr-4">{new Date(row.enrolled_at).toLocaleDateString()}</td>
+              <td className="py-2 pr-4">{formatDate(row.enrolled_at)}</td>
               {canLogCommunications ? (
                 <td className="py-2 pr-4">
                   <div className="flex flex-wrap gap-2">

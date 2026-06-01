@@ -115,7 +115,10 @@ describe("LessonPage", () => {
 
     expect(screen.getByRole("heading", { name: "Reading lesson" })).toBeInTheDocument();
     expect(screen.getByText("Document review: Pages 2-4")).toBeInTheDocument();
-    expect(screen.getByTitle("Reading lesson document")).toHaveAttribute("src", "/docs/reading.pdf#page=2");
+    const documentFrame = screen.getByTitle("Reading lesson document");
+    expect(documentFrame).toHaveAttribute("src", "/docs/reading.pdf#page=2");
+    expect(documentFrame).toHaveAttribute("sandbox", "allow-downloads allow-scripts allow-same-origin");
+    expect(documentFrame).toHaveAttribute("referrerpolicy", "no-referrer");
     expect(screen.getByText("Quiz questions: 1")).toBeInTheDocument();
   });
 
@@ -137,5 +140,21 @@ describe("LessonPage", () => {
     render(await LessonPage({ params: Promise.resolve({ lessonId: "lesson-1" }) }));
 
     expect(screen.getByText("Video player: abc123")).toBeInTheDocument();
+  });
+
+  it("returns not found for missing lessons before checking enrollment", async () => {
+    vi.mocked(getLessonWithQuestions).mockResolvedValue(null);
+    vi.mocked(isUserEnrolledForLesson).mockResolvedValue(false);
+    navigationMocks.notFound.mockImplementationOnce(() => {
+      throw new Error("NEXT_NOT_FOUND");
+    });
+
+    await expect(LessonPage({ params: Promise.resolve({ lessonId: "missing-lesson" }) })).rejects.toThrow(
+      "NEXT_NOT_FOUND",
+    );
+
+    expect(navigationMocks.notFound).toHaveBeenCalled();
+    expect(isUserEnrolledForLesson).not.toHaveBeenCalled();
+    expect(navigationMocks.redirect).not.toHaveBeenCalled();
   });
 });

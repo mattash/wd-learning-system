@@ -58,7 +58,10 @@ export function CompletionModal({
             <div className="mb-3 text-4xl">🎉</div>
             <p className="mb-2 font-bold text-primary">Course Complete!</p>
             <p className="mb-4 text-sm text-muted-foreground">
-              You have finished all lessons in {courseTitle}. A certificate has been issued.
+              You have finished all lessons in {courseTitle}.{" "}
+              {certificateId
+                ? "A certificate has been issued."
+                : "Your certificate is being prepared and will be available soon."}
             </p>
             {certificateId && (
               <Button asChild>

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import type { ParishAdminCourseRow } from "@/lib/repositories/parish-admin";
 import { Button } from "@/components/ui/button";
+import { CopyCourseLinkButton } from "@/components/copy-course-link-button";
 import { Select } from "@/components/ui/select";
 
 export function ParishCourseAdoptionManager({
@@ -101,6 +102,7 @@ export function ParishCourseAdoptionManager({
             <tr>
               <th className="py-2 pr-4 font-medium">Course</th>
               <th className="py-2 pr-4 font-medium">Description</th>
+              <th className="py-2 pr-4 font-medium">Public</th>
               <th className="py-2 pr-4 font-medium">Actions</th>
             </tr>
           </thead>
@@ -110,9 +112,19 @@ export function ParishCourseAdoptionManager({
                 <td className="py-2 pr-4">{course.title}</td>
                 <td className="py-2 pr-4 text-muted-foreground">{course.description ?? "No description"}</td>
                 <td className="py-2 pr-4">
-                  <Button disabled={submitting} onClick={() => removeAdoption(course.id)} size="sm" type="button" variant="destructive">
-                    Remove
-                  </Button>
+                  {course.publicly_browseable ? (
+                    <span className="rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success">Yes</span>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">No</span>
+                  )}
+                </td>
+                <td className="py-2 pr-4">
+                  <div className="flex items-center gap-1.5">
+                    <CopyCourseLinkButton courseId={course.id} published={course.published} />
+                    <Button disabled={submitting} onClick={() => removeAdoption(course.id)} size="sm" type="button" variant="destructive">
+                      Remove
+                    </Button>
+                  </div>
                 </td>
               </tr>
             ))}

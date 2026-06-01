@@ -13,6 +13,7 @@ describe("Button", () => {
     expect(button.className).toContain("bg-primary");
     expect(button.className).toContain("text-primary-foreground");
     expect(button.className).toContain("h-[38px]");
+    expect(button).toHaveAttribute("type", "button");
   });
 
   it("renders configured variant and size styles", () => {

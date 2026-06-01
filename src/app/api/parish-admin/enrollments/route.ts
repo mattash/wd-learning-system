@@ -110,8 +110,23 @@ export async function POST(req: Request) {
     cohort_id: string | null;
     created_at: string;
   };
+  let isNewEnrollment = false;
 
-  if (course.scope === "PARISH") {
+  const existingEnrollmentQuery = await supabase
+    .from("enrollments")
+    .select("id,clerk_user_id,course_id,cohort_id,created_at")
+    .eq("parish_id", parishId)
+    .eq("clerk_user_id", payload.clerkUserId)
+    .eq("course_id", payload.courseId)
+    .maybeSingle();
+
+  if (existingEnrollmentQuery.error) {
+    return NextResponse.json({ error: existingEnrollmentQuery.error.message }, { status: 400 });
+  }
+
+  if (existingEnrollmentQuery.data) {
+    data = existingEnrollmentQuery.data as typeof data;
+  } else if (course.scope === "PARISH") {
     const { data: result, error: rpcError } = await supabase.rpc("create_parish_course_enrollment", {
       p_parish_id: parishId,
       p_course_id: payload.courseId,
@@ -137,6 +152,7 @@ export async function POST(req: Request) {
     }
 
     data = rpcResult.enrollment;
+    isNewEnrollment = true;
   } else {
     const { data: enrollment, error } = await supabase
       .from("enrollments")
@@ -156,6 +172,7 @@ export async function POST(req: Request) {
     }
 
     data = enrollment as typeof data;
+    isNewEnrollment = true;
   }
 
   await recordAdminAuditLog({
@@ -170,14 +187,16 @@ export async function POST(req: Request) {
     },
   });
 
-  // Send enrollment confirmation email (non-blocking)
-  notifyEnrollmentConfirmed({
-    clerkUserId: payload.clerkUserId,
-    parishId,
-    courseId: payload.courseId,
-  }).catch((err) => console.error("[notifications] enrollment confirmed email failed:", err));
+  if (isNewEnrollment) {
+    // Send enrollment confirmation email (non-blocking)
+    notifyEnrollmentConfirmed({
+      clerkUserId: payload.clerkUserId,
+      parishId,
+      courseId: payload.courseId,
+    }).catch((err) => console.error("[notifications] enrollment confirmed email failed:", err));
+  }
 
-  return NextResponse.json({ enrollment: data }, { status: 201 });
+  return NextResponse.json({ enrollment: data }, { status: isNewEnrollment ? 201 : 200 });
 }
 
 export async function DELETE(req: Request) {

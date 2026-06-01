@@ -15,11 +15,15 @@ export async function GET(
   const supabase = getSupabaseAdminClient();
 
   // Verify the user owns this certificate
-  const { data: cert } = await supabase
+  const { data: cert, error: certError } = await supabase
     .from("certificates")
     .select("id, clerk_user_id, course_id, issued_at")
     .eq("id", certId)
-    .single();
+    .maybeSingle();
+
+  if (certError) {
+    return NextResponse.json({ error: "Could not load certificate" }, { status: 500 });
+  }
 
   if (!cert || cert.clerk_user_id !== clerkUserId) {
     return NextResponse.json({ error: "Certificate not found" }, { status: 404 });

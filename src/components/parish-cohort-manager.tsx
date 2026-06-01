@@ -343,7 +343,7 @@ export function ParishCohortManager({
               <th className="py-2 pr-4 font-medium">Cadence</th>
               <th className="py-2 pr-4 font-medium">Next session</th>
               <th className="py-2 pr-4 font-medium">Members</th>
-              <th className="py-2 pr-4 font-medium">Actions</th>
+              {canManageAll ? <th className="py-2 pr-4 font-medium">Actions</th> : null}
             </tr>
           </thead>
           <tbody>
@@ -355,12 +355,16 @@ export function ParishCohortManager({
               return (
                 <tr className="border-t border-border" key={cohort.id}>
                   <td className="py-2 pr-4">
-                    <Input
-                      onChange={(e) =>
-                        setDrafts((prev) => ({ ...prev, [cohort.id]: { ...prev[cohort.id], name: e.target.value } }))
-                      }
-                      value={draft?.name ?? cohort.name}
-                    />
+                    {canManageAll ? (
+                      <Input
+                        onChange={(e) =>
+                          setDrafts((prev) => ({ ...prev, [cohort.id]: { ...prev[cohort.id], name: e.target.value } }))
+                        }
+                        value={draft?.name ?? cohort.name}
+                      />
+                    ) : (
+                      cohort.name
+                    )}
                   </td>
                   <td className="py-2 pr-4">
                     {canManageAll ? (
@@ -387,46 +391,54 @@ export function ParishCohortManager({
                     )}
                   </td>
                   <td className="py-2 pr-4">
-                    <Select
-                      onChange={(e) =>
-                        setDrafts((prev) => ({
-                          ...prev,
-                          [cohort.id]: { ...prev[cohort.id], cadence: e.target.value as CohortCadence },
-                        }))
-                      }
-                      value={draft?.cadence ?? cohort.cadence}
-                    >
-                      <option value="weekly">Weekly</option>
-                      <option value="biweekly">Biweekly</option>
-                      <option value="monthly">Monthly</option>
-                      <option value="custom">Custom</option>
-                    </Select>
+                    {canManageAll ? (
+                      <Select
+                        onChange={(e) =>
+                          setDrafts((prev) => ({
+                            ...prev,
+                            [cohort.id]: { ...prev[cohort.id], cadence: e.target.value as CohortCadence },
+                          }))
+                        }
+                        value={draft?.cadence ?? cohort.cadence}
+                      >
+                        <option value="weekly">Weekly</option>
+                        <option value="biweekly">Biweekly</option>
+                        <option value="monthly">Monthly</option>
+                        <option value="custom">Custom</option>
+                      </Select>
+                    ) : (
+                      cohort.cadence
+                    )}
                   </td>
                   <td className="py-2 pr-4">
-                    <Input
-                      onChange={(e) =>
-                        setDrafts((prev) => ({
-                          ...prev,
-                          [cohort.id]: { ...prev[cohort.id], nextSessionAt: e.target.value },
-                        }))
-                      }
-                      type="datetime-local"
-                      value={draft?.nextSessionAt ?? toDateTimeLocalValue(cohort.next_session_at)}
-                    />
+                    {canManageAll ? (
+                      <Input
+                        onChange={(e) =>
+                          setDrafts((prev) => ({
+                            ...prev,
+                            [cohort.id]: { ...prev[cohort.id], nextSessionAt: e.target.value },
+                          }))
+                        }
+                        type="datetime-local"
+                        value={draft?.nextSessionAt ?? toDateTimeLocalValue(cohort.next_session_at)}
+                      />
+                    ) : (
+                      (toDateTimeLocalValue(cohort.next_session_at) || "Not scheduled")
+                    )}
                   </td>
                   <td className="py-2 pr-4">{enrollmentCountByCohort.get(cohort.id) ?? 0}</td>
-                  <td className="py-2 pr-4">
-                    <div className="flex gap-2">
-                      <Button disabled={submitting} onClick={() => saveCohort(cohort.id)} size="sm" type="button" variant="secondary">
-                        Save
-                      </Button>
-                      {canManageAll ? (
+                  {canManageAll ? (
+                    <td className="py-2 pr-4">
+                      <div className="flex gap-2">
+                        <Button disabled={submitting} onClick={() => saveCohort(cohort.id)} size="sm" type="button" variant="secondary">
+                          Save
+                        </Button>
                         <Button disabled={submitting} onClick={() => deleteCohort(cohort.id)} size="sm" type="button" variant="destructive">
                           Delete
                         </Button>
-                      ) : null}
-                    </div>
-                  </td>
+                      </div>
+                    </td>
+                  ) : null}
                 </tr>
               );
             })}

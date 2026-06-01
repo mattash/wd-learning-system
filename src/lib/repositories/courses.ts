@@ -18,6 +18,136 @@ export interface CourseModule {
   lessons: { id: string; title: string; sort_order: number; content_type: "VIDEO" | "DOCUMENT"; thumbnail_url: string | null }[];
 }
 
+export interface PublicCoursePreview {
+  course: VisibleCourse;
+  modules: Array<{
+    id: string;
+    title: string;
+    sort_order: number;
+    lessons: Array<{ id: string; title: string; sort_order: number }>;
+  }>;
+  lessonCount: number;
+}
+
+export interface PublicCatalogCourse {
+  id: string;
+  title: string;
+  description: string | null;
+  thumbnailUrl: string | null;
+  moduleCount: number;
+}
+
+export async function listPublicCatalogCourses(): Promise<PublicCatalogCourse[]> {
+  if (isE2ESmokeMode()) {
+    return [
+      {
+        id: E2E_COURSE.id,
+        title: E2E_COURSE.title,
+        description: E2E_COURSE.description,
+        thumbnailUrl: "/globe.svg",
+        moduleCount: 1,
+      },
+    ];
+  }
+
+  const supabase = getSupabaseAdminClient();
+  const { data: courses, error: coursesError } = await supabase
+    .from("courses")
+    .select("id,title,description,thumbnail_url")
+    .eq("published", true)
+    .eq("publicly_browseable", true)
+    .order("title", { ascending: true });
+
+  if (coursesError) throw coursesError;
+  if (!courses || courses.length === 0) return [];
+
+  const courseIds = (courses as Array<{ id: string }>).map((c) => c.id);
+  const { data: moduleCounts, error: countError } = await supabase
+    .from("modules")
+    .select("course_id")
+    .in("course_id", courseIds);
+
+  if (countError) throw countError;
+
+  const countByCourseId = new Map<string, number>();
+  for (const row of (moduleCounts ?? []) as Array<{ course_id: string }>) {
+    countByCourseId.set(row.course_id, (countByCourseId.get(row.course_id) ?? 0) + 1);
+  }
+
+  return (courses as Array<{
+    id: string;
+    title: string;
+    description: string | null;
+    thumbnail_url: string | null;
+  }>).map((course) => ({
+    id: course.id,
+    title: course.title,
+    description: course.description,
+    thumbnailUrl: course.thumbnail_url,
+    moduleCount: countByCourseId.get(course.id) ?? 0,
+  }));
+}
+
+export async function getPublicCoursePreview(courseId: string): Promise<PublicCoursePreview | null> {
+  if (isE2ESmokeMode()) {
+    if (courseId !== E2E_COURSE.id) return null;
+    return {
+      course: E2E_COURSE,
+      modules: [
+        {
+          id: E2E_MODULE.id,
+          title: E2E_MODULE.title,
+          sort_order: E2E_MODULE.sort_order,
+          lessons: [{ id: E2E_LESSON.id, title: E2E_LESSON.title, sort_order: 1 }],
+        },
+      ],
+      lessonCount: 1,
+    };
+  }
+
+  const supabase = getSupabaseAdminClient();
+  const { data: course, error: courseError } = await supabase
+    .from("courses")
+    .select("id,title,description,published,scope,thumbnail_url")
+    .eq("id", courseId)
+    .eq("published", true)
+    .maybeSingle();
+
+  if (courseError) throw courseError;
+  if (!course) return null;
+
+  const { data: modules, error: modulesError } = await supabase
+    .from("modules")
+    .select("id,title,sort_order,lessons(id,title,sort_order)")
+    .eq("course_id", courseId)
+    .order("sort_order", { ascending: true });
+
+  if (modulesError) throw modulesError;
+
+  const previewModules = ((modules ?? []) as Array<{
+    id: string;
+    title: string;
+    sort_order: number;
+    lessons: Array<{ id: string; title: string; sort_order: number }> | null;
+  }>).map((module) => ({
+    ...module,
+    lessons: [...(module.lessons ?? [])].sort((a, b) => a.sort_order - b.sort_order),
+  }));
+
+  return {
+    course: {
+      id: course.id as string,
+      title: course.title as string,
+      description: (course.description as string | null) ?? null,
+      published: true,
+      scope: course.scope as "DIOCESE" | "PARISH",
+      thumbnailUrl: (course.thumbnail_url as string | null) ?? null,
+    },
+    modules: previewModules,
+    lessonCount: previewModules.reduce((sum, module) => sum + module.lessons.length, 0),
+  };
+}
+
 export async function listVisibleCourses(parishId: string): Promise<VisibleCourse[]> {
   if (isE2ESmokeMode()) {
     return [E2E_COURSE];

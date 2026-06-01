@@ -123,7 +123,7 @@ export default async function DioceseAdminPage() {
               </div>
               <div className="flex items-center justify-between text-[13px]">
                 <span className="text-muted-foreground">Parish memberships</span>
-                <span className="font-bold">{overview.userCount} active</span>
+                <span className="font-bold">{overview.parishMembershipCount} active</span>
               </div>
             </div>
           </CardContent>

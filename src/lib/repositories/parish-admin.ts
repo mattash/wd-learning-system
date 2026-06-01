@@ -18,6 +18,7 @@ export interface ParishAdminCourseRow {
   description: string | null;
   published: boolean;
   scope: "DIOCESE" | "PARISH";
+  publicly_browseable?: boolean;
 }
 
 export interface ParishAdminEnrollmentRow {
@@ -194,7 +195,7 @@ export async function getParishAdminDashboardDataForUser({
       supabase.rpc("get_visible_courses", { p_parish_id: parishId }),
       supabase
         .from("courses")
-        .select("id,title,description,published,scope")
+        .select("id,title,description,published,scope,publicly_browseable")
         .eq("published", true)
         .eq("scope", "PARISH"),
       supabase.from("course_parishes").select("course_id").eq("parish_id", parishId),

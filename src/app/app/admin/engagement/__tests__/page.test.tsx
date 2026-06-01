@@ -79,6 +79,7 @@ describe("DioceseAdminEngagementPage", () => {
         thumbnail_url: null,
         scope: "DIOCESE",
         published: true,
+        publicly_browseable: false,
         created_at: "2026-01-01",
         updated_at: "2026-01-01",
       },

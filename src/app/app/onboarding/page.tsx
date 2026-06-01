@@ -11,24 +11,28 @@ import { Select } from "@/components/ui/select";
 import { E2E_PARISHES } from "@/lib/e2e-fixtures";
 import { hasCompletedOnboarding, requireAuth } from "@/lib/authz";
 import { isE2ESmokeMode } from "@/lib/e2e-mode";
+import { createJoinRequest } from "@/lib/repositories/course-join-requests";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 
 const schema = z.object({
   displayName: z.string().trim().min(1).max(120),
   parishId: z.string().uuid(),
+  enrollCourseId: z.string().uuid().optional(),
 });
 
 async function completeOnboarding(formData: FormData) {
   "use server";
   const userId = await requireAuth();
+  const enrollCourseId = String(formData.get("enrollCourseId") ?? "");
 
   const parsed = schema.safeParse({
     displayName: String(formData.get("displayName") ?? ""),
     parishId: String(formData.get("parishId") ?? ""),
+    enrollCourseId: enrollCourseId || undefined,
   });
 
   if (!parsed.success) {
-    redirect("/app/onboarding?error=invalid_input");
+    redirect(buildOnboardingUrl("invalid_input", enrollCourseId));
   }
 
   const store = await cookies();
@@ -62,7 +66,7 @@ async function completeOnboarding(formData: FormData) {
     .maybeSingle();
 
   if (!parish) {
-    redirect("/app/onboarding?error=invalid_parish");
+    redirect(buildOnboardingUrl("invalid_parish", parsed.data.enrollCourseId));
   }
 
   const now = new Date().toISOString();
@@ -87,7 +91,7 @@ async function completeOnboarding(formData: FormData) {
     { onConflict: "parish_id,clerk_user_id", ignoreDuplicates: true },
   );
   if (membershipError) {
-    redirect("/app/onboarding?error=membership_save_failed");
+    redirect(buildOnboardingUrl("membership_save_failed", parsed.data.enrollCourseId));
   }
 
   const { error: profileError } = await supabase.from("user_profiles").upsert(
@@ -100,7 +104,7 @@ async function completeOnboarding(formData: FormData) {
     { onConflict: "clerk_user_id" },
   );
   if (profileError) {
-    redirect("/app/onboarding?error=profile_save_failed");
+    redirect(buildOnboardingUrl("profile_save_failed", parsed.data.enrollCourseId));
   }
 
   store.set("active_parish_id", parsed.data.parishId, {
@@ -110,13 +114,96 @@ async function completeOnboarding(formData: FormData) {
     path: "/",
   });
 
+  if (parsed.data.enrollCourseId) {
+    const joinRequestCreated = await tryCreateJoinRequest({
+      parishId: parsed.data.parishId,
+      clerkUserId: userId,
+      courseId: parsed.data.enrollCourseId,
+    });
+
+    if (joinRequestCreated) {
+      if (!primaryEmail) {
+        console.warn(
+          "[onboarding] No primary email for user — skipping join request confirmation email",
+        );
+      } else {
+        // Send confirmation email (non-blocking — logged on failure)
+        try {
+          const { sendJoinRequestConfirmation } = await import(
+            "@/lib/email/send-join-request-confirmation"
+          );
+
+          const { data: courseData } = await supabase
+            .from("courses")
+            .select("title")
+            .eq("id", parsed.data.enrollCourseId)
+            .maybeSingle();
+          const courseTitle =
+            (courseData as { title: string } | null)?.title ??
+            "your requested course";
+
+          const { data: parishData } = await supabase
+            .from("parishes")
+            .select("name")
+            .eq("id", parsed.data.parishId)
+            .maybeSingle();
+          const parishName =
+            (parishData as { name: string } | null)?.name ?? "your parish";
+
+          await sendJoinRequestConfirmation({
+            toEmail: primaryEmail,
+            displayName: parsed.data.displayName,
+            courseTitle,
+            parishName,
+          });
+        } catch (emailErr) {
+          console.error(
+            "[onboarding] Failed to send confirmation email:",
+            emailErr instanceof Error ? emailErr.message : emailErr,
+          );
+        }
+      }
+    }
+
+    redirect(joinRequestCreated ? "/app/catalog?enrollment=requested" : "/app");
+  }
+
   redirect("/app");
+}
+
+function buildOnboardingUrl(error: string, enrollCourseId?: string | null) {
+  const params = new URLSearchParams({ error });
+  if (enrollCourseId) params.set("enrollCourseId", enrollCourseId);
+  return `/app/onboarding?${params.toString()}`;
+}
+
+async function tryCreateJoinRequest({
+  parishId,
+  clerkUserId,
+  courseId,
+}: {
+  parishId: string;
+  clerkUserId: string;
+  courseId: string;
+}) {
+  try {
+    await createJoinRequest({ parishId, clerkUserId, courseId });
+    return true;
+  } catch (err) {
+    if (
+      err instanceof Error &&
+      (err.message.includes("pending request") || err.message.includes("Already enrolled"))
+    ) {
+      return true;
+    }
+    return false;
+  }
 }
 
 export default async function OnboardingPage({
   searchParams,
 }: {
-  searchParams?: Promise<{ error?: string }>;
+  searchParams?: Promise<{ error?: string; enrollCourseId?: string }>;
 }) {
   const userId = await requireAuth();
 
@@ -140,6 +227,11 @@ export default async function OnboardingPage({
   }
 
   const params = (await searchParams) ?? {};
+  const enrollCourseId =
+    params.enrollCourseId &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(params.enrollCourseId)
+      ? params.enrollCourseId
+      : null;
   const errorText =
     params.error === "invalid_input"
       ? "Please provide a display name and parish."
@@ -157,6 +249,13 @@ export default async function OnboardingPage({
       <p className="text-sm text-muted-foreground">
         Pick your parish and set your display name to continue.
       </p>
+      {enrollCourseId ? (
+        <Alert>
+          <AlertDescription>
+            Finish your profile and we will submit your course enrollment request automatically.
+          </AlertDescription>
+        </Alert>
+      ) : null}
       {errorText ? (
         <Alert variant="destructive">
           <AlertDescription>{errorText}</AlertDescription>
@@ -170,6 +269,7 @@ export default async function OnboardingPage({
       <Card>
         <CardContent className="pt-4">
           <form action={completeOnboarding} className="grid gap-3">
+            {enrollCourseId ? <input name="enrollCourseId" type="hidden" value={enrollCourseId} /> : null}
             <label className="grid gap-1 text-sm">
               Display name
               <Input

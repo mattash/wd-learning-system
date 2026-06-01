@@ -68,6 +68,10 @@ export async function POST(req: Request) {
     );
   }
 
+  if (userProfile.clerk_user_id === actorUserId) {
+    return NextResponse.json({ error: "You cannot change your own parish role." }, { status: 400 });
+  }
+
   const supabase = getSupabaseAdminClient();
   const { data, error } = await supabase
     .from("parish_memberships")
@@ -86,17 +90,21 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
-  await recordAdminAuditLog({
-    actorClerkUserId: actorUserId,
-    action: "parish.member_upserted",
-    resourceType: "parish_membership",
-    resourceId: userProfile.clerk_user_id,
-    details: {
-      parish_id: parishId,
-      role: payload.role,
-      identifier: payload.identifier,
-    },
-  });
+  try {
+    await recordAdminAuditLog({
+      actorClerkUserId: actorUserId,
+      action: "parish.member_upserted",
+      resourceType: "parish_membership",
+      resourceId: userProfile.clerk_user_id,
+      details: {
+        parish_id: parishId,
+        role: payload.role,
+        identifier: payload.identifier,
+      },
+    });
+  } catch (error) {
+    console.error("[audit-log] parish member upsert audit log failed:", error);
+  }
 
   return NextResponse.json({
     membership: data,
@@ -236,6 +244,17 @@ export async function PUT(req: Request) {
       continue;
     }
 
+    if (userProfile.clerk_user_id === actorUserId) {
+      results.push({
+        row: rowNumber,
+        identifier,
+        role,
+        status: "skipped",
+        message: "You cannot change your own parish role.",
+      });
+      continue;
+    }
+
     const { error } = await supabase.from("parish_memberships").upsert(
       {
         parish_id: parishId,
@@ -268,17 +287,21 @@ export async function PUT(req: Request) {
   const importedCount = results.filter((result) => result.status === "imported").length;
   const skippedCount = results.length - importedCount;
 
-  await recordAdminAuditLog({
-    actorClerkUserId: actorUserId,
-    action: "parish.members_imported",
-    resourceType: "parish_memberships",
-    resourceId: parishId,
-    details: {
-      parish_id: parishId,
-      imported_count: importedCount,
-      skipped_count: skippedCount,
-    },
-  });
+  try {
+    await recordAdminAuditLog({
+      actorClerkUserId: actorUserId,
+      action: "parish.members_imported",
+      resourceType: "parish_memberships",
+      resourceId: parishId,
+      details: {
+        parish_id: parishId,
+        imported_count: importedCount,
+        skipped_count: skippedCount,
+      },
+    });
+  } catch (error) {
+    console.error("[audit-log] parish members import audit log failed:", error);
+  }
 
   return NextResponse.json({
     summary: {

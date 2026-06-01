@@ -9,7 +9,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { E2E_PARISHES } from "@/lib/e2e-fixtures";
 import { isE2ESmokeMode } from "@/lib/e2e-mode";
-import { hasActiveParishRole, isDioceseAdmin, requireAuth } from "@/lib/authz";
+import { getActiveParishRole, isDioceseAdmin, requireAuth } from "@/lib/authz";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 
 export default async function AppLayout({
@@ -19,7 +19,8 @@ export default async function AppLayout({
 }) {
   const clerkUserId = await requireAuth();
   const showDioceseAdmin = await isDioceseAdmin(clerkUserId);
-  const showParishAdmin = await hasActiveParishRole("instructor", clerkUserId);
+  const activeParishRole = await getActiveParishRole(clerkUserId);
+  const showParishAdmin = activeParishRole === "parish_admin" || activeParishRole === "instructor";
   const showUserButton = !isE2ESmokeMode() && Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
   const store = await cookies();
   const cookieParishId = store.get("active_parish_id")?.value;
