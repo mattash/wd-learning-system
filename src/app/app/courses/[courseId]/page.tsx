@@ -118,11 +118,11 @@ export default async function CourseDetailPage({
                   {progressPercent > 0 ? "Resume next lesson" : "Start course"}
                 </Link>
               </Button>
-            ) : (
+            ) : allLessons.length > 0 ? (
               <span className="text-[14px] font-semibold text-success">
                 ✓ Course complete
               </span>
-            )}
+            ) : null}
             <ProgressLine className="min-w-[220px]" percent={progressPercent} />
           </div>
         </div>

@@ -17,6 +17,7 @@ const PALETTES: Palette[] = [
   { a: "oklch(40% 0.09 55)", b: "oklch(22% 0.06 45)", glow: "oklch(66% 0.13 78)", glyph: "book" },
   { a: "oklch(33% 0.1 28)", b: "oklch(19% 0.06 30)", glow: "oklch(60% 0.14 68)", glyph: "candle" },
 ];
+const GLYPH_CLASS_NAME = "emblem-glyph h-auto max-h-[62%] max-w-[62%]";
 
 function paletteFor(seed: string): Palette {
   let h = 0;
@@ -28,7 +29,7 @@ function Glyph({ kind }: { kind: EmblemKind }) {
   const stroke = "oklch(82% 0.11 78)";
   if (kind === "cross") {
     return (
-      <svg viewBox="0 0 40 40" className="emblem-glyph">
+      <svg viewBox="0 0 40 40" width="48" height="48" className={GLYPH_CLASS_NAME}>
         <rect x="17" y="6" width="6" height="28" rx="1.5" fill={stroke} />
         <rect x="9" y="14" width="22" height="6" rx="1.5" fill={stroke} />
       </svg>
@@ -36,7 +37,7 @@ function Glyph({ kind }: { kind: EmblemKind }) {
   }
   if (kind === "book") {
     return (
-      <svg viewBox="0 0 40 40" className="emblem-glyph" fill="none" stroke={stroke} strokeWidth="2.2" strokeLinejoin="round">
+      <svg viewBox="0 0 40 40" width="48" height="48" className={GLYPH_CLASS_NAME} fill="none" stroke={stroke} strokeWidth="2.2" strokeLinejoin="round">
         <path d="M20 11c-3-2-7-2-10-1v19c3-1 7-1 10 1 3-2 7-2 10-1V10c-3-1-7-1-10 1Z" />
         <path d="M20 11v18" />
       </svg>
@@ -44,14 +45,14 @@ function Glyph({ kind }: { kind: EmblemKind }) {
   }
   if (kind === "candle") {
     return (
-      <svg viewBox="0 0 40 40" className="emblem-glyph">
+      <svg viewBox="0 0 40 40" width="48" height="48" className={GLYPH_CLASS_NAME}>
         <rect x="17" y="16" width="6" height="18" rx="1.5" fill={stroke} />
         <path d="M20 6c2 3 3 4 3 6a3 3 0 0 1-6 0c0-2 1-3 3-6Z" fill={stroke} />
       </svg>
     );
   }
   return (
-    <svg viewBox="0 0 40 40" className="emblem-glyph">
+    <svg viewBox="0 0 40 40" width="48" height="48" className={GLYPH_CLASS_NAME}>
       <circle cx="20" cy="20" r="6" fill={stroke} />
       {Array.from({ length: 12 }).map((_, i) => {
         const a = (i * 30 * Math.PI) / 180;

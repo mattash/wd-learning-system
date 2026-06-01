@@ -29,7 +29,10 @@ function CourseCard({
   const duration = placeholderDuration(course.lessonCount);
 
   return (
-    <Card className="group flex h-full flex-col overflow-hidden rounded-2xl transition-all duration-200 hover:-translate-y-0.5 hover:border-border-strong hover:shadow-md">
+    <Card
+      id={`course-${course.id}`}
+      className="group flex h-full scroll-mt-24 flex-col overflow-hidden rounded-2xl transition-all duration-200 hover:-translate-y-0.5 hover:border-border-strong hover:shadow-md"
+    >
       <Link
         aria-label={course.title}
         className="relative block aspect-video w-full"
@@ -242,7 +245,11 @@ export default async function CatalogPage({
       )}
       {allCourses.length > 0 && enrolled.length === 0 && available.length === 0 && (
         <Card className="px-6 py-12 text-center text-[14px] text-muted-foreground">
-          No courses match your search.
+          {query && category !== "All"
+            ? "No courses match your filters."
+            : query
+              ? "No courses match your search."
+              : "No courses match this category."}
         </Card>
       )}
     </div>

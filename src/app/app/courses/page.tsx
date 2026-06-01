@@ -61,17 +61,21 @@ export default async function CoursesPage({
           const scope = scopeByCourseId.get(course.courseId) ?? "DIOCESE";
           const category = placeholderCategory(course.courseId);
           const isStarted = course.progressPercent > 0;
-          const targetHref = course.lastLessonId
-            ? `/app/lessons/${course.lastLessonId}`
+          const targetHref = course.resumeLessonId
+            ? `/app/lessons/${course.resumeLessonId}`
             : `/app/courses/${course.courseId}`;
+          const courseHref = `/app/courses/${course.courseId}`;
 
           return (
-            <Link
+            <Card
               key={course.courseId}
-              href={`/app/courses/${course.courseId}`}
-              className="group min-w-0"
+              className="flex flex-wrap items-center p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-border-strong hover:shadow-md sm:flex-nowrap"
+              style={{ gap: 18 }}
             >
-              <Card className="flex flex-wrap items-center p-4 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:border-border-strong group-hover:shadow-md sm:flex-nowrap" style={{ gap: 18 }}>
+              <Link
+                href={courseHref}
+                className="flex min-w-0 flex-1 items-center gap-[18px]"
+              >
                 <div className="h-16 w-24 shrink-0 overflow-hidden rounded-[11px]">
                   <CourseThumbnail
                     alt={course.courseTitle}
@@ -93,21 +97,21 @@ export default async function CoursesPage({
                     </p>
                   )}
                 </div>
-                <div className="hidden shrink-0 items-center gap-6 sm:flex">
-                  <div className="w-[200px]">
-                    <ProgressLine percent={course.progressPercent} />
-                    <p className="mt-1.5 text-[12px] text-muted-foreground">
-                      {course.completedLessons}/{course.totalLessons} lessons
-                    </p>
-                  </div>
-                  <Button asChild size="sm" variant="default">
-                    <Link href={targetHref} onClick={(e) => e.stopPropagation()}>
-                      {isStarted ? "Resume" : "Start"}
-                    </Link>
-                  </Button>
+              </Link>
+              <div className="hidden shrink-0 items-center gap-6 sm:flex">
+                <div className="w-[200px]">
+                  <ProgressLine percent={course.progressPercent} />
+                  <p className="mt-1.5 text-[12px] text-muted-foreground">
+                    {course.completedLessons}/{course.totalLessons} lessons
+                  </p>
                 </div>
-              </Card>
-            </Link>
+                <Button asChild size="sm" variant="default">
+                  <Link href={targetHref}>
+                    {isStarted ? "Resume" : "Start"}
+                  </Link>
+                </Button>
+              </div>
+            </Card>
           );
         })}
       </div>

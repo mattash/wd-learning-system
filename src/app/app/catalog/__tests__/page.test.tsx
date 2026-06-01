@@ -87,6 +87,12 @@ describe("CatalogPage enrollment confirmation", () => {
     render(await CatalogPage({ searchParams: Promise.resolve({}) }));
 
     expect(screen.getByRole("link", { name: "Open" })).toHaveAttribute("href", "/app/courses/course-1");
+    expect(document.getElementById("course-course-2")).toBeInTheDocument();
+    expect(
+      screen.getAllByRole("link", { name: "Pending Course" }).some(
+        (link) => link.getAttribute("href") === "#course-course-2",
+      ),
+    ).toBe(true);
     expect(screen.getByText("Request sent")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Request course-3" })).toBeInTheDocument();
   });
@@ -107,5 +113,23 @@ describe("CatalogPage enrollment confirmation", () => {
     render(await CatalogPage({ searchParams: Promise.resolve({ q: "history" }) }));
 
     expect(screen.getByText("No courses match your search.")).toBeInTheDocument();
+  });
+
+  it("shows a category empty state when only the category filter removes courses", async () => {
+    vi.mocked(getCatalogCourses).mockResolvedValue([
+      {
+        id: "course-1",
+        title: "Foundations",
+        description: null,
+        thumbnailUrl: null,
+        scope: "DIOCESE",
+        lessonCount: 1,
+        enrolled: false,
+      },
+    ]);
+
+    render(await CatalogPage({ searchParams: Promise.resolve({ category: "Scripture" }) }));
+
+    expect(screen.getByText("No courses match this category.")).toBeInTheDocument();
   });
 });

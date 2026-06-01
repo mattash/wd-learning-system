@@ -150,4 +150,62 @@ describe("getStudentDashboardData", () => {
     expect(modulesInSpy).toHaveBeenCalledWith("course_id", ["course-visible"]);
     expect(from).not.toHaveBeenCalledWith("courses");
   });
+
+  it("uses the first incomplete lesson as the resume target", async () => {
+    const from = vi.fn((table: string) => {
+      if (table === "enrollments") {
+        return enrollmentsMock([
+          {
+            course_id: "course-visible",
+            courses: {
+              id: "course-visible",
+              title: "Visible Course",
+              description: null,
+              thumbnail_url: null,
+            },
+          },
+        ]);
+      }
+      if (table === "modules") {
+        return modulesMock([
+          {
+            course_id: "course-visible",
+            lessons: [
+              { id: "lesson-complete", title: "Complete Lesson" },
+              { id: "lesson-next", title: "Next Lesson" },
+            ],
+          },
+        ]);
+      }
+      if (table === "video_progress") {
+        return videoProgressMock([
+          {
+            lesson_id: "lesson-complete",
+            completed: true,
+            last_position_seconds: 120,
+            updated_at: new Date().toISOString(),
+          },
+        ]);
+      }
+      if (table === "quiz_attempts") {
+        return quizAttemptsMock([]);
+      }
+      throw new Error(`Unexpected table ${table}`);
+    });
+    const rpc = vi.fn(async () => ({
+      data: [{ id: "course-visible" }],
+      error: null,
+    }));
+
+    vi.mocked(getSupabaseAdminClient).mockReturnValue({ from, rpc } as never);
+
+    const result = await getStudentDashboardData("parish-1", "user-1");
+
+    expect(result.progress[0]).toMatchObject({
+      completedLessons: 1,
+      progressPercent: 50,
+      resumeLessonId: "lesson-next",
+      resumeLessonTitle: "Next Lesson",
+    });
+  });
 });

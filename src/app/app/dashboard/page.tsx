@@ -33,17 +33,18 @@ export default async function DashboardPage() {
     clerkUserId,
   );
 
-  const inProgress = progress
-    .filter((c) => c.lastLessonId)
+  const resumableCourses = progress
+    .filter((c) => c.resumeLessonId && c.progressPercent < 100)
     .sort(
       (a, b) =>
         new Date(b.lastActivityAt ?? 0).getTime() -
         new Date(a.lastActivityAt ?? 0).getTime(),
     );
+  const activeResumeCourses = resumableCourses.filter((c) => c.lastActivityAt);
 
   const totalCompleted = progress.reduce((sum, c) => sum + c.completedLessons, 0);
   const totalLessons = progress.reduce((sum, c) => sum + c.totalLessons, 0);
-  const top = inProgress[0];
+  const continueCourse = resumableCourses[0];
 
   if (progress.length === 0) {
     return (
@@ -76,17 +77,17 @@ export default async function DashboardPage() {
       </header>
 
       {/* Continue learning hero */}
-      {top && (
+      {continueCourse && (
         <Card className="grid overflow-hidden rounded-2xl grid-cols-1 sm:grid-cols-[280px_1fr]">
           <Link
-            aria-label={`Resume ${top.lastLessonTitle ?? top.courseTitle}`}
+            aria-label={`Resume ${continueCourse.resumeLessonTitle ?? continueCourse.courseTitle}`}
             className="relative block min-h-[180px] sm:min-h-[220px]"
-            href={`/app/lessons/${top.lastLessonId}`}
+            href={`/app/lessons/${continueCourse.resumeLessonId}`}
           >
             <CourseThumbnail
-              alt={top.courseTitle}
-              seed={top.courseId}
-              thumbnailUrl={top.thumbnailUrl}
+              alt={continueCourse.courseTitle}
+              seed={continueCourse.courseId}
+              thumbnailUrl={continueCourse.thumbnailUrl}
               className="absolute inset-0"
             />
           </Link>
@@ -100,18 +101,18 @@ export default async function DashboardPage() {
             </div>
             <Link
               className="font-display text-[26px] font-bold leading-tight tracking-tight hover:text-primary"
-              href={`/app/lessons/${top.lastLessonId}`}
+              href={`/app/lessons/${continueCourse.resumeLessonId}`}
             >
-              {top.lastLessonTitle ?? "Resume next lesson"}
+              {continueCourse.resumeLessonTitle ?? "Resume next lesson"}
             </Link>
             <p className="m-0 text-[14.5px] text-muted-foreground">
-              {top.courseTitle}
+              {continueCourse.courseTitle}
             </p>
-            <ProgressLine className="max-w-[360px]" percent={top.progressPercent} />
+            <ProgressLine className="max-w-[360px]" percent={continueCourse.progressPercent} />
             <div className="mt-1 flex flex-wrap items-center gap-4">
               <Link
                 className="inline-flex items-center gap-2 rounded-[9px] bg-primary px-5 py-2.5 text-[15px] font-semibold text-primary-foreground transition-colors hover:bg-[var(--ds-color-brand-hover)]"
-                href={`/app/lessons/${top.lastLessonId}`}
+                href={`/app/lessons/${continueCourse.resumeLessonId}`}
               >
                 Resume lesson
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -119,7 +120,7 @@ export default async function DashboardPage() {
                 </svg>
               </Link>
               <span className="text-[13px] text-muted-foreground">
-                {top.completedLessons}/{top.totalLessons} lessons complete
+                {continueCourse.completedLessons}/{continueCourse.totalLessons} lessons complete
               </span>
             </div>
           </div>
@@ -174,13 +175,13 @@ export default async function DashboardPage() {
       </div>
 
       {/* Pick up where you left off */}
-      {inProgress.length > 0 && (
+      {activeResumeCourses.length > 0 && (
         <section>
           <SectionHead title="Pick up where you left off" />
           <div className="grid gap-4 grid-cols-1 lg:grid-cols-3">
-            {inProgress.slice(0, 3).map((course) => (
+            {activeResumeCourses.slice(0, 3).map((course) => (
               <Link
-                href={`/app/lessons/${course.lastLessonId}`}
+                href={`/app/lessons/${course.resumeLessonId}`}
                 key={`resume-${course.courseId}`}
                 className="group min-w-0"
               >
@@ -194,7 +195,7 @@ export default async function DashboardPage() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="line-clamp-1 text-[14.5px] font-semibold leading-tight">
-                      {course.lastLessonTitle ?? "Resume"}
+                      {course.resumeLessonTitle ?? "Resume"}
                     </p>
                     <p className="mt-0.5 truncate text-[12.5px] text-muted-foreground">
                       {course.courseTitle}
