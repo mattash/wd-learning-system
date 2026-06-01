@@ -111,7 +111,7 @@ describe("/api/admin/courses", () => {
     const response = await PATCH(
       new Request("http://localhost/api/admin/courses/c1", {
         method: "PATCH",
-        body: JSON.stringify({ title: "Updated", description: null, scope: "PARISH", published: true }),
+        body: JSON.stringify({ title: "Updated", description: null, scope: "PARISH", published: true, publiclyBrowseable: false }),
       }),
       { params: Promise.resolve({ courseId: "11111111-1111-4111-8111-111111111111" }) },
     );
@@ -133,7 +133,7 @@ describe("/api/admin/courses", () => {
     const response = await PATCH(
       new Request("http://localhost/api/admin/courses/c1", {
         method: "PATCH",
-        body: JSON.stringify({ title: "Updated", scope: "PARISH", published: true }),
+        body: JSON.stringify({ title: "Updated", scope: "PARISH", published: true, publiclyBrowseable: false }),
       }),
       { params: Promise.resolve({ courseId: "11111111-1111-4111-8111-111111111111" }) },
     );
@@ -163,7 +163,7 @@ describe("/api/admin/courses", () => {
     const response = await PATCH(
       new Request("http://localhost/api/admin/courses/c1", {
         method: "PATCH",
-        body: JSON.stringify({ title: "Updated", description: null, scope: "PARISH", published: true }),
+        body: JSON.stringify({ title: "Updated", description: null, scope: "PARISH", published: true, publiclyBrowseable: false }),
       }),
       { params: Promise.resolve({ courseId: "11111111-1111-4111-8111-111111111111" }) },
     );

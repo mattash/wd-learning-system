@@ -44,7 +44,7 @@ export default async function CourseDetailPage({
     <div className="space-y-4">
       <header className="flex items-start gap-4">
         {/* Course thumbnail */}
-        <div className="h-20 w-20 shrink-0 overflow-hidden rounded-md border bg-muted">
+        <div className="h-28 w-28 shrink-0 overflow-hidden rounded-md border bg-muted">
           {tree.course.thumbnailUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -54,7 +54,7 @@ export default async function CourseDetailPage({
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center text-muted-foreground">
-              <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="h-12 w-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} />
               </svg>
             </div>
@@ -97,7 +97,7 @@ export default async function CourseDetailPage({
               {module.lessons.map((lesson) => (
                 <li className="flex items-center gap-3" key={lesson.id}>
                   {/* Lesson thumbnail */}
-                  <div className="h-8 w-8 shrink-0 overflow-hidden rounded border bg-muted">
+                  <div className="h-14 w-14 shrink-0 overflow-hidden rounded border bg-muted">
                     {lesson.thumbnailUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -107,7 +107,7 @@ export default async function CourseDetailPage({
                       />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center text-muted-foreground">
-                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9v4a1 1 0 001.552.83l3.197-2.132a1 1 0 000-1.666z" strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} />
                           <path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} />
                         </svg>
