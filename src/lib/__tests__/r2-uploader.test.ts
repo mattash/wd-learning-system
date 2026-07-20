@@ -58,4 +58,53 @@ describe("R2 upload cleanup support", () => {
 
     expect(send).toHaveBeenCalledTimes(1);
   });
+
+  it("validates external thumbnails and returns their HTTP status", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 204 });
+    vi.stubGlobal("fetch", fetchMock);
+    const { validateExternalUrl } = await import("../../../scripts/lib/r2-uploader");
+
+    await expect(validateExternalUrl("https://images.example.com/thumbnail.png")).resolves.toEqual({
+      ok: true,
+      status: 204,
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://images.example.com/thumbnail.png",
+      expect.objectContaining({ method: "HEAD", redirect: "follow" }),
+    );
+  });
+
+  it("reports external thumbnail validation failures", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network unavailable")));
+    const { validateExternalUrl } = await import("../../../scripts/lib/r2-uploader");
+
+    await expect(validateExternalUrl("https://images.example.com/thumbnail.png", 1)).resolves.toEqual({
+      ok: false,
+      error: "network unavailable",
+    });
+  });
+
+  it("reports an aborted thumbnail validation as a timeout", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("request aborted")));
+    const { validateExternalUrl } = await import("../../../scripts/lib/r2-uploader");
+
+    await expect(validateExternalUrl("https://images.example.com/thumbnail.png", 1)).resolves.toEqual({
+      ok: false,
+      error: "timed out after 1ms",
+    });
+  });
+
+  it("rejects inaccessible strict external thumbnails but accepts non-strict URLs", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 404 });
+    vi.stubGlobal("fetch", fetchMock);
+    const { resolveAndUploadThumbnail } = await import("../../../scripts/lib/r2-uploader");
+    const url = "https://images.example.com/missing.png";
+
+    await expect(resolveAndUploadThumbnail(url, "thumbnails", "lesson")).resolves.toBe(url);
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    await expect(
+      resolveAndUploadThumbnail(url, "thumbnails", "lesson", { strict: true }),
+    ).rejects.toThrow("External thumbnail URL is inaccessible (404)");
+  });
 });
