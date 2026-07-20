@@ -1,5 +1,6 @@
 import { E2E_COURSE } from "@/lib/e2e-fixtures";
 import { isE2ESmokeMode } from "@/lib/e2e-mode";
+import { isLessonComplete } from "@/lib/grading";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import type { CertificateData } from "@/lib/certificates/certificate-pdf";
 
@@ -75,10 +76,15 @@ export async function checkAndIssueCertificate({
 
   const { data: lessons } = await supabase
     .from("lessons")
-    .select("id")
+    .select("id, passing_score, questions(id)")
     .in("module_id", moduleIds);
 
-  const lessonIds = ((lessons ?? []) as Array<{ id: string }>).map((l) => l.id);
+  const lessonRows = (lessons ?? []) as Array<{
+    id: string;
+    passing_score: number;
+    questions: Array<{ id: string }> | null;
+  }>;
+  const lessonIds = lessonRows.map((lesson) => lesson.id);
   if (lessonIds.length === 0) return null;
 
   const { data: progressRows } = await supabase
@@ -86,11 +92,40 @@ export async function checkAndIssueCertificate({
     .select("lesson_id, completed")
     .eq("parish_id", parishId)
     .eq("clerk_user_id", clerkUserId)
-    .in("lesson_id", lessonIds)
-    .eq("completed", true);
+    .in("lesson_id", lessonIds);
 
-  const completedLessonIds = new Set(((progressRows ?? []) as Array<{ lesson_id: string }>).map((p) => p.lesson_id));
-  const allDone = lessonIds.every((id) => completedLessonIds.has(id));
+  const contentCompletedByLesson = new Map(
+    ((progressRows ?? []) as Array<{ lesson_id: string; completed: boolean }>).map(
+      (progress) => [progress.lesson_id, progress.completed],
+    ),
+  );
+
+  const { data: quizRows } = await supabase
+    .from("quiz_attempts")
+    .select("lesson_id, score")
+    .eq("parish_id", parishId)
+    .eq("clerk_user_id", clerkUserId)
+    .in("lesson_id", lessonIds);
+
+  const bestScoreByLesson = new Map<string, number>();
+  for (const attempt of (quizRows ?? []) as Array<{
+    lesson_id: string;
+    score: number;
+  }>) {
+    const current = bestScoreByLesson.get(attempt.lesson_id) ?? 0;
+    if (attempt.score > current) {
+      bestScoreByLesson.set(attempt.lesson_id, attempt.score);
+    }
+  }
+
+  const allDone = lessonRows.every((lesson) =>
+    isLessonComplete({
+      contentCompleted: contentCompletedByLesson.get(lesson.id) ?? false,
+      bestScore: bestScoreByLesson.get(lesson.id) ?? 0,
+      passingScore: lesson.passing_score,
+      questionCount: lesson.questions?.length ?? 0,
+    }),
+  );
 
   if (!allDone) return null;
 

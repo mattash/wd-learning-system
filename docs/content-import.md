@@ -44,6 +44,7 @@ course:
     - title: "Module Title"
       descriptor: "Optional module description"
       thumbnail_url: "/window.svg"
+      reviewed: false                 # staging gate only; not stored in LMS
 
       lessons:
         - title: "Lesson Title"
@@ -61,6 +62,14 @@ course:
                 - "Option C"
               correct_option_index: 1   # 0-based index
 ```
+
+### Module review gate
+
+`reviewed` is accepted on each module as a pre-import staging gate. It defaults
+to `false` and is not stored in the LMS database. Course-prep workflows should
+leave it `false` until the module's video cuts, document links, and questions
+have been reviewed. Do not assemble a full-course production import from weekly
+chunks until every module has `reviewed: true`.
 
 ## Thumbnail handling
 

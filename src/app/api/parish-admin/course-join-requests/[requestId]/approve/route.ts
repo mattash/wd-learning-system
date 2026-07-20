@@ -25,9 +25,10 @@ export async function POST(
       .from("course_join_requests")
       .select("clerk_user_id, course_id")
       .eq("id", requestId)
+      .eq("parish_id", parishId)
       .eq("status", "PENDING")
       .single();
-    await approveJoinRequest({ requestId, actorClerkUserId: clerkUserId });
+    await approveJoinRequest({ requestId, parishId, actorClerkUserId: clerkUserId });
 
     // Send notification email (non-blocking - don't fail the request if email fails)
     if (requestRow) {

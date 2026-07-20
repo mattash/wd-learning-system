@@ -47,21 +47,39 @@ function videoProgressMock(returnData: unknown) {
   };
 }
 
-function quizAttemptsMock(returnData: unknown) {
+function quizAttemptsMock({
+  scoreData = [],
+  recentData = [],
+}: {
+  scoreData?: unknown;
+  recentData?: unknown;
+} = {}) {
   return {
-    select: vi.fn(() => ({
-      eq: vi.fn(() => ({
+    select: vi.fn((columns: string) => {
+      if (columns === "lesson_id, score") {
+        return {
+          eq: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              in: vi.fn(async () => ({ data: scoreData, error: null })),
+            })),
+          })),
+        };
+      }
+
+      return {
         eq: vi.fn(() => ({
-          in: vi.fn(() => ({
-            gte: vi.fn(() => ({
-              order: vi.fn(() => ({
-                limit: vi.fn(async () => ({ data: returnData, error: null })),
+          eq: vi.fn(() => ({
+            in: vi.fn(() => ({
+              gte: vi.fn(() => ({
+                order: vi.fn(() => ({
+                  limit: vi.fn(async () => ({ data: recentData, error: null })),
+                })),
               })),
             })),
           })),
         })),
-      })),
-    })),
+      };
+    }),
   };
 }
 
@@ -115,7 +133,15 @@ describe("getStudentDashboardData", () => {
           [
             {
               course_id: "course-visible",
-              lessons: [{ id: "lesson-visible", title: "Visible Lesson" }],
+              lessons: [
+                {
+                  id: "lesson-visible",
+                  title: "Visible Lesson",
+                  sort_order: 1,
+                  passing_score: 80,
+                  questions: [],
+                },
+              ],
             },
           ],
           modulesInSpy,
@@ -132,7 +158,7 @@ describe("getStudentDashboardData", () => {
         ]);
       }
       if (table === "quiz_attempts") {
-        return quizAttemptsMock([]);
+        return quizAttemptsMock();
       }
       if (table === "certificates") {
         return certificatesMock(1);
@@ -192,8 +218,20 @@ describe("getStudentDashboardData", () => {
           {
             course_id: "course-visible",
             lessons: [
-              { id: "lesson-complete", title: "Complete Lesson" },
-              { id: "lesson-next", title: "Next Lesson" },
+              {
+                id: "lesson-complete",
+                title: "Complete Lesson",
+                sort_order: 1,
+                passing_score: 80,
+                questions: [],
+              },
+              {
+                id: "lesson-next",
+                title: "Next Lesson",
+                sort_order: 2,
+                passing_score: 80,
+                questions: [],
+              },
             ],
           },
         ]);
@@ -209,7 +247,7 @@ describe("getStudentDashboardData", () => {
         ]);
       }
       if (table === "quiz_attempts") {
-        return quizAttemptsMock([]);
+        return quizAttemptsMock();
       }
       if (table === "certificates") {
         return certificatesMock();
@@ -230,6 +268,161 @@ describe("getStudentDashboardData", () => {
       progressPercent: 50,
       resumeLessonId: "lesson-next",
       resumeLessonTitle: "Next Lesson",
+    });
+  });
+
+  it("resumes a content-complete quiz lesson below threshold", async () => {
+    const from = vi.fn((table: string) => {
+      if (table === "enrollments") {
+        return enrollmentsMock([
+          {
+            course_id: "course-visible",
+            courses: {
+              id: "course-visible",
+              title: "Visible Course",
+              description: null,
+              thumbnail_url: null,
+              duration_hours: null,
+              category: null,
+            },
+          },
+        ]);
+      }
+      if (table === "modules") {
+        return modulesMock([
+          {
+            course_id: "course-visible",
+            lessons: [
+              {
+                id: "lesson-quiz",
+                title: "Quiz Lesson",
+                sort_order: 1,
+                passing_score: 80,
+                questions: [{ id: "question-1" }],
+              },
+            ],
+          },
+        ]);
+      }
+      if (table === "video_progress") {
+        return videoProgressMock([
+          {
+            lesson_id: "lesson-quiz",
+            completed: true,
+            last_position_seconds: 120,
+            updated_at: new Date().toISOString(),
+          },
+        ]);
+      }
+      if (table === "quiz_attempts") {
+        return quizAttemptsMock({
+          scoreData: [{ lesson_id: "lesson-quiz", score: 79 }],
+        });
+      }
+      if (table === "certificates") return certificatesMock();
+      throw new Error(`Unexpected table ${table}`);
+    });
+    const rpc = vi.fn(async () => ({
+      data: [{ id: "course-visible" }],
+      error: null,
+    }));
+    vi.mocked(getSupabaseAdminClient).mockReturnValue({ from, rpc } as never);
+
+    const result = await getStudentDashboardData("parish-1", "user-1");
+
+    expect(result.progress[0]).toMatchObject({
+      completedLessons: 0,
+      progressPercent: 0,
+      resumeLessonId: "lesson-quiz",
+      resumeLessonTitle: "Quiz Lesson",
+    });
+  });
+
+  it("counts exact-threshold and no-quiz completions in a mixed course", async () => {
+    const from = vi.fn((table: string) => {
+      if (table === "enrollments") {
+        return enrollmentsMock([
+          {
+            course_id: "course-visible",
+            courses: {
+              id: "course-visible",
+              title: "Visible Course",
+              description: null,
+              thumbnail_url: null,
+              duration_hours: null,
+              category: null,
+            },
+          },
+        ]);
+      }
+      if (table === "modules") {
+        return modulesMock([
+          {
+            course_id: "course-visible",
+            lessons: [
+              {
+                id: "lesson-quiz",
+                title: "Quiz Lesson",
+                sort_order: 1,
+                passing_score: 80,
+                questions: [{ id: "question-1" }],
+              },
+              {
+                id: "lesson-no-quiz",
+                title: "Content Lesson",
+                sort_order: 2,
+                passing_score: 80,
+                questions: [],
+              },
+              {
+                id: "lesson-incomplete",
+                title: "Incomplete Lesson",
+                sort_order: 3,
+                passing_score: 80,
+                questions: [],
+              },
+            ],
+          },
+        ]);
+      }
+      if (table === "video_progress") {
+        return videoProgressMock([
+          {
+            lesson_id: "lesson-quiz",
+            completed: true,
+            last_position_seconds: 120,
+            updated_at: "2026-07-18T12:00:00.000Z",
+          },
+          {
+            lesson_id: "lesson-no-quiz",
+            completed: true,
+            last_position_seconds: 60,
+            updated_at: "2026-07-17T12:00:00.000Z",
+          },
+        ]);
+      }
+      if (table === "quiz_attempts") {
+        return quizAttemptsMock({
+          scoreData: [{ lesson_id: "lesson-quiz", score: 80 }],
+        });
+      }
+      if (table === "certificates") return certificatesMock();
+      throw new Error(`Unexpected table ${table}`);
+    });
+    const rpc = vi.fn(async () => ({
+      data: [{ id: "course-visible" }],
+      error: null,
+    }));
+    vi.mocked(getSupabaseAdminClient).mockReturnValue({ from, rpc } as never);
+
+    const result = await getStudentDashboardData("parish-1", "user-1");
+
+    expect(result.progress[0]).toMatchObject({
+      totalLessons: 3,
+      completedLessons: 2,
+      progressPercent: 67,
+      resumeLessonId: "lesson-incomplete",
+      resumeLessonTitle: "Incomplete Lesson",
     });
   });
 });

@@ -1,7 +1,13 @@
-import { E2E_COURSE, E2E_LESSON, E2E_MODULE } from "@/lib/e2e-fixtures";
+import {
+  E2E_COURSE,
+  E2E_LESSON,
+  E2E_MODULE,
+  E2E_QUESTIONS,
+} from "@/lib/e2e-fixtures";
 import { isE2ESmokeMode } from "@/lib/e2e-mode";
 import type { CourseCategory } from "@/lib/course-metadata";
 import { parseDurationHours } from "@/lib/course-metadata";
+import { isLessonComplete } from "@/lib/grading";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 
 export interface VisibleCourse {
@@ -16,11 +22,19 @@ export interface VisibleCourse {
   category?: CourseCategory | null;
 }
 
-export interface CourseModule {
+interface CourseModule {
   id: string;
   title: string;
   sort_order: number;
-  lessons: { id: string; title: string; sort_order: number; content_type: "VIDEO" | "DOCUMENT"; thumbnail_url: string | null }[];
+  lessons: Array<{
+    id: string;
+    title: string;
+    sort_order: number;
+    content_type: "VIDEO" | "DOCUMENT";
+    thumbnail_url: string | null;
+    passing_score: number;
+    questions: Array<{ id: string }>;
+  }>;
 }
 
 export interface PublicCoursePreview {
@@ -124,6 +138,7 @@ export async function getPublicCoursePreview(courseId: string): Promise<PublicCo
     .select("id,title,description,published,scope,thumbnail_url,instructor,duration_hours,category")
     .eq("id", courseId)
     .eq("published", true)
+    .eq("publicly_browseable", true)
     .maybeSingle();
 
   if (courseError) throw courseError;
@@ -232,7 +247,10 @@ export async function isUserEnrolledInCourse({
   return Boolean(data);
 }
 
-export async function getCourseTree(courseId: string, parishId: string) {
+export async function getCourseTree(
+  courseId: string,
+  parishId: string,
+): Promise<{ course: VisibleCourse; modules: CourseModule[] } | null> {
   if (isE2ESmokeMode()) {
     if (courseId !== E2E_COURSE.id) return null;
     return {
@@ -240,7 +258,17 @@ export async function getCourseTree(courseId: string, parishId: string) {
       modules: [
         {
           ...E2E_MODULE,
-          lessons: [{ id: E2E_LESSON.id, title: E2E_LESSON.title, sort_order: 1, content_type: E2E_LESSON.content_type, thumbnail_url: null }],
+          lessons: [
+            {
+              id: E2E_LESSON.id,
+              title: E2E_LESSON.title,
+              sort_order: 1,
+              content_type: E2E_LESSON.content_type,
+              thumbnail_url: null,
+              passing_score: E2E_LESSON.passing_score,
+              questions: E2E_QUESTIONS.map((question) => ({ id: question.id })),
+            },
+          ],
         },
       ],
     };
@@ -274,7 +302,7 @@ export async function getCourseTree(courseId: string, parishId: string) {
 
   const { data: modules, error: modulesError } = await supabase
     .from("modules")
-    .select("id,title,sort_order, lessons(id,title,sort_order,content_type,thumbnail_url)")
+    .select("id,title,sort_order, lessons(id,title,sort_order,content_type,thumbnail_url,passing_score,questions(id))")
     .eq("course_id", courseId)
     .order("sort_order", { ascending: true });
 
@@ -342,8 +370,11 @@ export async function getCourseTreeWithProgress(
       modules: tree.modules.map((m) => ({
         ...m,
         lessons: m.lessons.map((l) => ({
-          ...l,
-          thumbnailUrl: (l as { thumbnail_url?: string }).thumbnail_url ?? null,
+          id: l.id,
+          title: l.title,
+          sort_order: l.sort_order,
+          content_type: l.content_type,
+          thumbnailUrl: l.thumbnail_url,
           status: "not_started" as const,
           bestScore: 0,
         })),
@@ -389,14 +420,29 @@ export async function getCourseTreeWithProgress(
         const progress = progressMap.get(l.id);
         const bestScore = bestScoreMap.get(l.id) ?? 0;
         let status: "not_started" | "in_progress" | "completed";
-        if (progress?.completed) {
+        if (
+          isLessonComplete({
+            contentCompleted: progress?.completed ?? false,
+            bestScore,
+            passingScore: l.passing_score,
+            questionCount: l.questions.length,
+          })
+        ) {
           status = "completed";
-        } else if (progress && progress.percent_watched > 0) {
+        } else if (progress && (progress.completed || progress.percent_watched > 0)) {
           status = "in_progress";
         } else {
           status = "not_started";
         }
-        return { ...l, thumbnailUrl: l.thumbnail_url, status, bestScore };
+        return {
+          id: l.id,
+          title: l.title,
+          sort_order: l.sort_order,
+          content_type: l.content_type,
+          thumbnailUrl: l.thumbnail_url,
+          status,
+          bestScore,
+        };
       }),
     })),
   };

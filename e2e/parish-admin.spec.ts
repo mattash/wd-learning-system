@@ -11,7 +11,7 @@ test("parish admin participation watchlist supports filtering and csv export", a
     { name: "e2e_role", value: "parish_admin", url: E2E_BASE_URL },
   ]);
 
-  await page.goto("/app/parish-admin");
+  await page.goto("/app/parish-admin/participation");
   await expect(page.getByRole("heading", { name: "Participation Watchlist" })).toBeVisible();
 
   const statusFilter = page
@@ -33,7 +33,7 @@ test("parish admin participation watchlist supports filtering and csv export", a
   expect(filteredCsv).not.toContain("E2E User");
 
   await statusFilter.selectOption("not_started");
-  await expect(page.getByRole("cell", { name: "E2E User", exact: true }).first()).toBeVisible();
+  await expect(page.getByText("E2E User", { exact: true }).first()).toBeVisible();
 
   const exportDownloadPromise = page.waitForEvent("download");
   await page.getByRole("link", { name: "Export CSV" }).click();

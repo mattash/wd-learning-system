@@ -11,12 +11,11 @@ export default defineConfig({
     baseURL: "http://localhost:3100",
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
-    video: "retain-on-failure",
+    video: process.env.PLAYWRIGHT_DISABLE_VIDEO ? "off" : "retain-on-failure",
   },
   webServer: {
-    command: process.env.CI
-      ? "E2E_SMOKE_MODE=1 npm run dev -- --port 3100"
-      : "E2E_SMOKE_MODE=1 npm run build && E2E_SMOKE_MODE=1 npm run start -- --port 3100",
+    command:
+      "E2E_SMOKE_MODE=1 E2E_SMOKE_MODE_ACK=local-smoke-only npm run dev -- --port 3100",
     url: "http://localhost:3100",
     reuseExistingServer: !process.env.CI,
     timeout: 240_000,
@@ -24,7 +23,10 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
+      use: {
+        ...devices["Desktop Chrome"],
+        channel: process.env.PLAYWRIGHT_BROWSER_CHANNEL,
+      },
     },
   ],
 });

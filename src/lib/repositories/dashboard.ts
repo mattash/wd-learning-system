@@ -2,6 +2,7 @@ import { E2E_COURSE, E2E_LESSON } from "@/lib/e2e-fixtures";
 import { isE2ESmokeMode } from "@/lib/e2e-mode";
 import type { CourseCategory } from "@/lib/course-metadata";
 import { parseDurationHours } from "@/lib/course-metadata";
+import { isLessonComplete } from "@/lib/grading";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 
 export interface DashboardCourseProgress {
@@ -170,17 +171,31 @@ export async function getStudentDashboardData(
   const courseIds = enrolledCourses.map((c) => c.courseId);
   const { data: modulesData, error: modError } = await supabase
     .from("modules")
-    .select("id, course_id, lessons(id, title, sort_order)")
+    .select("id, course_id, lessons(id, title, sort_order, passing_score, questions(id))")
     .in("course_id", courseIds)
     .order("sort_order", { ascending: true });
 
   if (modError) throw modError;
 
   // Flatten lessons per course in curriculum order
-  const lessonsByCourse = new Map<string, Array<{ id: string; title: string }>>();
+  const lessonsByCourse = new Map<
+    string,
+    Array<{
+      id: string;
+      title: string;
+      passingScore: number;
+      questionCount: number;
+    }>
+  >();
   for (const mod of (modulesData ?? []) as Array<{
     course_id: string;
-    lessons: Array<{ id: string; title: string; sort_order: number }>;
+    lessons: Array<{
+      id: string;
+      title: string;
+      sort_order: number;
+      passing_score: number;
+      questions: Array<{ id: string }> | null;
+    }>;
   }>) {
     if (!lessonsByCourse.has(mod.course_id)) {
       lessonsByCourse.set(mod.course_id, []);
@@ -189,7 +204,12 @@ export async function getStudentDashboardData(
       (a, b) => a.sort_order - b.sort_order,
     );
     for (const lesson of sortedLessons) {
-      lessonsByCourse.get(mod.course_id)!.push({ id: lesson.id, title: lesson.title });
+      lessonsByCourse.get(mod.course_id)!.push({
+        id: lesson.id,
+        title: lesson.title,
+        passingScore: lesson.passing_score,
+        questionCount: lesson.questions?.length ?? 0,
+      });
     }
   }
 
@@ -249,14 +269,47 @@ export async function getStudentDashboardData(
       .map((row) => row.updated_at),
   );
 
-  // Populate course progress from video_progress data
+  const { data: quizScoreData, error: quizScoreError } = await supabase
+    .from("quiz_attempts")
+    .select("lesson_id, score")
+    .eq("parish_id", parishId)
+    .eq("clerk_user_id", clerkUserId)
+    .in("lesson_id", allLessonIds);
+
+  if (quizScoreError) throw quizScoreError;
+
+  const bestScoreByLesson = new Map<string, number>();
+  for (const attempt of (quizScoreData ?? []) as Array<{
+    lesson_id: string;
+    score: number;
+  }>) {
+    const current = bestScoreByLesson.get(attempt.lesson_id) ?? 0;
+    if (attempt.score > current) {
+      bestScoreByLesson.set(attempt.lesson_id, attempt.score);
+    }
+  }
+
+  const completionByLesson = new Map<string, boolean>();
+  for (const lesson of Array.from(lessonsByCourse.values()).flat()) {
+    completionByLesson.set(
+      lesson.id,
+      isLessonComplete({
+        contentCompleted: progressByLesson.get(lesson.id)?.completed ?? false,
+        bestScore: bestScoreByLesson.get(lesson.id) ?? 0,
+        passingScore: lesson.passingScore,
+        questionCount: lesson.questionCount,
+      }),
+    );
+  }
+
+  // Populate course progress from the canonical lesson-completion rule.
   for (const course of progress) {
     const lessons = lessonsByCourse.get(course.courseId) ?? [];
 
     for (const lesson of lessons) {
       const p = progressByLesson.get(lesson.id);
       if (p) {
-        if (p.completed) course.completedLessons++;
+        if (completionByLesson.get(lesson.id)) course.completedLessons++;
         if (!course.lastActivityAt || p.updated_at > course.lastActivityAt) {
           course.lastActivityAt = p.updated_at;
           course.lastLessonId = p.lesson_id;
@@ -267,8 +320,7 @@ export async function getStudentDashboardData(
     }
 
     for (const lesson of lessons) {
-      const p = progressByLesson.get(lesson.id);
-      if (!p?.completed) {
+      if (!completionByLesson.get(lesson.id)) {
         course.resumeLessonId = lesson.id;
         course.resumeLessonTitle = lesson.title;
         break;
@@ -287,7 +339,7 @@ export async function getStudentDashboardData(
   const cutoff = sevenDaysAgo.toISOString();
 
   // Get recent quiz attempts (constrained to enrolled course lessons)
-  const { data: quizData, error: quizError } = await supabase
+  const { data: recentQuizData, error: recentQuizError } = await supabase
     .from("quiz_attempts")
     .select("lesson_id, score, created_at, lessons!inner(title, modules!inner(course_id, courses!inner(title)))")
     .eq("parish_id", parishId)
@@ -297,11 +349,11 @@ export async function getStudentDashboardData(
     .order("created_at", { ascending: false })
     .limit(15);
 
-  if (quizError) throw quizError;
+  if (recentQuizError) throw recentQuizError;
 
   // Build recent activity feed from quiz attempts
   const recentActivity: LessonActivity[] = (
-    (quizData ?? []) as Array<{
+    (recentQuizData ?? []) as Array<{
       lesson_id: string;
       score: number;
       created_at: string;

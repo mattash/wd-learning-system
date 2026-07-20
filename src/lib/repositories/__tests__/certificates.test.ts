@@ -52,9 +52,19 @@ function videoProgressMock(returnData: unknown) {
     select: vi.fn(() => ({
       eq: vi.fn(() => ({
         eq: vi.fn(() => ({
-          in: vi.fn(() => ({
-            eq: vi.fn(() => ({ data: returnData, error: null })),
-          })),
+          in: vi.fn(() => ({ data: returnData, error: null })),
+        })),
+      })),
+    })),
+  };
+}
+
+function quizAttemptsMock(returnData: unknown) {
+  return {
+    select: vi.fn(() => ({
+      eq: vi.fn(() => ({
+        eq: vi.fn(() => ({
+          in: vi.fn(() => ({ data: returnData, error: null })),
         })),
       })),
     })),
@@ -71,9 +81,37 @@ function insertMock(returnData: unknown) {
   };
 }
 
+function certificateEligibilityFrom({
+  lessons,
+  progress,
+  quizAttempts = [],
+  newCertificate,
+}: {
+  lessons: unknown[];
+  progress: unknown[];
+  quizAttempts?: unknown[];
+  newCertificate?: unknown;
+}) {
+  let certificateCallCount = 0;
+
+  return vi.fn((table: string) => {
+    if (table === "certificates") {
+      certificateCallCount++;
+      if (certificateCallCount === 1) return certificatesMock(null);
+      return insertMock(newCertificate);
+    }
+    if (table === "modules") return modulesMock([{ id: "mod-1" }]);
+    if (table === "lessons") return lessonsMock(lessons);
+    if (table === "video_progress") return videoProgressMock(progress);
+    if (table === "quiz_attempts") return quizAttemptsMock(quizAttempts);
+    throw new Error(`Unexpected table ${table}`);
+  });
+}
+
 describe("checkAndIssueCertificate", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(isE2ESmokeMode).mockReturnValue(false);
   });
 
   it("returns existing certificate with newlyIssued=false when certificate already exists", async () => {
@@ -112,14 +150,14 @@ describe("checkAndIssueCertificate", () => {
     expect(result).toBeNull();
   });
 
-  it("returns null when not all lessons are completed", async () => {
+  it("returns null when content is incomplete", async () => {
     vi.mocked(getSupabaseAdminClient).mockReturnValue({
-      from: vi.fn((table: string) => {
-        if (table === "certificates") return certificatesMock(null);
-        if (table === "modules") return modulesMock([{ id: "mod-1" }]);
-        if (table === "lessons") return lessonsMock([{ id: "lesson-1" }, { id: "lesson-2" }]);
-        if (table === "video_progress") return videoProgressMock([{ lesson_id: "lesson-1", completed: true }]);
-        throw new Error(`Unexpected table ${table}`);
+      from: certificateEligibilityFrom({
+        lessons: [
+          { id: "lesson-1", passing_score: 80, questions: [] },
+          { id: "lesson-2", passing_score: 80, questions: [] },
+        ],
+        progress: [{ lesson_id: "lesson-1", completed: true }],
       }),
     } as never);
 
@@ -132,20 +170,13 @@ describe("checkAndIssueCertificate", () => {
     expect(result).toBeNull();
   });
 
-  it("issues new certificate with newlyIssued=true when all lessons completed", async () => {
+  it("issues for a content-complete lesson without a quiz", async () => {
     const newCert = { id: "new-cert", clerk_user_id: "user-1", parish_id: "parish-1", course_id: "course-1", issued_at: "2026-05-01", download_url: null };
-    let callCount = 0;
     vi.mocked(getSupabaseAdminClient).mockReturnValue({
-      from: vi.fn((table: string) => {
-        if (table === "certificates") {
-          callCount++;
-          if (callCount === 1) return certificatesMock(null); // check exists
-          return insertMock(newCert); // insert new
-        }
-        if (table === "modules") return modulesMock([{ id: "mod-1" }]);
-        if (table === "lessons") return lessonsMock([{ id: "lesson-1" }]);
-        if (table === "video_progress") return videoProgressMock([{ lesson_id: "lesson-1", completed: true }]);
-        throw new Error(`Unexpected table ${table}`);
+      from: certificateEligibilityFrom({
+        lessons: [{ id: "lesson-1", passing_score: 80, questions: [] }],
+        progress: [{ lesson_id: "lesson-1", completed: true }],
+        newCertificate: newCert,
       }),
     } as never);
 
@@ -156,6 +187,114 @@ describe("checkAndIssueCertificate", () => {
     });
 
     expect(result).toEqual({ certificate: newCert, newlyIssued: true });
+  });
+
+  it("returns null when a required quiz is below threshold", async () => {
+    vi.mocked(getSupabaseAdminClient).mockReturnValue({
+      from: certificateEligibilityFrom({
+        lessons: [
+          {
+            id: "lesson-1",
+            passing_score: 80,
+            questions: [{ id: "question-1" }],
+          },
+        ],
+        progress: [{ lesson_id: "lesson-1", completed: true }],
+        quizAttempts: [{ lesson_id: "lesson-1", score: 79 }],
+      }),
+    } as never);
+
+    await expect(
+      checkAndIssueCertificate({
+        clerkUserId: "user-1",
+        parishId: "parish-1",
+        courseId: "course-1",
+      }),
+    ).resolves.toBeNull();
+  });
+
+  it("issues when a required quiz equals the threshold", async () => {
+    const newCert = { id: "new-cert" };
+    vi.mocked(getSupabaseAdminClient).mockReturnValue({
+      from: certificateEligibilityFrom({
+        lessons: [
+          {
+            id: "lesson-1",
+            passing_score: 80,
+            questions: [{ id: "question-1" }],
+          },
+        ],
+        progress: [{ lesson_id: "lesson-1", completed: true }],
+        quizAttempts: [{ lesson_id: "lesson-1", score: 80 }],
+        newCertificate: newCert,
+      }),
+    } as never);
+
+    await expect(
+      checkAndIssueCertificate({
+        clerkUserId: "user-1",
+        parishId: "parish-1",
+        courseId: "course-1",
+      }),
+    ).resolves.toEqual({ certificate: newCert, newlyIssued: true });
+  });
+
+  it("issues when the best of multiple attempts passes", async () => {
+    const newCert = { id: "new-cert" };
+    vi.mocked(getSupabaseAdminClient).mockReturnValue({
+      from: certificateEligibilityFrom({
+        lessons: [
+          {
+            id: "lesson-1",
+            passing_score: 80,
+            questions: [{ id: "question-1" }],
+          },
+        ],
+        progress: [{ lesson_id: "lesson-1", completed: true }],
+        quizAttempts: [
+          { lesson_id: "lesson-1", score: 60 },
+          { lesson_id: "lesson-1", score: 90 },
+          { lesson_id: "lesson-1", score: 70 },
+        ],
+        newCertificate: newCert,
+      }),
+    } as never);
+
+    await expect(
+      checkAndIssueCertificate({
+        clerkUserId: "user-1",
+        parishId: "parish-1",
+        courseId: "course-1",
+      }),
+    ).resolves.toEqual({ certificate: newCert, newlyIssued: true });
+  });
+
+  it("requires every lesson in a mixed course to pass", async () => {
+    vi.mocked(getSupabaseAdminClient).mockReturnValue({
+      from: certificateEligibilityFrom({
+        lessons: [
+          { id: "lesson-content", passing_score: 80, questions: [] },
+          {
+            id: "lesson-quiz",
+            passing_score: 80,
+            questions: [{ id: "question-1" }],
+          },
+        ],
+        progress: [
+          { lesson_id: "lesson-content", completed: true },
+          { lesson_id: "lesson-quiz", completed: true },
+        ],
+        quizAttempts: [{ lesson_id: "lesson-quiz", score: 79 }],
+      }),
+    } as never);
+
+    await expect(
+      checkAndIssueCertificate({
+        clerkUserId: "user-1",
+        parishId: "parish-1",
+        courseId: "course-1",
+      }),
+    ).resolves.toBeNull();
   });
 
   it("returns null when certificate insert fails", async () => {
@@ -176,8 +315,9 @@ describe("checkAndIssueCertificate", () => {
           };
         }
         if (table === "modules") return modulesMock([{ id: "mod-1" }]);
-        if (table === "lessons") return lessonsMock([{ id: "lesson-1" }]);
+        if (table === "lessons") return lessonsMock([{ id: "lesson-1", passing_score: 80, questions: [] }]);
         if (table === "video_progress") return videoProgressMock([{ lesson_id: "lesson-1", completed: true }]);
+        if (table === "quiz_attempts") return quizAttemptsMock([]);
         throw new Error(`Unexpected table ${table}`);
       }),
     } as never);

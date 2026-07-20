@@ -23,6 +23,7 @@ const request = {
   clerk_user_id: "user-1",
   course_id: "22222222-2222-4222-8222-222222222222",
 };
+const callerParishId = "parish-1";
 
 function mockApproveSupabase({
   requestData = request,
@@ -45,13 +46,15 @@ function mockApproveSupabase({
 } = {}) {
   const requestMaybeSingle = vi.fn(async () => ({ data: requestData, error: requestError }));
   const requestStatusEq = vi.fn(() => ({ maybeSingle: requestMaybeSingle }));
-  const requestIdEq = vi.fn(() => ({ eq: requestStatusEq }));
+  const requestParishEq = vi.fn(() => ({ eq: requestStatusEq }));
+  const requestIdEq = vi.fn(() => ({ eq: requestParishEq }));
   const requestSelect = vi.fn(() => ({ eq: requestIdEq }));
 
   const updateMaybeSingle = vi.fn(async () => ({ data: updatedData, error: updateError }));
   const updateSelect = vi.fn(() => ({ maybeSingle: updateMaybeSingle }));
   const updateStatusEq = vi.fn(() => ({ select: updateSelect }));
-  const updateIdEq = vi.fn(() => ({ eq: updateStatusEq }));
+  const updateParishEq = vi.fn(() => ({ eq: updateStatusEq }));
+  const updateIdEq = vi.fn(() => ({ eq: updateParishEq }));
   const update = vi.fn(() => ({ eq: updateIdEq }));
 
   const courseMaybeSingle = vi.fn(async () => ({ data: courseData, error: courseError }));
@@ -77,7 +80,44 @@ function mockApproveSupabase({
     rpc,
   } as never);
 
-  return { directEnrollmentUpsert, rpc, update };
+  return {
+    directEnrollmentUpsert,
+    requestIdEq,
+    requestParishEq,
+    requestStatusEq,
+    rpc,
+    update,
+    updateIdEq,
+    updateParishEq,
+    updateStatusEq,
+  };
+}
+
+function mockRejectSupabase({
+  requestData = request,
+  updatedData = { id: "request-1" },
+}: {
+  requestData?: typeof request | null;
+  updatedData?: { id: string } | null;
+} = {}) {
+  const requestMaybeSingle = vi.fn(async () => ({ data: requestData, error: null }));
+  const requestStatusEq = vi.fn(() => ({ maybeSingle: requestMaybeSingle }));
+  const requestParishEq = vi.fn(() => ({ eq: requestStatusEq }));
+  const requestIdEq = vi.fn(() => ({ eq: requestParishEq }));
+  const requestSelect = vi.fn(() => ({ eq: requestIdEq }));
+
+  const updateMaybeSingle = vi.fn(async () => ({ data: updatedData, error: null }));
+  const updateSelect = vi.fn(() => ({ maybeSingle: updateMaybeSingle }));
+  const updateStatusEq = vi.fn(() => ({ select: updateSelect }));
+  const updateParishEq = vi.fn(() => ({ eq: updateStatusEq }));
+  const updateIdEq = vi.fn(() => ({ eq: updateParishEq }));
+  const update = vi.fn(() => ({ eq: updateIdEq }));
+
+  vi.mocked(getSupabaseAdminClient).mockReturnValue({
+    from: vi.fn(() => ({ select: requestSelect, update })),
+  } as never);
+
+  return { requestParishEq, update, updateParishEq };
 }
 
 describe("approveJoinRequest", () => {
@@ -86,10 +126,21 @@ describe("approveJoinRequest", () => {
   });
 
   it("creates parish-scoped enrollments through the atomic adoption RPC", async () => {
-    const { directEnrollmentUpsert, rpc } = mockApproveSupabase();
+    const {
+      directEnrollmentUpsert,
+      requestParishEq,
+      rpc,
+      updateParishEq,
+    } = mockApproveSupabase();
 
-    await approveJoinRequest({ requestId: "request-1", actorClerkUserId: "admin-1" });
+    await approveJoinRequest({
+      requestId: "request-1",
+      parishId: callerParishId,
+      actorClerkUserId: "admin-1",
+    });
 
+    expect(requestParishEq).toHaveBeenCalledWith("parish_id", callerParishId);
+    expect(updateParishEq).toHaveBeenCalledWith("parish_id", callerParishId);
     expect(rpc).toHaveBeenCalledWith("create_parish_course_enrollment", {
       p_parish_id: request.parish_id,
       p_course_id: request.course_id,
@@ -109,7 +160,11 @@ describe("approveJoinRequest", () => {
       courseData: { id: request.course_id, scope: "DIOCESE" },
     });
 
-    await approveJoinRequest({ requestId: "request-1", actorClerkUserId: "admin-1" });
+    await approveJoinRequest({
+      requestId: "request-1",
+      parishId: callerParishId,
+      actorClerkUserId: "admin-1",
+    });
 
     expect(rpc).not.toHaveBeenCalled();
     expect(directEnrollmentUpsert).toHaveBeenCalledWith(
@@ -123,41 +178,79 @@ describe("approveJoinRequest", () => {
   });
 
   it("rolls approval back when parish enrollment RPC returns a domain error", async () => {
-    const { update } = mockApproveSupabase({
+    const { update, updateIdEq, updateParishEq } = mockApproveSupabase({
       rpcResult: { data: { error: "Course is not adopted by this parish." }, error: null },
     });
 
-    await expect(approveJoinRequest({ requestId: "request-1", actorClerkUserId: "admin-1" })).rejects.toThrow(
-      "Course is not adopted by this parish.",
-    );
+    await expect(approveJoinRequest({
+      requestId: "request-1",
+      parishId: callerParishId,
+      actorClerkUserId: "admin-1",
+    })).rejects.toThrow("Course is not adopted by this parish.");
 
     expect(update).toHaveBeenCalledWith({ status: "APPROVED" });
     expect(update).toHaveBeenCalledWith({ status: "PENDING" });
+    expect(updateIdEq).toHaveBeenCalledTimes(2);
+    expect(updateIdEq).toHaveBeenNthCalledWith(2, "id", "request-1");
+    expect(updateParishEq).toHaveBeenNthCalledWith(2, "parish_id", callerParishId);
     expect(recordAdminAuditLog).not.toHaveBeenCalled();
   });
 
   it("rolls approval back when the course cannot be loaded", async () => {
     const courseError = new Error("course lookup failed");
-    const { update } = mockApproveSupabase({ courseError });
+    const { update, updateIdEq, updateParishEq } = mockApproveSupabase({ courseError });
 
-    await expect(approveJoinRequest({ requestId: "request-1", actorClerkUserId: "admin-1" })).rejects.toThrow(
-      "course lookup failed",
-    );
+    await expect(approveJoinRequest({
+      requestId: "request-1",
+      parishId: callerParishId,
+      actorClerkUserId: "admin-1",
+    })).rejects.toThrow("course lookup failed");
 
     expect(update).toHaveBeenCalledWith({ status: "PENDING" });
+    expect(updateIdEq).toHaveBeenNthCalledWith(2, "id", "request-1");
+    expect(updateParishEq).toHaveBeenNthCalledWith(2, "parish_id", callerParishId);
     expect(recordAdminAuditLog).not.toHaveBeenCalled();
   });
 
-  it("does not approve missing or non-pending requests", async () => {
-    const { update, rpc, directEnrollmentUpsert } = mockApproveSupabase({ requestData: null });
+  it("does not approve cross-parish, missing, or non-pending requests", async () => {
+    const {
+      directEnrollmentUpsert,
+      requestParishEq,
+      rpc,
+      update,
+    } = mockApproveSupabase({ requestData: null });
 
-    await expect(approveJoinRequest({ requestId: "request-1", actorClerkUserId: "admin-1" })).rejects.toThrow(
-      "Request not found or not pending",
-    );
+    await expect(approveJoinRequest({
+      requestId: "request-1",
+      parishId: callerParishId,
+      actorClerkUserId: "admin-1",
+    })).rejects.toThrow("Request not found or not pending");
 
+    expect(requestParishEq).toHaveBeenCalledWith("parish_id", callerParishId);
+    expect(requestParishEq).not.toHaveBeenCalledWith("parish_id", request.parish_id);
     expect(update).not.toHaveBeenCalled();
     expect(rpc).not.toHaveBeenCalled();
     expect(directEnrollmentUpsert).not.toHaveBeenCalled();
+    expect(recordAdminAuditLog).not.toHaveBeenCalled();
+  });
+
+  it("does not enroll or audit when the approval transition loses a race", async () => {
+    const {
+      directEnrollmentUpsert,
+      rpc,
+      updateParishEq,
+    } = mockApproveSupabase({ updatedData: null });
+
+    await expect(approveJoinRequest({
+      requestId: "request-1",
+      parishId: callerParishId,
+      actorClerkUserId: "admin-1",
+    })).rejects.toThrow("Request status changed before approval completed");
+
+    expect(updateParishEq).toHaveBeenCalledWith("parish_id", callerParishId);
+    expect(rpc).not.toHaveBeenCalled();
+    expect(directEnrollmentUpsert).not.toHaveBeenCalled();
+    expect(recordAdminAuditLog).not.toHaveBeenCalled();
   });
 });
 
@@ -297,29 +390,50 @@ describe("course join request repository", () => {
   });
 
   it("rejects a pending join request and records an audit log", async () => {
-    const requestMaybeSingle = vi.fn(async () => ({ data: request, error: null }));
-    const requestStatusEq = vi.fn(() => ({ maybeSingle: requestMaybeSingle }));
-    const requestIdEq = vi.fn(() => ({ eq: requestStatusEq }));
-    const requestSelect = vi.fn(() => ({ eq: requestIdEq }));
+    const { requestParishEq, update, updateParishEq } = mockRejectSupabase();
 
-    const updateMaybeSingle = vi.fn(async () => ({ data: { id: "request-1" }, error: null }));
-    const updateSelect = vi.fn(() => ({ maybeSingle: updateMaybeSingle }));
-    const updateStatusEq = vi.fn(() => ({ select: updateSelect }));
-    const updateIdEq = vi.fn(() => ({ eq: updateStatusEq }));
-    const update = vi.fn(() => ({ eq: updateIdEq }));
+    await rejectJoinRequest({
+      requestId: "request-1",
+      parishId: callerParishId,
+      actorClerkUserId: "admin-1",
+    });
 
-    vi.mocked(getSupabaseAdminClient).mockReturnValue({
-      from: vi.fn(() => ({ select: requestSelect, update })),
-    } as never);
-
-    await rejectJoinRequest({ requestId: "request-1", actorClerkUserId: "admin-1" });
-
+    expect(requestParishEq).toHaveBeenCalledWith("parish_id", callerParishId);
     expect(update).toHaveBeenCalledWith({ status: "REJECTED" });
+    expect(updateParishEq).toHaveBeenCalledWith("parish_id", callerParishId);
     expect(recordAdminAuditLog).toHaveBeenCalledWith(
       expect.objectContaining({
         action: "parish.join_request_rejected",
         resourceId: "request-1",
       }),
     );
+  });
+
+  it("does not reject cross-parish, missing, or non-pending requests", async () => {
+    const { requestParishEq, update } = mockRejectSupabase({ requestData: null });
+
+    await expect(rejectJoinRequest({
+      requestId: "request-1",
+      parishId: callerParishId,
+      actorClerkUserId: "admin-1",
+    })).rejects.toThrow("Request not found or not pending");
+
+    expect(requestParishEq).toHaveBeenCalledWith("parish_id", callerParishId);
+    expect(requestParishEq).not.toHaveBeenCalledWith("parish_id", request.parish_id);
+    expect(update).not.toHaveBeenCalled();
+    expect(recordAdminAuditLog).not.toHaveBeenCalled();
+  });
+
+  it("does not audit when the rejection transition loses a race", async () => {
+    const { updateParishEq } = mockRejectSupabase({ updatedData: null });
+
+    await expect(rejectJoinRequest({
+      requestId: "request-1",
+      parishId: callerParishId,
+      actorClerkUserId: "admin-1",
+    })).rejects.toThrow("Request status changed before rejection completed");
+
+    expect(updateParishEq).toHaveBeenCalledWith("parish_id", callerParishId);
+    expect(recordAdminAuditLog).not.toHaveBeenCalled();
   });
 });

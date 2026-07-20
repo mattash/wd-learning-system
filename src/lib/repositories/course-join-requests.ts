@@ -173,9 +173,11 @@ export async function getStudentPendingRequests({
  */
 export async function approveJoinRequest({
   requestId,
+  parishId,
   actorClerkUserId,
 }: {
   requestId: string;
+  parishId: string;
   actorClerkUserId: string;
 }): Promise<void> {
   const supabase = getSupabaseAdminClient();
@@ -185,6 +187,7 @@ export async function approveJoinRequest({
     .from("course_join_requests")
     .select("parish_id,clerk_user_id,course_id")
     .eq("id", requestId)
+    .eq("parish_id", parishId)
     .eq("status", "PENDING")
     .maybeSingle();
 
@@ -202,6 +205,7 @@ export async function approveJoinRequest({
     .from("course_join_requests")
     .update({ status: "APPROVED" })
     .eq("id", requestId)
+    .eq("parish_id", parishId)
     .eq("status", "PENDING")
     .select("id")
     .maybeSingle();
@@ -219,12 +223,20 @@ export async function approveJoinRequest({
     .maybeSingle();
 
   if (courseError) {
-    await supabase.from("course_join_requests").update({ status: "PENDING" }).eq("id", requestId);
+    await supabase
+      .from("course_join_requests")
+      .update({ status: "PENDING" })
+      .eq("id", requestId)
+      .eq("parish_id", parishId);
     throw courseError;
   }
 
   if (!course) {
-    await supabase.from("course_join_requests").update({ status: "PENDING" }).eq("id", requestId);
+    await supabase
+      .from("course_join_requests")
+      .update({ status: "PENDING" })
+      .eq("id", requestId)
+      .eq("parish_id", parishId);
     throw new Error("Course not found");
   }
 
@@ -257,7 +269,8 @@ export async function approveJoinRequest({
     await supabase
       .from("course_join_requests")
       .update({ status: "PENDING" })
-      .eq("id", requestId);
+      .eq("id", requestId)
+      .eq("parish_id", parishId);
     throw enrollmentError;
   }
 
@@ -281,9 +294,11 @@ export async function approveJoinRequest({
  */
 export async function rejectJoinRequest({
   requestId,
+  parishId,
   actorClerkUserId,
 }: {
   requestId: string;
+  parishId: string;
   actorClerkUserId: string;
 }): Promise<void> {
   const supabase = getSupabaseAdminClient();
@@ -293,6 +308,7 @@ export async function rejectJoinRequest({
     .from("course_join_requests")
     .select("parish_id,clerk_user_id,course_id")
     .eq("id", requestId)
+    .eq("parish_id", parishId)
     .eq("status", "PENDING")
     .maybeSingle();
 
@@ -305,6 +321,7 @@ export async function rejectJoinRequest({
     .from("course_join_requests")
     .update({ status: "REJECTED" })
     .eq("id", requestId)
+    .eq("parish_id", parishId)
     .eq("status", "PENDING")
     .select("id")
     .maybeSingle();

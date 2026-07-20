@@ -8,7 +8,7 @@ import { config as loadDotenv } from "dotenv";
 import { z } from "zod";
 
 import { COURSE_CATEGORIES } from "../src/lib/course-metadata";
-import { resolveAndUploadThumbnail } from "./lib/r2-uploader";
+import { deleteObjectFromR2, resolveAndUploadThumbnail } from "./lib/r2-uploader";
 import {
   resolveAiThumbnail,
   isAiThumbnailUrl,
@@ -189,6 +189,7 @@ const moduleSchema = z
     title: z.string().trim().min(1),
     descriptor: optionalNullableStringSchema,
     thumbnail_url: optionalUrlSchema,
+    reviewed: z.boolean().default(false),
     lessons: z.array(lessonSchema).default([]),
   })
   .strict();
@@ -278,6 +279,7 @@ async function importContent(
     aiStyle?: AiStyle;
     aiTextPlacement?: AiTextPlacement;
     onCourseCreated?: (course: CourseRow) => void;
+    onThumbnailUploaded?: (key: string) => void;
   },
 ): Promise<ImportSummary> {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -319,12 +321,20 @@ async function importContent(
           `thumbnail_url: "ai://" requires ai_thumbnail: true at the course or lesson level.`,
         );
       }
-      return resolveAiThumbnail(aiSubject, prefix, {
-        ...aiOpts,
-        textPlacement: lessonTextPlacement ?? aiOpts.textPlacement,
-      });
+      return resolveAiThumbnail(
+        aiSubject,
+        prefix,
+        {
+          ...aiOpts,
+          textPlacement: lessonTextPlacement ?? aiOpts.textPlacement,
+        },
+        options?.onThumbnailUploaded,
+      );
     }
-    return resolveAndUploadThumbnail(thumbnailUrl, prefix, fallbackBaseName, options);
+    return resolveAndUploadThumbnail(thumbnailUrl, prefix, fallbackBaseName, {
+      strict: options?.strict,
+      onUploaded: options?.onThumbnailUploaded,
+    });
   }
 
   // Generate course-level AI subject (used for all lesson thumbnails in this course)
@@ -558,7 +568,7 @@ async function main() {
     let totalLessons = 0;
     let totalQuestions = 0;
     for (const [mi, mod] of content.course.modules.entries()) {
-      console.log(`  [Module ${mi + 1}] ${mod.title}`);
+      console.log(`  [Module ${mi + 1}] ${mod.title} (reviewed: ${mod.reviewed})`);
       for (const [li, lesson] of mod.lessons.entries()) {
         totalLessons++;
         totalQuestions += lesson.questions.length;
@@ -578,15 +588,31 @@ async function main() {
   const options = { strict, aiPalette, aiStyle, aiTextPlacement };
   let summary: ImportSummary | undefined;
   let createdCourse: CourseRow | undefined;
+  const uploadedThumbnailKeys = new Set<string>();
   try {
     summary = await importContent(content, {
       ...options,
       onCourseCreated: (course) => {
         createdCourse = course;
       },
+      onThumbnailUploaded: (key) => {
+        uploadedThumbnailKeys.add(key);
+      },
     });
     printSummary(summary);
   } catch (err) {
+    if (uploadedThumbnailKeys.size > 0) {
+      console.error(red(`\nImport failed — removing ${uploadedThumbnailKeys.size} uploaded thumbnail(s)...`));
+      for (const key of uploadedThumbnailKeys) {
+        try {
+          await deleteObjectFromR2(key);
+        } catch (cleanupErr) {
+          const message = cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr);
+          console.error(red(`Thumbnail cleanup failed for ${key}: ${message}`));
+        }
+      }
+    }
+
     // Best-effort cleanup: delete the partially-created course so retry is clean
     const course = summary?.course ?? createdCourse;
     if (course?.id) {
@@ -595,10 +621,15 @@ async function main() {
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
         const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
         const supabase = createClient(supabaseUrl, serviceRoleKey);
-        await supabase.from("courses").delete().eq("id", course.id);
+        const { error: cleanupError } = await supabase.from("courses").delete().eq("id", course.id);
+        if (cleanupError) {
+          throw new Error(cleanupError.message);
+        }
         console.error(red("Cleanup done. Delete manually if cascade missed any rows."));
-      } catch {
+      } catch (cleanupErr) {
         // best-effort — don't mask the original error
+        const message = cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr);
+        console.error(red(`Course cleanup failed for ${course.id}: ${message}`));
       }
     }
     throw err;

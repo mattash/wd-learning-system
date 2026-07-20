@@ -35,6 +35,7 @@ describe("QuizForm", () => {
         lessonId="lesson-1"
         lessonTitle="Test Lesson"
         parishId="parish-1"
+        passingScore={80}
         questions={[]}
         nextLesson={null}
       />,
@@ -49,6 +50,7 @@ describe("QuizForm", () => {
         lessonId="lesson-1"
         lessonTitle="Test Lesson"
         parishId="parish-1"
+        passingScore={80}
         questions={sampleQuestions}
         nextLesson={null}
       />,
@@ -65,6 +67,7 @@ describe("QuizForm", () => {
         lessonId="lesson-1"
         lessonTitle="Test Lesson"
         parishId="parish-1"
+        passingScore={80}
         questions={sampleQuestions}
         nextLesson={null}
       />,
@@ -91,6 +94,7 @@ describe("QuizForm", () => {
         lessonId="lesson-1"
         lessonTitle="Test Lesson"
         parishId="parish-1"
+        passingScore={80}
         questions={sampleQuestions}
         nextLesson={null}
       />,
@@ -114,6 +118,7 @@ describe("QuizForm", () => {
         lessonId="lesson-1"
         lessonTitle="Test Lesson"
         parishId="parish-1"
+        passingScore={80}
         questions={sampleQuestions}
         nextLesson={null}
       />,
@@ -139,6 +144,7 @@ describe("QuizForm", () => {
         lessonId="lesson-1"
         lessonTitle="Test Lesson"
         parishId="parish-1"
+        passingScore={80}
         questions={sampleQuestions}
         nextLesson={null}
       />,
@@ -159,6 +165,7 @@ describe("QuizForm", () => {
         lessonId="lesson-1"
         lessonTitle="Test Lesson"
         parishId="parish-1"
+        passingScore={80}
         questions={sampleQuestions}
         nextLesson={null}
       />,
@@ -171,7 +178,59 @@ describe("QuizForm", () => {
     expect(await screen.findByText("Failed to submit quiz answers.")).toBeInTheDocument();
   });
 
-  it("shows completion modal when score is 100 with courseTitle", async () => {
+  it("shows completion modal when score equals a non-100 passing score", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => ({ score: 80, correctIndices: [0, 1] }),
+    } as Response);
+
+    render(
+      <QuizForm
+        courseTitle="Catechesis 101"
+        lessonId="lesson-1"
+        lessonTitle="Test Lesson"
+        parishId="parish-1"
+        passingScore={80}
+        questions={sampleQuestions}
+        nextLesson={{ id: "next-lesson", title: "Next Up" }}
+      />,
+    );
+
+    fireEvent.click(screen.getByText("Paris"));
+    fireEvent.click(screen.getByText("4"));
+    fireEvent.click(screen.getByRole("button", { name: "Submit answers" }));
+
+    expect(await screen.findByText("80%")).toBeInTheDocument();
+  });
+
+  it("shows retry feedback one point below the passing score", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => ({ score: 79, correctIndices: [0, 1] }),
+    } as Response);
+
+    render(
+      <QuizForm
+        lessonId="lesson-1"
+        lessonTitle="Test Lesson"
+        parishId="parish-1"
+        passingScore={80}
+        questions={sampleQuestions}
+        nextLesson={null}
+      />,
+    );
+
+    fireEvent.click(screen.getByText("Paris"));
+    fireEvent.click(screen.getByText("4"));
+    fireEvent.click(screen.getByRole("button", { name: "Submit answers" }));
+
+    expect(
+      await screen.findAllByText("Review the questions above and try again."),
+    ).toHaveLength(2);
+    expect(screen.getByRole("button", { name: "Submit answers" })).toBeEnabled();
+  });
+
+  it("shows completion modal when score is 100", async () => {
     vi.spyOn(global, "fetch").mockResolvedValue({
       ok: true,
       json: async () => ({ score: 100, certificateId: "cert-123", correctIndices: [0, 1] }),
@@ -183,6 +242,7 @@ describe("QuizForm", () => {
         lessonId="lesson-1"
         lessonTitle="Test Lesson"
         parishId="parish-1"
+        passingScore={80}
         questions={sampleQuestions}
         nextLesson={{ id: "next-lesson", title: "Next Up" }}
       />,
@@ -192,7 +252,6 @@ describe("QuizForm", () => {
     fireEvent.click(screen.getByText("4"));
     fireEvent.click(screen.getByRole("button", { name: "Submit answers" }));
 
-    // CompletionModal renders when score is 100 and courseTitle is provided
     expect(await screen.findByText("100%")).toBeInTheDocument();
   });
 });
