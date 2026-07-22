@@ -155,6 +155,7 @@ export default async function LessonPage({
               lessonTitle={lesson.title}
               nextLesson={navContext?.nextLesson ?? null}
               parishId={parishId}
+              passingScore={lesson.passing_score}
               questions={(lesson.questions ?? []).map((q: { id: string; prompt: string; options: unknown }) => ({
                 id: q.id,
                 prompt: q.prompt,

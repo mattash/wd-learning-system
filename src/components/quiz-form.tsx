@@ -16,6 +16,7 @@ export function QuizForm({
   lessonId,
   lessonTitle,
   parishId,
+  passingScore,
   questions,
   nextLesson,
   courseTitle,
@@ -23,6 +24,7 @@ export function QuizForm({
   lessonId: string;
   lessonTitle: string;
   parishId: string;
+  passingScore: number;
   questions: Question[];
   nextLesson: { id: string; title: string } | null;
   courseTitle?: string;
@@ -38,6 +40,7 @@ export function QuizForm({
   if (questions.length === 0) return null;
 
   const allAnswered = questions.every((q) => answers[q.id] !== undefined);
+  const passed = submitted && score !== null && score >= passingScore;
 
   const submit = async () => {
     setSubmitting(true);
@@ -82,7 +85,7 @@ export function QuizForm({
   };
 
   // Show completion modal after a passing score with course context
-  if (submitted && score !== null && courseTitle && score >= 100) {
+  if (passed && courseTitle) {
     return (
       <div className="space-y-6">
         <CompletionModal
@@ -91,6 +94,7 @@ export function QuizForm({
           courseTitle={courseTitle}
           lessonTitle={lessonTitle}
           nextLesson={nextLesson}
+          passingScore={passingScore}
           score={score}
         />
       </div>
@@ -156,9 +160,9 @@ export function QuizForm({
                   return (
                     <button
                       className={`flex items-start gap-3 rounded-lg border-[1.5px] px-3.5 py-3 text-left transition-all ${borderClass} ${bgClass} ${
-                        submitted && score !== null && score >= 100 ? "cursor-default" : "cursor-pointer hover:border-brand-muted hover:bg-brand-subtle"
+                        passed ? "cursor-default" : "cursor-pointer hover:border-brand-muted hover:bg-brand-subtle"
                       }`}
-                      disabled={submitted && score !== null && score >= 100}
+                      disabled={passed}
                       key={idx}
                       onClick={() =>
                         setAnswers((prev) => ({ ...prev, [q.id]: idx }))
@@ -190,15 +194,15 @@ export function QuizForm({
               {submitted && score !== null && (
                 <div
                   className={`mt-3.5 rounded-lg border p-3.5 text-[13.5px] leading-relaxed ${
-                    score >= 100
+                    passed
                       ? "border-success bg-success-subtle text-success"
                       : "border-destructive bg-destructive-subtle text-destructive"
                   }`}
                 >
                   <div className="mb-1 font-bold">
-                    {score >= 100 ? "✓ Correct!" : `Score: ${score}%`}
+                    {passed ? "✓ Correct!" : `Score: ${score}%`}
                   </div>
-                  {score >= 100
+                  {passed
                     ? "Great work — move on when ready."
                     : "Review the questions above and try again."}
                 </div>
@@ -213,7 +217,7 @@ export function QuizForm({
       <div className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface-raised px-5 py-3.5 shadow-sm">
         <span className="text-[13px] text-muted-foreground">
           {submitted
-            ? score !== null && score >= 100
+            ? passed
               ? "Great work — move on when ready."
               : `Score: ${score}%`
             : allAnswered
@@ -221,14 +225,14 @@ export function QuizForm({
               : "Answer all questions above, then submit."}
         </span>
         <div className="flex items-center gap-2">
-          {submitted && score !== null && score >= 100 && nextLesson ? (
+          {passed && nextLesson ? (
             <Button asChild size="sm">
               <Link href={`/app/lessons/${nextLesson.id}`}>
                 {nextLesson.title} →
               </Link>
             </Button>
           ) : (
-            <Button disabled={!allAnswered || submitting || (submitted && score !== null && score >= 100)} onClick={submit} size="sm" type="button">
+            <Button disabled={!allAnswered || submitting || passed} onClick={submit} size="sm" type="button">
               {submitting ? "Submitting…" : "Submit answers"}
             </Button>
           )}

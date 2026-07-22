@@ -18,6 +18,10 @@ export function isLessonComplete(params: {
   contentCompleted: boolean;
   bestScore: number;
   passingScore: number;
+  questionCount: number;
 }) {
-  return params.contentCompleted && params.bestScore >= params.passingScore;
+  return (
+    params.contentCompleted &&
+    (params.questionCount === 0 || params.bestScore >= params.passingScore)
+  );
 }

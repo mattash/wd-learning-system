@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
 let _r2Client: S3Client | null = null;
 
@@ -72,6 +72,7 @@ export async function uploadBufferToR2(
   buffer: Buffer,
   key: string,
   contentType: string,
+  onUploaded?: (key: string) => void,
 ): Promise<string> {
   const client = getR2Client();
   await client.send(
@@ -83,7 +84,17 @@ export async function uploadBufferToR2(
       CacheControl: "public, max-age=31536000, immutable",
     }),
   );
+  onUploaded?.(key);
   return `${getPublicBaseUrl()}/${encodePath(key)}`;
+}
+
+export async function deleteObjectFromR2(key: string): Promise<void> {
+  await getR2Client().send(
+    new DeleteObjectCommand({
+      Bucket: getRequiredEnv("R2_BUCKET"),
+      Key: key,
+    }),
+  );
 }
 
 // ─── Resolve and upload thumbnail URL ──────────────────────────────────────────
@@ -92,7 +103,7 @@ export async function resolveAndUploadThumbnail(
   thumbnailUrl: string | null,
   prefix: string,
   fallbackBaseName: string,
-  options?: { strict?: boolean },
+  options?: { strict?: boolean; onUploaded?: (key: string) => void },
 ): Promise<string | null> {
   if (!thumbnailUrl) return null;
 
@@ -135,7 +146,7 @@ export async function resolveAndUploadThumbnail(
       .slice(0, 60);
     const key = `${prefix}/${randomUUID()}-${safeBaseName}${ext}`;
 
-    const publicUrl = await uploadBufferToR2(fileBuffer, key, contentType);
+    const publicUrl = await uploadBufferToR2(fileBuffer, key, contentType, options?.onUploaded);
     console.log(`  ↑ uploaded thumbnail → ${publicUrl}`);
     return publicUrl;
   }

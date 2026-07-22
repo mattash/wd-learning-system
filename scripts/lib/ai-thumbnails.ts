@@ -171,6 +171,7 @@ export async function resolveAiThumbnail(
   params: AiSubject,
   prefix: string,
   opts: AiThumbnailOptions,
+  onUploaded?: (key: string) => void,
 ): Promise<string> {
   const { imageBuffer, contentType } = await generateAiThumbnail(params, opts);
 
@@ -182,7 +183,7 @@ export async function resolveAiThumbnail(
     .slice(0, 60);
   const key = `${prefix}/${randomUUID()}-${safeBaseName}${ext}`;
 
-  const publicUrl = await uploadBufferToR2(imageBuffer, key, contentType);
+  const publicUrl = await uploadBufferToR2(imageBuffer, key, contentType, onUploaded);
   console.log(`  ↑ AI thumbnail generated → ${publicUrl}`);
   return publicUrl;
 }

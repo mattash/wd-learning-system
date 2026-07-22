@@ -16,12 +16,68 @@ describe("gradeQuiz", () => {
 });
 
 describe("isLessonComplete", () => {
-  it("requires both content completion and passing quiz score", () => {
-    expect(
-      isLessonComplete({ contentCompleted: true, bestScore: 80, passingScore: 80 }),
-    ).toBe(true);
-    expect(
-      isLessonComplete({ contentCompleted: false, bestScore: 100, passingScore: 80 }),
-    ).toBe(false);
+  it.each([
+    {
+      case: "content incomplete without a quiz",
+      params: {
+        contentCompleted: false,
+        bestScore: 0,
+        passingScore: 80,
+        questionCount: 0,
+      },
+      expected: false,
+    },
+    {
+      case: "content complete without a quiz",
+      params: {
+        contentCompleted: true,
+        bestScore: 0,
+        passingScore: 80,
+        questionCount: 0,
+      },
+      expected: true,
+    },
+    {
+      case: "quiz below the passing score",
+      params: {
+        contentCompleted: true,
+        bestScore: 79,
+        passingScore: 80,
+        questionCount: 1,
+      },
+      expected: false,
+    },
+    {
+      case: "quiz equal to the passing score",
+      params: {
+        contentCompleted: true,
+        bestScore: 80,
+        passingScore: 80,
+        questionCount: 1,
+      },
+      expected: true,
+    },
+    {
+      case: "quiz above the passing score",
+      params: {
+        contentCompleted: true,
+        bestScore: 90,
+        passingScore: 80,
+        questionCount: 1,
+      },
+      expected: true,
+    },
+    {
+      case: "content incomplete with a perfect quiz",
+      params: {
+        contentCompleted: false,
+        bestScore: 100,
+        passingScore: 80,
+        questionCount: 1,
+      },
+      expected: false,
+    },
+  ])("returns $expected for $case", ({ params, expected }) => {
+    expect(isLessonComplete(params)).toBe(expected);
   });
 });

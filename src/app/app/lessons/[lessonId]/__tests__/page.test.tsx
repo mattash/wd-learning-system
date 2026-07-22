@@ -16,8 +16,18 @@ vi.mock("@/components/player/youtube-player", () => ({
 }));
 
 vi.mock("@/components/quiz-form", () => ({
-  QuizForm: ({ questions }: { questions: Array<{ prompt: string }> }) => (
-    <div>Quiz questions: {questions.length}</div>
+  QuizForm: vi.fn(
+    ({
+      passingScore,
+      questions,
+    }: {
+      passingScore: number;
+      questions: Array<{ prompt: string }>;
+    }) => (
+      <div>
+        Quiz questions: {questions.length}; passing score: {passingScore}
+      </div>
+    ),
   ),
 }));
 
@@ -51,6 +61,7 @@ vi.mock("@/components/course-sidebar", () => ({
 }));
 
 import LessonPage from "@/app/app/lessons/[lessonId]/page";
+import { QuizForm } from "@/components/quiz-form";
 import { requireParishRole } from "@/lib/authz";
 import { getCourseTreeWithProgress } from "@/lib/repositories/courses";
 import {
@@ -119,7 +130,10 @@ describe("LessonPage", () => {
     expect(documentFrame).toHaveAttribute("src", "/docs/reading.pdf#page=2");
     expect(documentFrame).toHaveAttribute("sandbox", "allow-downloads allow-scripts allow-same-origin");
     expect(documentFrame).toHaveAttribute("referrerpolicy", "no-referrer");
-    expect(screen.getByText("Quiz questions: 1")).toBeInTheDocument();
+    expect(screen.getByText("Quiz questions: 1; passing score: 80")).toBeInTheDocument();
+    expect(vi.mocked(QuizForm).mock.calls[0]?.[0]).toMatchObject({
+      passingScore: 80,
+    });
   });
 
   it("renders video lessons with the video player", async () => {

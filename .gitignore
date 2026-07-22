@@ -59,3 +59,6 @@ parish-leaders-course-videos/
 !.crabbox.slug.conf
 .clawpatch/*
 !.clawpatch/config.json
+
+# Local advisory plans; do not commit generated planning artifacts.
+/plans/
