@@ -77,7 +77,7 @@ export default async function DioceseAdminPage() {
         {/* Management modules */}
         <Card>
           <CardHeader>
-            <CardTitle>Diocese Management Modules</CardTitle>
+            <CardTitle>System Management Modules</CardTitle>
             <CardDescription>Open focused tools for users, parishes, courses, and engagement.</CardDescription>
           </CardHeader>
           <CardContent>

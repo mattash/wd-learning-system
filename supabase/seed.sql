@@ -6,7 +6,7 @@ on conflict (id) do nothing;
 
 insert into courses (id, title, description, instructor, duration_hours, category, published, scope)
 values
-  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'Diocese Onboarding', 'Core formation for all parishes', 'Formation Team', 1.5, 'Leadership', true, 'DIOCESE'),
+  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'St. John Onboarding', 'Core formation for all parishes', 'Formation Team', 1.5, 'Leadership', true, 'DIOCESE'),
   ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'St. Mark Confirmation Prep', 'Parish-specific preparation track', 'Parish Catechist Team', 2, 'Catechesis', true, 'PARISH')
 on conflict (id) do nothing;
 
