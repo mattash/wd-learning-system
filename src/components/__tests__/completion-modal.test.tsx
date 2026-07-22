@@ -26,4 +26,24 @@ describe("CompletionModal", () => {
       screen.queryByRole("link", { name: "View & Download Certificate" }),
     ).not.toBeInTheDocument();
   });
+
+  it("treats scores at the configured passing threshold as a pass", () => {
+    render(
+      <CompletionModal
+        certificateId="cert-1"
+        courseComplete
+        courseTitle="Safe Environment"
+        lessonTitle="Final quiz"
+        nextLesson={null}
+        passingScore={80}
+        score={80}
+      />,
+    );
+
+    expect(screen.getByText("Quiz passed")).toBeInTheDocument();
+    expect(screen.getByText("Course Complete!")).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "View & Download Certificate" }),
+    ).toHaveAttribute("href", "/app/certificates/cert-1");
+  });
 });

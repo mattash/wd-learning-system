@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 
 interface CompletionModalProps {
   score: number;
+  passingScore?: number;
   courseTitle: string;
   lessonTitle: string;
   nextLesson: { id: string; title: string } | null;
@@ -16,13 +17,14 @@ interface CompletionModalProps {
 
 export function CompletionModal({
   score,
+  passingScore = 100,
   courseTitle,
   lessonTitle,
   nextLesson,
   courseComplete = false,
   certificateId,
 }: CompletionModalProps) {
-  const passed = score >= 100;
+  const passed = score >= passingScore;
 
   return (
     <div className="space-y-4">

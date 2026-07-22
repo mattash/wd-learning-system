@@ -94,6 +94,7 @@ export function QuizForm({
           courseTitle={courseTitle}
           lessonTitle={lessonTitle}
           nextLesson={nextLesson}
+          passingScore={passingScore}
           score={score}
         />
       </div>

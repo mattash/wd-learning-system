@@ -601,20 +601,9 @@ async function main() {
     });
     printSummary(summary);
   } catch (err) {
-    if (uploadedThumbnailKeys.size > 0) {
-      console.error(red(`\nImport failed — removing ${uploadedThumbnailKeys.size} uploaded thumbnail(s)...`));
-      for (const key of uploadedThumbnailKeys) {
-        try {
-          await deleteObjectFromR2(key);
-        } catch (cleanupErr) {
-          const message = cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr);
-          console.error(red(`Thumbnail cleanup failed for ${key}: ${message}`));
-        }
-      }
-    }
-
     // Best-effort cleanup: delete the partially-created course so retry is clean
     const course = summary?.course ?? createdCourse;
+    let courseDeleted = !course?.id;
     if (course?.id) {
       console.error(red(`\nImport failed — cleaning up course ${course.id}...`));
       try {
@@ -625,11 +614,24 @@ async function main() {
         if (cleanupError) {
           throw new Error(cleanupError.message);
         }
+        courseDeleted = true;
         console.error(red("Cleanup done. Delete manually if cascade missed any rows."));
       } catch (cleanupErr) {
         // best-effort — don't mask the original error
         const message = cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr);
         console.error(red(`Course cleanup failed for ${course.id}: ${message}`));
+      }
+    }
+
+    if (courseDeleted && uploadedThumbnailKeys.size > 0) {
+      console.error(red(`\nImport failed — removing ${uploadedThumbnailKeys.size} uploaded thumbnail(s)...`));
+      for (const key of uploadedThumbnailKeys) {
+        try {
+          await deleteObjectFromR2(key);
+        } catch (cleanupErr) {
+          const message = cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr);
+          console.error(red(`Thumbnail cleanup failed for ${key}: ${message}`));
+        }
       }
     }
     throw err;
