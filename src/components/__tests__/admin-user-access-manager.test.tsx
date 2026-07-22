@@ -33,8 +33,8 @@ describe("AdminUserAccessManager", () => {
     render(<AdminUserAccessManager />);
 
     const labels = [
-      "Make diocese admin",
-      "Remove diocese admin",
+      "Make system administrator",
+      "Remove system administrator",
       "Remove parish membership (requires parish_id)",
     ];
 

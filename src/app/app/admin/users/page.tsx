@@ -13,7 +13,7 @@ export default async function DioceseAdminUsersPage() {
       <CardHeader>
         <CardTitle>Users</CardTitle>
         <CardDescription>
-          All registered users across the diocese. Manage roles and parish assignments.
+          All registered users in the learning system. Manage roles and parish assignments.
         </CardDescription>
       </CardHeader>
       <div className="overflow-auto">

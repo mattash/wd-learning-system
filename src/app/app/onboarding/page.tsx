@@ -263,7 +263,7 @@ export default async function OnboardingPage({
       ) : null}
       {(parishes ?? []).length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          No parishes are currently open for self-signup. Contact a diocese admin.
+          No parishes are currently open for self-signup. Contact a system administrator.
         </p>
       ) : null}
       <Card>

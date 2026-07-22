@@ -59,7 +59,7 @@ export default async function AppLayout({
     { label: "Dashboard", href: "/app/dashboard" },
     { label: "Catalog", href: "/app/catalog" },
     ...(showParishAdmin ? [{ label: "Parish Admin", href: "/app/parish-admin" }] : []),
-    ...(showDioceseAdmin ? [{ label: "Diocese Admin", href: "/app/admin" }] : []),
+    ...(showDioceseAdmin ? [{ label: "System Admin", href: "/app/admin" }] : []),
   ];
 
   return (

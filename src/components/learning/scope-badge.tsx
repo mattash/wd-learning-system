@@ -22,7 +22,7 @@ export function ScopeBadge({
 
   return (
     <span className={cn(base, palette, className)}>
-      {isD ? "Diocese-wide" : "Parish"}
+      {isD ? "Shared" : "Parish"}
     </span>
   );
 }

@@ -53,7 +53,7 @@ export default async function PublicCoursePage({
         <div className="space-y-3">
           <div className="space-y-1">
             <p className="text-sm font-medium text-muted-foreground">
-              {preview.course.scope === "DIOCESE" ? "Diocese-wide course" : "Parish course"}
+              {preview.course.scope === "DIOCESE" ? "Shared course" : "Parish course"}
             </p>
             <h1 className="text-3xl font-semibold">{preview.course.title}</h1>
           </div>

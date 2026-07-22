@@ -76,7 +76,7 @@ export function AdminMembershipForm() {
           checked={makeDioceseAdmin}
           onChange={(e) => setMakeDioceseAdmin(e.target.checked)}
         />
-        Make Diocese Admin
+        Make System Admin
       </label>
       <Button aria-busy={submitting} disabled={submitting} onClick={submit} size="sm" type="button">
         {submitting ? "Saving..." : "Add membership"}

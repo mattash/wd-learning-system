@@ -23,7 +23,7 @@ export default async function MembershipToolsPage() {
           <AlertDescription>
             <span className="text-xs font-bold text-warning">Admin note</span>
             <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-              Diocese admins can read and modify all content across all parishes. Only grant this role to
+              System administrators can read and modify all content across all parishes. Only grant this role to
               trusted staff.
             </p>
           </AlertDescription>

@@ -132,7 +132,7 @@ export function CertificateDocument({ data }: CertificateDocumentProps) {
       <Page size="A4" orientation="landscape" style={styles.page}>
         {/* Header */}
         <View style={styles.header} fixed>
-          <Text style={styles.subtitle}>Western Diocese of the Armenian Church</Text>
+          <Text style={styles.subtitle}>St. John Armenian Apostolic Church</Text>
           <Text style={styles.title}>Certificate of Completion</Text>
         </View>
 
@@ -160,7 +160,7 @@ export function CertificateDocument({ data }: CertificateDocumentProps) {
 
         {/* Decorative seal */}
         <View style={styles.seal}>
-          <Text style={styles.sealText}>WD{'\n'}CERTIFIED</Text>
+          <Text style={styles.sealText}>ST. JOHN{'\n'}CERTIFIED</Text>
         </View>
 
         {/* Footer */}

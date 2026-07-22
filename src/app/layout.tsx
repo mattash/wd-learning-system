@@ -20,8 +20,8 @@ const sourceSans = Source_Sans_3({
 });
 
 export const metadata: Metadata = {
-  title: "Western Diocese LMS",
-  description: "Multi-tenant LMS MVP",
+  title: "St. John Learning System",
+  description: "St. John Armenian Church learning system",
 };
 
 export default function RootLayout({
