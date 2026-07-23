@@ -40,7 +40,7 @@ export function AppHeaderClient({
               <path d="M10 1v18M1 10h18M6 6l-3-3M14 6l3-3M6 14l-3 3M14 14l3 3" stroke="white" strokeWidth="2" strokeLinecap="round" fill="none"/>
             </svg>
           </div>
-          <span className="text-[13px] font-bold text-foreground tracking-tight hidden sm:block">WD Learning</span>
+          <span className="text-[13px] font-bold text-foreground tracking-tight hidden sm:block">St. John Learning</span>
         </div>
 
         {/* Desktop nav */}

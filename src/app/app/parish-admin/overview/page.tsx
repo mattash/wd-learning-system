@@ -72,8 +72,8 @@ export default async function OverviewPage() {
       {role === "parish_admin" && data.dioceseCourses.length > 0 ? (
         <Card>
           <CardHeader>
-            <CardTitle>Diocese-wide Courses</CardTitle>
-            <CardDescription>These courses are already visible to your parish by diocesan policy.</CardDescription>
+            <CardTitle>Shared Courses</CardTitle>
+            <CardDescription>These courses are already visible to your parish through the shared catalog.</CardDescription>
           </CardHeader>
           <CardContent>
             <ul className="space-y-1 text-sm">

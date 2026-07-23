@@ -16,7 +16,7 @@ export default async function DioceseAdminParishesPage() {
     <Card>
       <CardHeader>
         <CardTitle>Parishes</CardTitle>
-        <CardDescription>Parishes registered in the diocese. Each parish can adopt diocese-published courses.</CardDescription>
+        <CardDescription>Parishes registered in the learning system. Each parish can adopt shared courses.</CardDescription>
         {hasMoreParishes ? (
           <p className="text-sm text-muted-foreground">
             Showing the first {PARISH_PAGE_SIZE} parishes. Additional parishes are registered and are not shown in this

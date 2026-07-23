@@ -38,8 +38,8 @@ const HELP_CONTENT: PageHelp = {
       body: "Some courses require approval from your parish administrator. Submit a request and you'll be notified when it's approved.",
     },
     {
-      title: "Diocese Courses",
-      body: "Courses marked with a diocese badge are available across multiple parishes and are managed by the diocese.",
+      title: "Shared Courses",
+      body: "Courses marked with a shared badge are available across multiple parishes and are managed centrally.",
     },
   ],
   "/app/courses": [

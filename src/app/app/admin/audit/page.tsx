@@ -12,7 +12,7 @@ export default async function DioceseAdminAuditPage() {
     <Card>
       <CardHeader>
         <CardTitle>Audit Logs</CardTitle>
-        <CardDescription>System-level record of administrative actions across the diocese.</CardDescription>
+        <CardDescription>System-level record of administrative actions across the learning system.</CardDescription>
       </CardHeader>
       <div className="overflow-auto">
         <AdminAuditLogViewer initialLogs={logs} />

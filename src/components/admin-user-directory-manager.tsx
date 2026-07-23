@@ -385,7 +385,7 @@ export function AdminUserDirectoryManager({
           value={filters.dioceseAdmin}
         >
           <option value="all">All access</option>
-          <option value="yes">Diocese admins</option>
+          <option value="yes">System admins</option>
           <option value="no">Non-admins</option>
         </Select>
         <Button onClick={applyFilters} size="sm" type="button" variant="secondary">
@@ -443,7 +443,7 @@ export function AdminUserDirectoryManager({
               </td>
               <td className="px-3.5 py-3">
                 <div className="flex flex-wrap gap-1">
-                  {user.is_diocese_admin && <Badge variant="role">Diocese Admin</Badge>}
+                  {user.is_diocese_admin && <Badge variant="role">System Admin</Badge>}
                   {user.memberships.map((membership) => (
                     <Badge key={`${user.clerk_user_id}-${membership.parish_id}-role`} variant="default">
                       {membership.role}
@@ -523,7 +523,7 @@ export function AdminUserDirectoryManager({
                     )
                   }
                 />
-                Diocese admin access
+                System administrator access
               </label>
 
               <div className="space-y-3 rounded-md border border-border p-3">

@@ -33,7 +33,7 @@ export function AdminUserAccessManager() {
     if (submitting) return;
 
     if (makeDioceseAdmin && removeDioceseAdmin) {
-      setMessage("Cannot both make and remove diocese admin at the same time.");
+      setMessage("Cannot both grant and remove system administrator access at the same time.");
       return;
     }
 
@@ -83,11 +83,11 @@ export function AdminUserAccessManager() {
       </Select>
       <label className="flex items-center gap-2 text-sm">
         <Checkbox checked={makeDioceseAdmin} onChange={(e) => handleMakeDioceseAdmin(e.target.checked)} />
-        Make diocese admin
+        Make system administrator
       </label>
       <label className="flex items-center gap-2 text-sm">
         <Checkbox checked={removeDioceseAdmin} onChange={(e) => handleRemoveDioceseAdmin(e.target.checked)} />
-        Remove diocese admin
+        Remove system administrator
       </label>
       <label className="flex items-center gap-2 text-sm">
         <Checkbox

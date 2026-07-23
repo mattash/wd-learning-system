@@ -8,7 +8,7 @@ import { getDioceseOverview } from "@/lib/repositories/diocese-admin";
 const statRow1 = [
   { key: "parishCount", label: "Parishes" },
   { key: "userCount", label: "Users" },
-  { key: "dioceseAdminCount", label: "Diocese Admins" },
+  { key: "dioceseAdminCount", label: "System Admins" },
   { key: "courseCount", label: "Courses" },
 ] as const;
 
@@ -77,7 +77,7 @@ export default async function DioceseAdminPage() {
         {/* Management modules */}
         <Card>
           <CardHeader>
-            <CardTitle>Diocese Management Modules</CardTitle>
+            <CardTitle>System Management Modules</CardTitle>
             <CardDescription>Open focused tools for users, parishes, courses, and engagement.</CardDescription>
           </CardHeader>
           <CardContent>
@@ -105,11 +105,11 @@ export default async function DioceseAdminPage() {
         <Card>
           <CardHeader>
             <CardTitle>Access &amp; Roles</CardTitle>
-            <CardDescription>Assign parish memberships and diocesan admin roles.</CardDescription>
+            <CardDescription>Assign parish memberships and system administrator roles.</CardDescription>
           </CardHeader>
           <CardContent>
             <p className="mb-4 text-[13px] leading-relaxed text-muted-foreground">
-              Use the Access tool to manage who has access to which parishes and who holds diocesan admin
+              Use the Access tool to manage who has access to which parishes and who holds system administrator
               privileges. Changes take effect immediately.
             </p>
             <Button asChild>
@@ -118,7 +118,7 @@ export default async function DioceseAdminPage() {
             <div className="my-5 h-px bg-border" />
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between text-[13px]">
-                <span className="text-muted-foreground">Diocese admins</span>
+                <span className="text-muted-foreground">System admins</span>
                 <span className="font-bold">{overview.dioceseAdminCount} assigned</span>
               </div>
               <div className="flex items-center justify-between text-[13px]">

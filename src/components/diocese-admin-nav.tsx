@@ -19,7 +19,7 @@ export function DioceseAdminNav() {
   const pathname = usePathname();
 
   return (
-    <nav aria-label="Diocese admin sections" className="flex flex-wrap gap-1.5">
+    <nav aria-label="System administration sections" className="flex flex-wrap gap-1.5">
       {routes.map((route) => {
         const isActive = route.exact
           ? pathname === route.href

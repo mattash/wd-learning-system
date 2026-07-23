@@ -201,7 +201,7 @@ export default async function CourseDetailPage({
             <DetailRow label="Modules" value={String(tree.modules.length)} />
             <DetailRow
               label="Access"
-              value={tree.course.scope === "DIOCESE" ? "Diocese-wide" : "Parish"}
+              value={tree.course.scope === "DIOCESE" ? "Shared" : "Parish"}
             />
             <Button className="mt-4 w-full" variant="outline" disabled>
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className="mr-1.5">

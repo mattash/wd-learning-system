@@ -114,7 +114,7 @@ export default async function CatalogPage({
           Course Catalog
         </h1>
         <p className="mt-1.5 text-[15px] text-muted-foreground">
-          Browse the diocese library and track the courses you&apos;re enrolled in.
+          Browse the course library and track the courses you&apos;re enrolled in.
         </p>
       </header>
 

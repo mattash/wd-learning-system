@@ -17,11 +17,11 @@ export default async function DioceseAdminLayout({
     <div className="space-y-6">
       <header className="space-y-3">
         <div className="flex items-center gap-2.5">
-          <h1 className="font-display text-[22px] font-bold tracking-tight">Diocese Admin</h1>
-          <Badge variant="role">Diocese Admin</Badge>
+          <h1 className="font-display text-[22px] font-bold tracking-tight">System Administration</h1>
+          <Badge variant="role">System Admin</Badge>
         </div>
         <p className="text-[13.5px] text-muted-foreground">
-          Manage users, parishes, course catalog, and engagement insights across the diocese.
+          Manage users, parishes, course catalog, and engagement insights across the learning system.
         </p>
         <DioceseAdminNav />
       </header>

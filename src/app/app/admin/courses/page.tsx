@@ -15,7 +15,7 @@ export default async function DioceseAdminCoursesPage() {
           <div>
             <CardTitle>Courses</CardTitle>
             <CardDescription>
-              Create, update, publish, and remove courses from the diocesan catalog.
+              Create, update, publish, and remove courses from the shared catalog.
             </CardDescription>
           </div>
         </div>

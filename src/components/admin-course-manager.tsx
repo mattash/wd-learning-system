@@ -258,7 +258,7 @@ export function AdminCourseManager({ courses }: { courses: DioceseCourseRow[] })
               </td>
               <td className="px-3.5 py-3">
                 <Badge variant={course.scope === "PARISH" ? "parish" : "diocese"}>
-                  {course.scope === "PARISH" ? "Parish" : "Diocese-wide"}
+                  {course.scope === "PARISH" ? "Parish" : "Shared"}
                 </Badge>
               </td>
               <td className="px-3.5 py-3">
@@ -306,7 +306,7 @@ export function AdminCourseManager({ courses }: { courses: DioceseCourseRow[] })
             <DialogDescription>
               {isEditMode
                 ? "Update this course's catalog details. Use Manage content to edit modules and lessons."
-                : "Add a new course to the diocesan catalog. You can change details later."}
+                : "Add a new course to the shared catalog. You can change details later."}
             </DialogDescription>
           </DialogHeader>
 
@@ -425,7 +425,7 @@ export function AdminCourseManager({ courses }: { courses: DioceseCourseRow[] })
                   onChange={(e) => setForm((prev) => ({ ...prev, scope: e.target.value as CourseScope }))}
                   value={form.scope}
                 >
-                  <option value="DIOCESE">Diocese-wide</option>
+                  <option value="DIOCESE">Shared</option>
                   <option value="PARISH">Parish</option>
                 </Select>
               </div>
