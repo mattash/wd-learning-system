@@ -67,7 +67,7 @@ export default async function PublicCatalogPage() {
                         {course.description}
                       </p>
                     ) : null}
-                    <MetaRow className="mt-5" duration={duration} lessons={course.moduleCount} />
+                    <MetaRow className="mt-5" duration={duration} lessons={course.lessonCount} />
                     <Button asChild className="mt-7" size="lg">
                       <Link href={`/courses/${course.id}`}>View course</Link>
                     </Button>

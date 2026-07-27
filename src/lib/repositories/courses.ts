@@ -55,7 +55,7 @@ export interface PublicCatalogCourse {
   thumbnailUrl: string | null;
   durationHours: number | null;
   category: CourseCategory | null;
-  moduleCount: number;
+  lessonCount: number;
 }
 
 export async function listPublicCatalogCourses(): Promise<PublicCatalogCourse[]> {
@@ -68,7 +68,7 @@ export async function listPublicCatalogCourses(): Promise<PublicCatalogCourse[]>
         thumbnailUrl: "/course-covers/foundations-course-cover.png",
         durationHours: 1,
         category: "Leadership",
-        moduleCount: 1,
+        lessonCount: 1,
       },
     ];
   }
@@ -85,16 +85,20 @@ export async function listPublicCatalogCourses(): Promise<PublicCatalogCourse[]>
   if (!courses || courses.length === 0) return [];
 
   const courseIds = (courses as Array<{ id: string }>).map((c) => c.id);
-  const { data: moduleCounts, error: countError } = await supabase
+  const { data: lessonCounts, error: countError } = await supabase
     .from("modules")
-    .select("course_id")
+    .select("course_id, lessons(id)")
     .in("course_id", courseIds);
 
   if (countError) throw countError;
 
-  const countByCourseId = new Map<string, number>();
-  for (const row of (moduleCounts ?? []) as Array<{ course_id: string }>) {
-    countByCourseId.set(row.course_id, (countByCourseId.get(row.course_id) ?? 0) + 1);
+  const lessonCountByCourse = new Map<string, number>();
+  for (const mod of (lessonCounts ?? []) as Array<{
+    course_id: string;
+    lessons: Array<{ id: string }> | null;
+  }>) {
+    const current = lessonCountByCourse.get(mod.course_id) ?? 0;
+    lessonCountByCourse.set(mod.course_id, current + (mod.lessons?.length ?? 0));
   }
 
   return (courses as Array<{
@@ -111,7 +115,7 @@ export async function listPublicCatalogCourses(): Promise<PublicCatalogCourse[]>
     thumbnailUrl: course.thumbnail_url,
     durationHours: parseDurationHours(course.duration_hours),
     category: course.category,
-    moduleCount: countByCourseId.get(course.id) ?? 0,
+    lessonCount: lessonCountByCourse.get(course.id) ?? 0,
   }));
 }
 
