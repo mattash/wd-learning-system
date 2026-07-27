@@ -1,7 +1,11 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 
-import { Card, CardContent, CardDescription, CardTitle } from "@/components/ui/card";
+import { CourseThumbnail } from "@/components/learning/emblem";
+import { CategoryChip, MetaRow } from "@/components/learning/meta-row";
+import { PublicLearningHeader } from "@/components/public-learning-header";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { formatCourseDuration } from "@/lib/course-metadata";
 import { listPublicCatalogCourses } from "@/lib/repositories/courses";
 
@@ -16,84 +20,78 @@ export default async function PublicCatalogPage() {
   const courses = await listPublicCatalogCourses();
 
   return (
-    <main className="mx-auto max-w-6xl space-y-6 px-4 py-8">
-      <header className="space-y-1">
-        <h1 className="text-3xl font-semibold">Course Catalog</h1>
-        <p className="text-muted-foreground">
-          Browse our publicly available courses on faith, leadership, and parish life.
-        </p>
-      </header>
-
-      {courses.length > 0 ? (
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-          {courses.map((course) => (
-            <Link
-              className="group block"
-              href={`/courses/${course.id}`}
-              key={course.id}
-            >
-              <Card className="flex h-full flex-col overflow-hidden transition-colors hover:bg-secondary/50">
-                <div className="flex gap-3 p-4 pb-0">
-                  {/* Thumbnail */}
-                  <div className="h-20 w-20 shrink-0 overflow-hidden rounded-md border bg-muted">
-                    {course.thumbnailUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        alt={course.title}
-                        className="h-full w-full object-cover"
-                        src={course.thumbnailUrl}
-                      />
-                    ) : (
-                      <div className="flex h-full items-center justify-center text-muted-foreground">
-                        <svg
-                          className="h-8 w-8"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={1.5}
-                          />
-                        </svg>
-                      </div>
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <CardTitle className="text-base group-hover:underline">
-                      {course.title}
-                    </CardTitle>
-                    {course.description && (
-                      <CardDescription className="line-clamp-2 mt-0.5">
-                        {course.description}
-                      </CardDescription>
-                    )}
-                  </div>
-                </div>
-                <CardContent className="mt-auto pt-3">
-                  <p className="text-xs text-muted-foreground">
-                    {[
-                      `${course.moduleCount} module${course.moduleCount !== 1 ? "s" : ""}`,
-                      course.category,
-                      formatCourseDuration(course.durationHours),
-                    ].filter(Boolean).join(" · ")}
-                  </p>
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
-        </div>
-      ) : (
-        <Card>
-          <CardContent className="py-8 text-center">
-            <p className="text-sm text-muted-foreground">
-              No courses are currently available. Check back soon.
+    <div className="min-h-screen bg-background">
+      <PublicLearningHeader current="catalog" />
+      <main className="mx-auto max-w-[1160px] px-5 pb-16 pt-14 sm:px-7 sm:pt-20">
+        <header className="grid gap-8 border-b border-border pb-12 lg:grid-cols-[minmax(0,1fr)_minmax(300px,0.8fr)] lg:items-end lg:gap-20">
+          <div>
+            <div className="mb-4 h-[2px] w-12 bg-gold" />
+            <p className="mb-4 text-[11px] font-bold uppercase tracking-[0.16em] text-primary">
+              St. John Armenian Church
             </p>
-          </CardContent>
-        </Card>
-      )}
-    </main>
+            <h1 className="font-display text-4xl font-bold leading-[1.08] tracking-tight text-foreground sm:text-5xl">
+              Course catalog
+            </h1>
+          </div>
+          <p className="max-w-[33rem] text-[17px] leading-relaxed text-muted-foreground">
+            Explore courses that strengthen faith, leadership, and service in the life of the parish.
+          </p>
+        </header>
+
+        {courses.length > 0 ? (
+          <section aria-label="Available courses" className="grid gap-8 py-10 md:grid-cols-2 md:gap-10 lg:py-12">
+            {courses.map((course) => {
+              const duration = formatCourseDuration(course.durationHours);
+
+              return (
+                <Card
+                  className="group flex h-full flex-col overflow-hidden rounded-[4px] border-border bg-card shadow-none transition-all duration-200 hover:-translate-y-0.5 hover:border-border-strong hover:shadow-md"
+                  key={course.id}
+                >
+                  <Link
+                    aria-label={`View ${course.title}`}
+                    className="relative block aspect-square overflow-hidden bg-muted"
+                    href={`/courses/${course.id}`}
+                  >
+                    <CourseThumbnail alt={course.title} seed={course.id} thumbnailUrl={course.thumbnailUrl} />
+                  </Link>
+                  <CardContent className="flex flex-1 flex-col items-start px-6 py-6 sm:px-7">
+                    {course.category ? <CategoryChip category={course.category} /> : null}
+                    <h2 className="mt-4 font-display text-[25px] font-bold leading-tight tracking-tight text-foreground">
+                      <Link className="transition-colors hover:text-primary" href={`/courses/${course.id}`}>
+                        {course.title}
+                      </Link>
+                    </h2>
+                    {course.description ? (
+                      <p className="mt-3 max-w-[35rem] text-[15px] leading-relaxed text-muted-foreground">
+                        {course.description}
+                      </p>
+                    ) : null}
+                    <MetaRow className="mt-5" duration={duration} lessons={course.moduleCount} />
+                    <Button asChild className="mt-7" size="lg">
+                      <Link href={`/courses/${course.id}`}>View course</Link>
+                    </Button>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </section>
+        ) : (
+          <Card className="my-10 rounded-none">
+            <CardContent className="py-10 text-center">
+              <p className="text-sm text-muted-foreground">
+                No courses are currently available. Check back soon.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+      </main>
+      <footer className="border-t border-border bg-secondary/60">
+        <div className="mx-auto flex max-w-[1160px] flex-col gap-2 px-5 py-8 text-[13px] text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-7">
+          <p>St. John Armenian Church Learning</p>
+          <Link className="font-semibold text-foreground hover:text-primary" href="/sign-in">Sign in</Link>
+        </div>
+      </footer>
+    </div>
   );
 }
