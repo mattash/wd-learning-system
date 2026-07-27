@@ -20,6 +20,7 @@ export const E2E_COURSE = {
   id: "22222222-2222-4222-8222-222222222222",
   title: "Foundations of Parish Leadership",
   description: "Core formation for mission, service, and pastoral leadership.",
+  thumbnailUrl: "/course-covers/foundations-course-cover.png",
   instructor: "Formation Team",
   durationHours: 1,
   category: "Leadership" as const,

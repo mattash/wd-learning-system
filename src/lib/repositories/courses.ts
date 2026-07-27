@@ -65,7 +65,7 @@ export async function listPublicCatalogCourses(): Promise<PublicCatalogCourse[]>
         id: E2E_COURSE.id,
         title: E2E_COURSE.title,
         description: E2E_COURSE.description,
-        thumbnailUrl: "/globe.svg",
+        thumbnailUrl: "/course-covers/foundations-course-cover.png",
         durationHours: 1,
         category: "Leadership",
         moduleCount: 1,
