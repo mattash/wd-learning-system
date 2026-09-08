@@ -9,6 +9,7 @@ interface DeliveryJobRow {
   status: "pending" | "processing" | "sent" | "failed";
   attempts: number;
   max_attempts: number;
+  locked_at: string | null;
 }
 
 interface SendRow {
@@ -34,6 +35,9 @@ export interface ProcessParishDeliveryJobsResult {
 }
 
 const MAX_JOB_BATCH = 50;
+const STALE_PROCESSING_LOCK_MS = 15 * 60 * 1000;
+const INTERRUPTED_DELIVERY_ERROR =
+  "Delivery was interrupted after dispatch may have started; automatic retry was stopped to avoid duplicate email.";
 
 function buildRetryTime(attempts: number) {
   const backoffSeconds = Math.min(3600, Math.pow(2, Math.max(1, attempts)) * 30);
@@ -47,26 +51,27 @@ function summarizeFailureErrors(failed: Array<{ clerkUserId: string; error: stri
 
 async function updateRecipientStatuses({
   sendId,
-  sentRecipientIds,
+  sent,
   failed,
 }: {
   sendId: string;
-  sentRecipientIds: string[];
+  sent: Array<{ clerkUserId: string; providerMessageId: string | null }>;
   failed: Array<{ clerkUserId: string; error: string }>;
 }) {
   const supabase = getSupabaseAdminClient();
   const attemptedAt = new Date().toISOString();
 
-  if (sentRecipientIds.length > 0) {
+  for (const success of sent) {
     const { error } = await supabase
       .from("parish_message_recipients")
       .update({
         delivery_status: "sent",
         delivery_attempted_at: attemptedAt,
+        provider_message_id: success.providerMessageId,
         delivery_error: null,
       })
       .eq("send_id", sendId)
-      .in("clerk_user_id", sentRecipientIds);
+      .eq("clerk_user_id", success.clerkUserId);
     if (error) throw error;
   }
 
@@ -104,6 +109,73 @@ async function finalizeJobAsSent(job: DeliveryJobRow) {
 
   if (sendError) throw sendError;
   if (jobError) throw jobError;
+}
+
+async function markJobAsFailedWithoutRetry({
+  job,
+  errorMessage,
+}: {
+  job: DeliveryJobRow;
+  errorMessage: string;
+}) {
+  const supabase = getSupabaseAdminClient();
+  const now = new Date().toISOString();
+  const attempts = job.attempts + 1;
+
+  try {
+    let terminalUpdate = supabase
+      .from("parish_message_delivery_jobs")
+      .update({
+        status: "failed",
+        attempts,
+        last_error: errorMessage,
+        locked_at: null,
+        locked_by: null,
+        updated_at: now,
+      })
+      .eq("id", job.id)
+      .eq("status", "processing");
+
+    if (job.locked_at) {
+      terminalUpdate = terminalUpdate.eq("locked_at", job.locked_at);
+    }
+
+    const { data: terminalJob, error: jobError } = await terminalUpdate
+      .select("id")
+      .maybeSingle();
+    if (jobError) {
+      console.error("[parish-communications] failed to persist terminal job state:", jobError);
+      return false;
+    }
+    if (!terminalJob) {
+      return false;
+    }
+
+    const [{ error: sendError }, { error: recipientError }] = await Promise.all([
+      supabase.from("parish_message_sends").update({ delivery_status: "failed" }).eq("id", job.send_id),
+      supabase
+        .from("parish_message_recipients")
+        .update({
+          delivery_status: "failed",
+          delivery_attempted_at: now,
+          delivery_error: errorMessage,
+        })
+        .eq("send_id", job.send_id)
+        .neq("delivery_status", "sent"),
+    ]);
+
+    if (sendError) {
+      console.error("[parish-communications] failed to persist terminal send state:", sendError);
+    }
+    if (recipientError) {
+      console.error("[parish-communications] failed to persist terminal recipient state:", recipientError);
+    }
+
+    return true;
+  } catch (error) {
+    console.error("[parish-communications] failed closed after uncertain delivery:", error);
+    return false;
+  }
 }
 
 async function scheduleJobRetry({
@@ -166,17 +238,18 @@ export async function enqueueParishMessageDeliveryJob({
 
 async function processOneJob(job: DeliveryJobRow): Promise<"sent" | "failed" | "requeued"> {
   const supabase = getSupabaseAdminClient();
+  const lockedAt = new Date().toISOString();
   const claimResult = await supabase
     .from("parish_message_delivery_jobs")
     .update({
       status: "processing",
-      locked_at: new Date().toISOString(),
+      locked_at: lockedAt,
       locked_by: `api:${process.pid}`,
-      updated_at: new Date().toISOString(),
+      updated_at: lockedAt,
     })
     .eq("id", job.id)
     .eq("status", "pending")
-    .select("id,send_id,parish_id,provider,status,attempts,max_attempts")
+    .select("id,send_id,parish_id,provider,status,attempts,max_attempts,locked_at")
     .maybeSingle();
 
   if (claimResult.error) throw claimResult.error;
@@ -185,6 +258,7 @@ async function processOneJob(job: DeliveryJobRow): Promise<"sent" | "failed" | "
   }
 
   const claimed = claimResult.data as DeliveryJobRow;
+  let dispatchStarted = false;
 
   try {
     const sendResult = await supabase
@@ -222,6 +296,7 @@ async function processOneJob(job: DeliveryJobRow): Promise<"sent" | "failed" | "
     const profileByClerkId = new Map(profiles.map((profile) => [profile.clerk_user_id, profile]));
 
     const provider = claimed.provider as ParishDeliveryProvider;
+    dispatchStarted = true;
     const result = await deliverParishMessage({
       provider,
       subject: send.subject,
@@ -230,29 +305,90 @@ async function processOneJob(job: DeliveryJobRow): Promise<"sent" | "failed" | "
         clerkUserId,
         email: profileByClerkId.get(clerkUserId)?.email ?? null,
       })),
+      idempotencyKey: `parish-message/${claimed.send_id}`,
     });
 
-    await updateRecipientStatuses({
-      sendId: claimed.send_id,
-      sentRecipientIds: result.sent,
-      failed: result.failed,
-    });
+    try {
+      await updateRecipientStatuses({
+        sendId: claimed.send_id,
+        sent: result.sent,
+        failed: result.failed,
+      });
+    } catch {
+      await markJobAsFailedWithoutRetry({
+        job: claimed,
+        errorMessage: INTERRUPTED_DELIVERY_ERROR,
+      });
+      return "failed";
+    }
 
     if (result.failed.length === 0) {
       await finalizeJobAsSent(claimed);
       return "sent";
     }
 
-    const retryResult = await scheduleJobRetry({
+    await markJobAsFailedWithoutRetry({
       job: claimed,
       errorMessage: summarizeFailureErrors(result.failed),
     });
-    return retryResult.isTerminal ? "failed" : "requeued";
+    return "failed";
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown delivery error.";
+
+    if (dispatchStarted) {
+      await markJobAsFailedWithoutRetry({
+        job: claimed,
+        errorMessage: INTERRUPTED_DELIVERY_ERROR,
+      });
+      return "failed";
+    }
+
     const retryResult = await scheduleJobRetry({ job: claimed, errorMessage: message });
     return retryResult.isTerminal ? "failed" : "requeued";
   }
+}
+
+async function failStaleProcessingJobs(limit: number) {
+  const supabase = getSupabaseAdminClient();
+  const cutoff = new Date(Date.now() - STALE_PROCESSING_LOCK_MS).toISOString();
+  const { data, error } = await supabase
+    .from("parish_message_delivery_jobs")
+    .select("id,send_id,parish_id,provider,status,attempts,max_attempts,locked_at")
+    .eq("status", "processing")
+    .lt("locked_at", cutoff)
+    .order("locked_at", { ascending: true })
+    .limit(limit);
+
+  if (error) throw error;
+
+  const jobs = (data ?? []) as DeliveryJobRow[];
+  for (const job of jobs) {
+    await markJobAsFailedWithoutRetry({
+      job,
+      errorMessage: INTERRUPTED_DELIVERY_ERROR,
+    });
+  }
+
+  return jobs.length;
+}
+
+export async function processParishMessageDeliveryJobBySendId({
+  sendId,
+}: {
+  sendId: string;
+}): Promise<"sent" | "failed" | "requeued" | "not_found"> {
+  const supabase = getSupabaseAdminClient();
+  const { data, error } = await supabase
+    .from("parish_message_delivery_jobs")
+    .select("id,send_id,parish_id,provider,status,attempts,max_attempts,locked_at")
+    .eq("send_id", sendId)
+    .eq("status", "pending")
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) return "not_found";
+
+  return processOneJob(data as DeliveryJobRow);
 }
 
 export async function processPendingParishMessageDeliveryJobs({
@@ -263,10 +399,11 @@ export async function processPendingParishMessageDeliveryJobs({
   const cappedLimit = Math.max(1, Math.min(limit, MAX_JOB_BATCH));
   const supabase = getSupabaseAdminClient();
   const now = new Date().toISOString();
+  const recoveredFailures = await failStaleProcessingJobs(cappedLimit);
 
   const { data, error } = await supabase
     .from("parish_message_delivery_jobs")
-    .select("id,send_id,parish_id,provider,status,attempts,max_attempts")
+    .select("id,send_id,parish_id,provider,status,attempts,max_attempts,locked_at")
     .eq("status", "pending")
     .lte("next_attempt_at", now)
     .order("created_at", { ascending: true })
@@ -276,9 +413,9 @@ export async function processPendingParishMessageDeliveryJobs({
 
   const jobs = (data ?? []) as DeliveryJobRow[];
   const summary: ProcessParishDeliveryJobsResult = {
-    processed: 0,
+    processed: recoveredFailures,
     sent: 0,
-    failed: 0,
+    failed: recoveredFailures,
     requeued: 0,
   };
 

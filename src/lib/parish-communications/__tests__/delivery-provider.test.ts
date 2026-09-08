@@ -106,7 +106,7 @@ describe("deliverParishMessage", () => {
     });
 
     expect(result).toEqual({
-      sent: ["u-1"],
+      sent: [{ clerkUserId: "u-1", providerMessageId: null }],
       failed: [{ clerkUserId: "u-2", error: "Recipient has no email on file." }],
     });
   });
@@ -123,7 +123,10 @@ describe("deliverParishMessage", () => {
     });
 
     expect(result).toEqual({
-      sent: ["u-1", "u-2"],
+      sent: [
+        { clerkUserId: "u-1", providerMessageId: null },
+        { clerkUserId: "u-2", providerMessageId: null },
+      ],
       failed: [],
     });
   });

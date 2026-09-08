@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { sendEmailViaResend } from "@/lib/parish-communications/providers/resend";
 
 global.fetch = vi.fn();
@@ -33,7 +33,10 @@ describe("sendEmailViaResend", () => {
       { apiKey: "test-key", fromEmail: "from@example.com" },
       baseRequest,
     );
-    expect(result.sent).toEqual(["u-1", "u-2"]);
+    expect(result.sent).toEqual([
+      { clerkUserId: "u-1", providerMessageId: "resend-id-1" },
+      { clerkUserId: "u-2", providerMessageId: "resend-id-2" },
+    ]);
     expect(result.failed).toHaveLength(0);
   });
 
@@ -116,10 +119,48 @@ describe("sendEmailViaResend", () => {
       { apiKey: "test-key", fromEmail: "from@example.com" },
       mixedRequest,
     );
-    expect(result.sent).toEqual(["u-1"]);
+    expect(result.sent).toEqual([
+      { clerkUserId: "u-1", providerMessageId: "resend-id-1" },
+    ]);
     expect(result.failed).toEqual([
       { clerkUserId: "u-2", error: "Recipient has no email on file." },
     ]);
+  });
+
+  it("uses a stable idempotency key and recipient order for retries", async () => {
+    mockFetch({ data: [{ id: "resend-id-1" }, { id: "resend-id-2" }] });
+
+    await sendEmailViaResend(
+      { apiKey: "test-key", fromEmail: "from@example.com" },
+      {
+        ...baseRequest,
+        idempotencyKey: "parish-message/send-1",
+        recipients: [...baseRequest.recipients].reverse(),
+      },
+    );
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      "https://api.resend.com/emails/batch",
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          "Idempotency-Key": expect.stringMatching(/^parish-message\/send-1\/[a-f0-9]{32}$/),
+        }),
+        body: JSON.stringify([
+          {
+            from: "from@example.com",
+            to: ["user1@example.com"],
+            subject: "Test Subject",
+            text: "Test body",
+          },
+          {
+            from: "from@example.com",
+            to: ["user2@example.com"],
+            subject: "Test Subject",
+            text: "Test body",
+          },
+        ]),
+      }),
+    );
   });
 
   it("handles batch split when recipients exceed 100", async () => {

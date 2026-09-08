@@ -4,20 +4,21 @@ vi.mock("@/lib/parish-communications/delivery-jobs", () => ({
   processPendingParishMessageDeliveryJobs: vi.fn(),
 }));
 
-import { POST } from "@/app/api/internal/parish-admin/communications/deliver/route";
+import { GET, POST } from "@/app/api/internal/parish-admin/communications/deliver/route";
 import { processPendingParishMessageDeliveryJobs } from "@/lib/parish-communications/delivery-jobs";
 
 describe("/api/internal/parish-admin/communications/deliver", () => {
   afterEach(() => {
     vi.clearAllMocks();
     delete process.env.PARISH_COMMUNICATIONS_WORKER_TOKEN;
+    delete process.env.CRON_SECRET;
   });
 
   it("returns 500 when worker token is not configured", async () => {
     const response = await POST(new Request("http://localhost/api/internal/parish-admin/communications/deliver", { method: "POST" }));
     expect(response.status).toBe(500);
     await expect(response.json()).resolves.toEqual({
-      error: "PARISH_COMMUNICATIONS_WORKER_TOKEN is not configured.",
+      error: "Delivery worker authentication is not configured.",
     });
   });
 
@@ -63,6 +64,25 @@ describe("/api/internal/parish-admin/communications/deliver", () => {
       failed: 0,
       requeued: 1,
     });
+  });
+
+  it("processes pending jobs from Vercel Cron with CRON_SECRET", async () => {
+    process.env.CRON_SECRET = "cron-token";
+    vi.mocked(processPendingParishMessageDeliveryJobs).mockResolvedValue({
+      processed: 1,
+      sent: 1,
+      failed: 0,
+      requeued: 0,
+    });
+
+    const response = await GET(
+      new Request("http://localhost/api/internal/parish-admin/communications/deliver", {
+        headers: { authorization: "Bearer cron-token" },
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(processPendingParishMessageDeliveryJobs).toHaveBeenCalledWith();
   });
 
   it("processes pending jobs with valid token and empty body", async () => {

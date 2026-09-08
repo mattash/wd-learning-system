@@ -4,10 +4,14 @@ import { z } from "zod";
 import { requireParishRole } from "@/lib/authz";
 import { recordAdminAuditLog } from "@/lib/audit-log";
 import { getParishDeliveryConfig } from "@/lib/parish-communications/delivery-provider";
-import { enqueueParishMessageDeliveryJob } from "@/lib/parish-communications/delivery-jobs";
+import {
+  enqueueParishMessageDeliveryJob,
+  processParishMessageDeliveryJobBySendId,
+} from "@/lib/parish-communications/delivery-jobs";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 
 const audienceTypeSchema = z.enum(["all_members", "stalled_learners", "cohort", "course"]);
+const MAX_PARISH_MESSAGE_RECIPIENTS = 100;
 
 const sendMessageSchema = z.object({
   subject: z.string().trim().min(1).max(160),
@@ -165,6 +169,12 @@ export async function POST(req: Request) {
   if (recipients.length === 0) {
     return NextResponse.json({ error: "No recipients match this audience." }, { status: 400 });
   }
+  if (recipients.length > MAX_PARISH_MESSAGE_RECIPIENTS) {
+    return NextResponse.json(
+      { error: `Audience exceeds the ${MAX_PARISH_MESSAGE_RECIPIENTS}-recipient delivery limit.` },
+      { status: 400 },
+    );
+  }
 
   const { data: send, error: sendError } = await supabase
     .from("parish_message_sends")
@@ -205,12 +215,20 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: recipientInsertError.message }, { status: 400 });
   }
 
+  let immediateDeliveryStatus: "sent" | "failed" | "requeued" | "not_found" | null = null;
+
   if (deliveryConfig.enabled && deliveryConfig.provider) {
     try {
       await enqueueParishMessageDeliveryJob({
         parishId,
         sendId: send.id as string,
         provider: deliveryConfig.provider,
+      });
+
+      // Attempt normal sends immediately. The scheduled worker remains the
+      // recovery path for transient failures and retries.
+      immediateDeliveryStatus = await processParishMessageDeliveryJobBySendId({
+        sendId: send.id as string,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to enqueue delivery job.";
@@ -234,11 +252,29 @@ export async function POST(req: Request) {
     },
   });
 
+  const responseSend = immediateDeliveryStatus
+    ? {
+        ...send,
+        delivery_status:
+          immediateDeliveryStatus === "sent"
+            ? "sent"
+            : immediateDeliveryStatus === "failed"
+              ? "failed"
+              : "queued",
+      }
+    : send;
+
   return NextResponse.json({
-    send,
+    send: responseSend,
     deliveryNote:
-      deliveryConfig.enabled
-        ? "Message queued for async delivery."
-        : "Outbound delivery is not configured yet. This message has been logged for tracking only.",
+      immediateDeliveryStatus === "sent"
+        ? "Message sent."
+        : immediateDeliveryStatus === "failed"
+          ? "Delivery failed and was not automatically resent because provider acceptance may be uncertain."
+          : immediateDeliveryStatus === "requeued"
+            ? "Delivery could not safely start and is queued for daily recovery."
+            : deliveryConfig.enabled
+              ? "Message queued for recovery."
+              : "Outbound delivery is not configured yet. This message has been logged for tracking only.",
   });
 }

@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import type { ParishDeliveryRequest, ParishDeliveryResult } from "../delivery-provider";
 
 export type ResendDeliveryProvider = "resend";
@@ -13,13 +15,19 @@ export async function sendEmailViaResend(
   config: ResendConfig,
   request: ParishDeliveryRequest,
 ): Promise<ParishDeliveryResult> {
-  const sent: string[] = [];
+  const sent: ParishDeliveryResult["sent"] = [];
   const failed: Array<{ clerkUserId: string; error: string }> = [];
+
+  // Stable ordering keeps both the batch payload and idempotency key identical
+  // when a delivery is retried after an ambiguous provider response.
+  const orderedRecipients = [...request.recipients].sort((left, right) =>
+    left.clerkUserId.localeCompare(right.clerkUserId),
+  );
 
   // Send to up to 100 recipients per batch (Resend batch limit)
   const BATCH_SIZE = 100;
-  for (let i = 0; i < request.recipients.length; i += BATCH_SIZE) {
-    const batch = request.recipients.slice(i, i + BATCH_SIZE);
+  for (let i = 0; i < orderedRecipients.length; i += BATCH_SIZE) {
+    const batch = orderedRecipients.slice(i, i + BATCH_SIZE);
     const recipientsWithEmail = batch.filter((r): r is typeof r & { email: string } => r.email !== null);
     const recipientsWithoutEmail = batch.filter((r) => r.email === null);
 
@@ -36,6 +44,13 @@ export async function sendEmailViaResend(
       subject: request.subject,
       text: request.body,
     }));
+    const recipientSetHash = createHash("sha256")
+      .update(recipientsWithEmail.map((recipient) => recipient.clerkUserId).sort().join(","))
+      .digest("hex")
+      .slice(0, 32);
+    const idempotencyKey = request.idempotencyKey
+      ? `${request.idempotencyKey}/${recipientSetHash}`
+      : undefined;
 
     try {
       const response = await fetch(RESEND_BATCH_API_URL, {
@@ -43,6 +58,7 @@ export async function sendEmailViaResend(
         headers: {
           "Authorization": `Bearer ${config.apiKey}`,
           "Content-Type": "application/json",
+          ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
         },
         body: JSON.stringify(batchPayload),
       });
@@ -56,8 +72,11 @@ export async function sendEmailViaResend(
           ids.every((item) => Boolean(item?.id));
 
         if (allHaveIds) {
-          for (const recipient of recipientsWithEmail) {
-            sent.push(recipient.clerkUserId);
+          for (const [index, recipient] of recipientsWithEmail.entries()) {
+            sent.push({
+              clerkUserId: recipient.clerkUserId,
+              providerMessageId: ids[index]?.id ?? null,
+            });
           }
         } else {
           const errMsg = "Resend batch response missing email ids";

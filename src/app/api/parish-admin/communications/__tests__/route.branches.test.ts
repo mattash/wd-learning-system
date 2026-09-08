@@ -3,12 +3,18 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/authz", () => ({ requireParishRole: vi.fn() }));
 vi.mock("@/lib/audit-log", () => ({ recordAdminAuditLog: vi.fn() }));
 vi.mock("@/lib/supabase/server", () => ({ getSupabaseAdminClient: vi.fn() }));
-vi.mock("@/lib/parish-communications/delivery-jobs", () => ({ enqueueParishMessageDeliveryJob: vi.fn() }));
+vi.mock("@/lib/parish-communications/delivery-jobs", () => ({
+  enqueueParishMessageDeliveryJob: vi.fn(),
+  processParishMessageDeliveryJobBySendId: vi.fn(),
+}));
 
 import { GET, POST } from "@/app/api/parish-admin/communications/route";
 import { requireParishRole } from "@/lib/authz";
 import { recordAdminAuditLog } from "@/lib/audit-log";
-import { enqueueParishMessageDeliveryJob } from "@/lib/parish-communications/delivery-jobs";
+import {
+  enqueueParishMessageDeliveryJob,
+  processParishMessageDeliveryJobBySendId,
+} from "@/lib/parish-communications/delivery-jobs";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 
 const PARISH_ID = "11111111-1111-4111-8111-111111111111";
@@ -18,6 +24,8 @@ describe("/api/parish-admin/communications branch coverage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     delete process.env.PARISH_COMMUNICATIONS_DELIVERY_MODE;
+    vi.mocked(enqueueParishMessageDeliveryJob).mockResolvedValue();
+    vi.mocked(processParishMessageDeliveryJobBySendId).mockResolvedValue("sent");
     vi.mocked(requireParishRole).mockResolvedValue({
       clerkUserId: "admin-1",
       parishId: PARISH_ID,
