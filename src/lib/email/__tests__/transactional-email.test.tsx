@@ -24,6 +24,14 @@ const cases: [
   string,
 ][] = [
   [
+    "admin-request",
+    "New enrollment request for Armenian Basics",
+    "New Enrollment Request",
+    "Action needed: review a new enrollment request for Armenian Basics.",
+    "Review Enrollment Requests",
+    "/app/parish-admin/join-requests",
+  ],
+  [
     "submitted",
     "Your enrollment request for Armenian Basics has been submitted",
     "Enrollment Request Submitted",

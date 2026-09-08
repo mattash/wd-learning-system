@@ -1,7 +1,7 @@
 import type { TransactionalContent } from "./transactional-email";
 
 export type TransactionalEmailType =
-  "submitted" | "approved" | "rejected" | "enrolled" | "completed";
+  "admin-request" | "submitted" | "approved" | "rejected" | "enrolled" | "completed";
 
 export interface TransactionalEmailParams {
   courseTitle: string;
@@ -38,6 +38,19 @@ export function createTransactionalContent(
     TransactionalEmailType,
     Omit<TransactionalContent, "ctaUrl" | "markUrl"> & { path: string }
   > = {
+    "admin-request": {
+      subject: `New enrollment request for ${courseTitle}`,
+      heading: "New Enrollment Request",
+      preheader: `Action needed: review a new enrollment request for ${courseTitle}.`,
+      status: "Action needed: review enrollment request",
+      tone: "pending",
+      paragraphs: [
+        `${displayName?.trim() || "A student"} has requested enrollment in ${courseTitle} at ${parishName}.`,
+        "Review the request to approve or decline enrollment.",
+      ],
+      ctaLabel: "Review Enrollment Requests",
+      path: "/app/parish-admin/join-requests",
+    },
     submitted: {
       subject: `Your enrollment request for ${courseTitle} has been submitted`,
       heading: "Enrollment Request Submitted",

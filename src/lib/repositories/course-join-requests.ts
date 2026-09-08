@@ -1,3 +1,4 @@
+import { notifyJoinRequestCreated } from "@/lib/parish-communications/notify-join-request-created";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 
 export type JoinRequestStatus = "PENDING" | "APPROVED" | "REJECTED";
@@ -73,7 +74,7 @@ export async function createJoinRequest({
     .single();
 
   if (error) throw error;
-  return {
+  const request: CourseJoinRequest = {
     id: data!.id as string,
     parishId: data!.parish_id as string,
     clerkUserId: data!.clerk_user_id as string,
@@ -82,6 +83,14 @@ export async function createJoinRequest({
     createdAt: data!.created_at as string,
     updatedAt: data!.updated_at as string,
   };
+  // All creation paths converge here. Never notify on duplicates or failed inserts.
+  try {
+    await notifyJoinRequestCreated(request);
+  } catch {
+    // Provider/database errors may contain credentials or recipient details.
+    console.error("[admin-request] Notification failed; enrollment request saved");
+  }
+  return request;
 }
 
 /**

@@ -22,7 +22,7 @@ async function main() {
         await route.abort();
       }
     });
-    const types: TransactionalEmailType[] = ["submitted", "approved", "rejected", "enrolled", "completed"];
+    const types: TransactionalEmailType[] = ["admin-request", "submitted", "approved", "rejected", "enrolled", "completed"];
     for (const type of types) {
       for (const width of [320, 800]) {
         await page.setViewportSize({ width, height: 1000 });
@@ -74,7 +74,8 @@ async function main() {
     }
     await copyFile(`${output}/submitted-320.png`, "docs/testing/email-branding/submitted-mobile.png");
     await copyFile(`${output}/approved-800.png`, "docs/testing/email-branding/approved-desktop.png");
-    console.log(`40 responsive browser cases and five MSO fallback geometry checks passed. Previews: ${output}`);
+    await copyFile(`${output}/admin-request-320.png`, "docs/testing/email-branding/admin-request-mobile.png");
+    console.log(`48 responsive browser cases and six MSO fallback geometry checks passed. Previews: ${output}`);
   } finally {
     await browser.close();
   }
