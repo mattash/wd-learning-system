@@ -16,6 +16,7 @@ vi.mock("@/lib/parish-communications/delivery-provider", async () => {
 
 import {
   enqueueParishMessageDeliveryJob,
+  processParishMessageDeliveryJobBySendId,
   processPendingParishMessageDeliveryJobs,
 } from "@/lib/parish-communications/delivery-jobs";
 import { deliverParishMessage } from "@/lib/parish-communications/delivery-provider";
@@ -26,18 +27,23 @@ type TableData = Record<string, Row[]>;
 
 class InMemorySupabase {
   tables: TableData;
+  private readonly updateFailures: Record<string, Error[]>;
 
-  constructor(seed: TableData) {
+  constructor(seed: TableData, updateFailures: Record<string, Error[]> = {}) {
     this.tables = Object.fromEntries(
       Object.entries(seed).map(([name, rows]) => [name, rows.map((row) => ({ ...row }))]),
     );
+    this.updateFailures = updateFailures;
   }
 
   from(table: string) {
     if (!this.tables[table]) {
       this.tables[table] = [];
     }
-    return new InMemoryQuery(this.tables[table]);
+    return new InMemoryQuery(
+      this.tables[table],
+      () => this.updateFailures[table]?.shift() ?? null,
+    );
   }
 }
 
@@ -50,7 +56,10 @@ class InMemoryQuery implements PromiseLike<{ data: unknown; error: Error | null 
   private limitCount: number | null = null;
   private shouldReturnSingle = false;
 
-  constructor(private readonly rows: Row[]) {}
+  constructor(
+    private readonly rows: Row[],
+    private readonly takeUpdateFailure: () => Error | null = () => null,
+  ) {}
 
   select(columns: string) {
     if (!this.mode) {
@@ -87,6 +96,11 @@ class InMemoryQuery implements PromiseLike<{ data: unknown; error: Error | null 
     return this;
   }
 
+  lt(column: string, value: unknown) {
+    this.filters.push((row) => String(row[column] ?? "") < String(value));
+    return this;
+  }
+
   in(column: string, values: unknown[]) {
     this.filters.push((row) => values.includes(row[column]));
     return this;
@@ -118,6 +132,11 @@ class InMemoryQuery implements PromiseLike<{ data: unknown; error: Error | null 
 
   private async execute() {
     if (this.mode === "update") {
+      const updateFailure = this.takeUpdateFailure();
+      if (updateFailure) {
+        return { data: null, error: updateFailure };
+      }
+
       const matched = this.rows.filter((row) => this.filters.every((filter) => filter(row)));
       for (const row of matched) {
         Object.assign(row, this.updatePayload);
@@ -162,6 +181,15 @@ class InMemoryQuery implements PromiseLike<{ data: unknown; error: Error | null 
       return projected;
     });
   }
+}
+
+function emptyStaleProcessingQuery() {
+  const limit = vi.fn(async () => ({ data: [], error: null }));
+  const order = vi.fn(() => ({ limit }));
+  const lt = vi.fn(() => ({ order }));
+  const eq = vi.fn(() => ({ lt }));
+  const select = vi.fn(() => ({ eq }));
+  return { select };
 }
 
 describe("enqueueParishMessageDeliveryJob", () => {
@@ -209,6 +237,55 @@ describe("enqueueParishMessageDeliveryJob", () => {
   });
 });
 
+describe("processParishMessageDeliveryJobBySendId", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns not_found when no pending job matches", async () => {
+    const supabase = new InMemorySupabase({ parish_message_delivery_jobs: [] });
+    vi.mocked(getSupabaseAdminClient).mockReturnValue(supabase as never);
+
+    await expect(
+      processParishMessageDeliveryJobBySendId({ sendId: "missing-send" }),
+    ).resolves.toBe("not_found");
+  });
+
+  it("processes the matching pending job immediately", async () => {
+    const supabase = new InMemorySupabase({
+      parish_message_delivery_jobs: [
+        {
+          id: "job-direct",
+          send_id: "send-direct",
+          parish_id: "parish-1",
+          provider: "mock",
+          status: "pending",
+          attempts: 0,
+          max_attempts: 5,
+          next_attempt_at: "2000-01-01T00:00:00.000Z",
+        },
+      ],
+      parish_message_sends: [
+        { id: "send-direct", subject: "Subject", body: "Body", delivery_status: "queued" },
+      ],
+      parish_message_recipients: [
+        { send_id: "send-direct", clerk_user_id: "u-1", delivery_status: "pending" },
+      ],
+      user_profiles: [{ clerk_user_id: "u-1", email: "u1@example.com" }],
+    });
+    vi.mocked(getSupabaseAdminClient).mockReturnValue(supabase as never);
+    vi.mocked(deliverParishMessage).mockResolvedValue({
+      sent: [{ clerkUserId: "u-1", providerMessageId: null }],
+      failed: [],
+    });
+
+    await expect(
+      processParishMessageDeliveryJobBySendId({ sendId: "send-direct" }),
+    ).resolves.toBe("sent");
+    expect(supabase.tables.parish_message_delivery_jobs[0].status).toBe("sent");
+  });
+});
+
 describe("processPendingParishMessageDeliveryJobs", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -231,6 +308,55 @@ describe("processPendingParishMessageDeliveryJobs", () => {
       sent: 0,
       failed: 0,
       requeued: 0,
+    });
+  });
+
+  it("fails stale processing jobs without retrying or sending duplicates", async () => {
+    const supabase = new InMemorySupabase({
+      parish_message_delivery_jobs: [
+        {
+          id: "job-stale",
+          send_id: "send-stale",
+          parish_id: "parish-1",
+          provider: "resend",
+          status: "processing",
+          attempts: 0,
+          max_attempts: 5,
+          locked_at: "2000-01-01T00:00:00.000Z",
+          created_at: "2000-01-01T00:00:00.000Z",
+        },
+      ],
+      parish_message_sends: [
+        { id: "send-stale", delivery_status: "queued" },
+      ],
+      parish_message_recipients: [
+        {
+          send_id: "send-stale",
+          clerk_user_id: "u-1",
+          delivery_status: "pending",
+        },
+      ],
+    });
+    vi.mocked(getSupabaseAdminClient).mockReturnValue(supabase as never);
+
+    await expect(processPendingParishMessageDeliveryJobs()).resolves.toEqual({
+      processed: 1,
+      sent: 0,
+      failed: 1,
+      requeued: 0,
+    });
+
+    expect(deliverParishMessage).not.toHaveBeenCalled();
+    expect(supabase.tables.parish_message_sends[0].delivery_status).toBe("failed");
+    expect(supabase.tables.parish_message_delivery_jobs[0]).toMatchObject({
+      status: "failed",
+      attempts: 1,
+      locked_at: null,
+      locked_by: null,
+    });
+    expect(supabase.tables.parish_message_recipients[0]).toMatchObject({
+      delivery_status: "failed",
+      delivery_error: expect.stringContaining("avoid duplicate email"),
     });
   });
 
@@ -262,6 +388,7 @@ describe("processPendingParishMessageDeliveryJobs", () => {
 
     const from = vi
       .fn()
+      .mockImplementationOnce(() => emptyStaleProcessingQuery())
       .mockImplementationOnce(() => ({ select: listSelect }))
       .mockImplementationOnce(() => ({ update: claimUpdate }));
 
@@ -317,7 +444,10 @@ describe("processPendingParishMessageDeliveryJobs", () => {
     });
     vi.mocked(getSupabaseAdminClient).mockReturnValue(supabase as never);
     vi.mocked(deliverParishMessage).mockResolvedValue({
-      sent: ["u-1", "u-2"],
+      sent: [
+        { clerkUserId: "u-1", providerMessageId: "resend-1" },
+        { clerkUserId: "u-2", providerMessageId: "resend-2" },
+      ],
       failed: [],
     });
 
@@ -336,6 +466,7 @@ describe("processPendingParishMessageDeliveryJobs", () => {
         { clerkUserId: "u-1", email: "u1@example.com" },
         { clerkUserId: "u-2", email: "u2@example.com" },
       ],
+      idempotencyKey: "parish-message/send-1",
     });
 
     expect(supabase.tables.parish_message_sends[0].delivery_status).toBe("sent");
@@ -350,14 +481,76 @@ describe("processPendingParishMessageDeliveryJobs", () => {
       expect.objectContaining({
         clerk_user_id: "u-1",
         delivery_status: "sent",
+        provider_message_id: "resend-1",
         delivery_error: null,
       }),
       expect.objectContaining({
         clerk_user_id: "u-2",
         delivery_status: "sent",
+        provider_message_id: "resend-2",
         delivery_error: null,
       }),
     ]);
+  });
+
+  it("fails closed when provider acceptance cannot be persisted", async () => {
+    const supabase = new InMemorySupabase(
+      {
+        parish_message_delivery_jobs: [
+          {
+            id: "job-persistence-failure",
+            send_id: "send-persistence-failure",
+            parish_id: "parish-1",
+            provider: "resend",
+            status: "pending",
+            attempts: 0,
+            max_attempts: 5,
+            next_attempt_at: "2000-01-01T00:00:00.000Z",
+            created_at: "2000-01-01T00:00:00.000Z",
+          },
+        ],
+        parish_message_sends: [
+          {
+            id: "send-persistence-failure",
+            subject: "Subject",
+            body: "Body",
+            delivery_status: "queued",
+          },
+        ],
+        parish_message_recipients: [
+          {
+            send_id: "send-persistence-failure",
+            clerk_user_id: "u-1",
+            delivery_status: "pending",
+          },
+        ],
+        user_profiles: [{ clerk_user_id: "u-1", email: "u1@example.com" }],
+      },
+      { parish_message_recipients: [new Error("persistence failed")] },
+    );
+    vi.mocked(getSupabaseAdminClient).mockReturnValue(supabase as never);
+    vi.mocked(deliverParishMessage).mockResolvedValue({
+      sent: [{ clerkUserId: "u-1", providerMessageId: "resend-1" }],
+      failed: [],
+    });
+
+    await expect(processPendingParishMessageDeliveryJobs()).resolves.toEqual({
+      processed: 1,
+      sent: 0,
+      failed: 1,
+      requeued: 0,
+    });
+
+    expect(supabase.tables.parish_message_sends[0].delivery_status).toBe("failed");
+    expect(supabase.tables.parish_message_delivery_jobs[0]).toMatchObject({
+      status: "failed",
+      attempts: 1,
+      last_error: expect.stringContaining("avoid duplicate email"),
+    });
+    expect(supabase.tables.parish_message_recipients[0]).toMatchObject({
+      delivery_status: "failed",
+      delivery_error: expect.stringContaining("avoid duplicate email"),
+    });
   });
 
   it("marks a job as sent immediately when no recipients remain pending", async () => {
@@ -400,7 +593,7 @@ describe("processPendingParishMessageDeliveryJobs", () => {
     expect(supabase.tables.parish_message_delivery_jobs[0].status).toBe("sent");
   });
 
-  it("requeues a job when delivery has recipient failures", async () => {
+  it("fails a job without automatic retry when delivery has recipient failures", async () => {
     const supabase = new InMemorySupabase({
       parish_message_delivery_jobs: [
         {
@@ -442,7 +635,7 @@ describe("processPendingParishMessageDeliveryJobs", () => {
     });
     vi.mocked(getSupabaseAdminClient).mockReturnValue(supabase as never);
     vi.mocked(deliverParishMessage).mockResolvedValue({
-      sent: ["u-1"],
+      sent: [{ clerkUserId: "u-1", providerMessageId: "resend-1" }],
       failed: [
         { clerkUserId: "u-2", error: "Mailbox unavailable" },
         { clerkUserId: "u-2", error: "Mailbox unavailable" },
@@ -452,13 +645,13 @@ describe("processPendingParishMessageDeliveryJobs", () => {
     await expect(processPendingParishMessageDeliveryJobs()).resolves.toEqual({
       processed: 1,
       sent: 0,
-      failed: 0,
-      requeued: 1,
+      failed: 1,
+      requeued: 0,
     });
 
-    expect(supabase.tables.parish_message_sends[0].delivery_status).toBe("queued");
+    expect(supabase.tables.parish_message_sends[0].delivery_status).toBe("failed");
     expect(supabase.tables.parish_message_delivery_jobs[0]).toMatchObject({
-      status: "pending",
+      status: "failed",
       attempts: 2,
       last_error: "Mailbox unavailable",
       locked_at: null,
@@ -468,6 +661,7 @@ describe("processPendingParishMessageDeliveryJobs", () => {
       expect.objectContaining({
         clerk_user_id: "u-1",
         delivery_status: "sent",
+        provider_message_id: "resend-1",
       }),
       expect.objectContaining({
         clerk_user_id: "u-2",
@@ -565,7 +759,7 @@ describe("processPendingParishMessageDeliveryJobs", () => {
     });
   });
 
-  it("uses a generic retry message for unknown thrown values", async () => {
+  it("fails closed with a generic interrupted-delivery message for unknown provider errors", async () => {
     const supabase = new InMemorySupabase({
       parish_message_delivery_jobs: [
         {
@@ -609,11 +803,11 @@ describe("processPendingParishMessageDeliveryJobs", () => {
     expect(supabase.tables.parish_message_delivery_jobs[0]).toMatchObject({
       status: "failed",
       attempts: 5,
-      last_error: "Unknown delivery error.",
+      last_error: expect.stringContaining("avoid duplicate email"),
     });
   });
 
-  it("uses the thrown error message when the provider throws an Error", async () => {
+  it("fails closed when the provider throws after dispatch begins", async () => {
     const supabase = new InMemorySupabase({
       parish_message_delivery_jobs: [
         {
@@ -650,14 +844,14 @@ describe("processPendingParishMessageDeliveryJobs", () => {
     await expect(processPendingParishMessageDeliveryJobs()).resolves.toEqual({
       processed: 1,
       sent: 0,
-      failed: 0,
-      requeued: 1,
+      failed: 1,
+      requeued: 0,
     });
 
     expect(supabase.tables.parish_message_delivery_jobs[0]).toMatchObject({
-      status: "pending",
+      status: "failed",
       attempts: 1,
-      last_error: "provider unavailable",
+      last_error: expect.stringContaining("avoid duplicate email"),
     });
   });
 
@@ -689,6 +883,7 @@ describe("processPendingParishMessageDeliveryJobs", () => {
 
     const from = vi
       .fn()
+      .mockImplementationOnce(() => emptyStaleProcessingQuery())
       .mockImplementationOnce(() => ({ select: listSelect }))
       .mockImplementationOnce(() => ({ update: claimUpdate }));
     vi.mocked(getSupabaseAdminClient).mockReturnValue({ from } as never);
@@ -703,9 +898,11 @@ describe("processPendingParishMessageDeliveryJobs", () => {
     const eq = vi.fn(() => ({ lte }));
     const select = vi.fn(() => ({ eq }));
 
-    vi.mocked(getSupabaseAdminClient).mockReturnValue({
-      from: vi.fn(() => ({ select })),
-    } as never);
+    const from = vi
+      .fn()
+      .mockImplementationOnce(() => emptyStaleProcessingQuery())
+      .mockImplementationOnce(() => ({ select }));
+    vi.mocked(getSupabaseAdminClient).mockReturnValue({ from } as never);
 
     await expect(processPendingParishMessageDeliveryJobs()).rejects.toThrow("query failed");
   });

@@ -31,6 +31,16 @@ async function resolveNotificationData({
   return email ? { email, courseTitle, parishName } : null;
 }
 
+async function deliverTransactionalNotification(
+  request: Parameters<typeof deliverParishMessage>[0],
+) {
+  const result = await deliverParishMessage(request);
+  if (result?.failed.length) {
+    const errors = Array.from(new Set(result.failed.map((failure) => failure.error)));
+    throw new Error(errors.join("; ").slice(0, 500));
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Join request notifications
 // ---------------------------------------------------------------------------
@@ -50,7 +60,7 @@ export async function notifyJoinRequestApproved({
   const data = await resolveNotificationData({ clerkUserId, parishId, courseId });
   if (!data) return;
 
-  await deliverParishMessage({
+  await deliverTransactionalNotification({
     provider: config.provider,
     subject: `Your enrollment in ${data.courseTitle} is confirmed`,
     body: `Your request to join ${data.courseTitle} at ${data.parishName} has been approved. You can now access the course in your dashboard.`,
@@ -73,7 +83,7 @@ export async function notifyJoinRequestRejected({
   const data = await resolveNotificationData({ clerkUserId, parishId, courseId });
   if (!data) return;
 
-  await deliverParishMessage({
+  await deliverTransactionalNotification({
     provider: config.provider,
     subject: `Update on your ${data.courseTitle} enrollment request`,
     body: `Your request to join ${data.courseTitle} was not approved. Please contact your parish admin if you have questions.`,
@@ -100,7 +110,7 @@ export async function notifyEnrollmentConfirmed({
   const data = await resolveNotificationData({ clerkUserId, parishId, courseId });
   if (!data) return;
 
-  await deliverParishMessage({
+  await deliverTransactionalNotification({
     provider: config.provider,
     subject: `You've been enrolled in ${data.courseTitle}`,
     body: `A parish administrator has enrolled you in ${data.courseTitle} at ${data.parishName}. Head to your dashboard to start learning.`,
@@ -127,7 +137,7 @@ export async function notifyCourseCompletion({
   const data = await resolveNotificationData({ clerkUserId, parishId, courseId });
   if (!data) return;
 
-  await deliverParishMessage({
+  await deliverTransactionalNotification({
     provider: config.provider,
     subject: `You've completed ${data.courseTitle}!`,
     body: `Congratulations! You've finished all lessons in ${data.courseTitle}. Great work on your learning journey.`,

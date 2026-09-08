@@ -3,16 +3,26 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/lib/authz", () => ({ requireParishRole: vi.fn() }));
 vi.mock("@/lib/audit-log", () => ({ recordAdminAuditLog: vi.fn() }));
 vi.mock("@/lib/supabase/server", () => ({ getSupabaseAdminClient: vi.fn() }));
+vi.mock("@/lib/parish-communications/delivery-jobs", () => ({
+  enqueueParishMessageDeliveryJob: vi.fn(),
+  processParishMessageDeliveryJobBySendId: vi.fn(),
+}));
 
 import { GET, POST } from "@/app/api/parish-admin/communications/route";
 import { requireParishRole } from "@/lib/authz";
 import { recordAdminAuditLog } from "@/lib/audit-log";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
+import {
+  enqueueParishMessageDeliveryJob,
+  processParishMessageDeliveryJobBySendId,
+} from "@/lib/parish-communications/delivery-jobs";
 
 describe("/api/parish-admin/communications", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     delete process.env.PARISH_COMMUNICATIONS_DELIVERY_MODE;
+    vi.mocked(enqueueParishMessageDeliveryJob).mockResolvedValue();
+    vi.mocked(processParishMessageDeliveryJobBySendId).mockResolvedValue("sent");
     vi.mocked(requireParishRole).mockResolvedValue({
       clerkUserId: "admin-1",
       parishId: "11111111-1111-4111-8111-111111111111",
@@ -133,6 +143,37 @@ describe("/api/parish-admin/communications", () => {
     await expect(response.json()).resolves.toEqual({ error: "No recipients match this audience." });
   });
 
+  it("rejects audiences larger than one provider batch", async () => {
+    const membershipEq = vi.fn(async () => ({
+      data: Array.from({ length: 101 }, (_, index) => ({ clerk_user_id: `user-${index}` })),
+      error: null,
+    }));
+    const membershipSelect = vi.fn(() => ({ eq: membershipEq }));
+
+    vi.mocked(getSupabaseAdminClient).mockReturnValue({
+      from: vi.fn((table: string) => {
+        if (table === "parish_memberships") return { select: membershipSelect };
+        throw new Error(`Unexpected table: ${table}`);
+      }),
+    } as never);
+
+    const response = await POST(
+      new Request("http://localhost/api/parish-admin/communications", {
+        method: "POST",
+        body: JSON.stringify({
+          subject: "Large audience",
+          body: "This should require segmentation.",
+          audienceType: "all_members",
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: "Audience exceeds the 100-recipient delivery limit.",
+    });
+  });
+
   it("queues a delivery job when async delivery mode is enabled", async () => {
     process.env.PARISH_COMMUNICATIONS_DELIVERY_MODE = "mock";
 
@@ -147,14 +188,12 @@ describe("/api/parish-admin/communications", () => {
     const sendInsert = vi.fn(() => ({ select: sendSelect }));
 
     const recipientInsert = vi.fn(async () => ({ error: null }));
-    const jobInsert = vi.fn(async () => ({ error: null }));
 
     vi.mocked(getSupabaseAdminClient).mockReturnValue({
       from: vi.fn((table: string) => {
         if (table === "parish_memberships") return { select: membershipSelect };
         if (table === "parish_message_sends") return { insert: sendInsert };
         if (table === "parish_message_recipients") return { insert: recipientInsert };
-        if (table === "parish_message_delivery_jobs") return { insert: jobInsert };
         throw new Error(`Unexpected table: ${table}`);
       }),
     } as never);
@@ -172,7 +211,9 @@ describe("/api/parish-admin/communications", () => {
 
     expect(response.status).toBe(200);
     const json = await response.json();
-    expect(String(json.deliveryNote)).toContain("queued");
-    expect(jobInsert).toHaveBeenCalledTimes(1);
+    expect(json.deliveryNote).toBe("Message sent.");
+    expect(json.send.delivery_status).toBe("sent");
+    expect(enqueueParishMessageDeliveryJob).toHaveBeenCalledTimes(1);
+    expect(processParishMessageDeliveryJobBySendId).toHaveBeenCalledWith({ sendId: "send-2" });
   });
 });

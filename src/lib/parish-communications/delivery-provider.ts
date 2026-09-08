@@ -19,10 +19,14 @@ export interface ParishDeliveryRequest {
   subject: string;
   body: string;
   recipients: ParishDeliveryRecipient[];
+  idempotencyKey?: string;
 }
 
 export interface ParishDeliveryResult {
-  sent: string[];
+  sent: Array<{
+    clerkUserId: string;
+    providerMessageId: string | null;
+  }>;
   failed: Array<{ clerkUserId: string; error: string }>;
 }
 
@@ -48,7 +52,7 @@ export function getParishDeliveryConfig(): ParishDeliveryConfig {
 
 export async function deliverParishMessage(request: ParishDeliveryRequest): Promise<ParishDeliveryResult> {
   if (request.provider === "mock") {
-    const sent: string[] = [];
+    const sent: ParishDeliveryResult["sent"] = [];
     const failed: Array<{ clerkUserId: string; error: string }> = [];
 
     for (const recipient of request.recipients) {
@@ -56,7 +60,7 @@ export async function deliverParishMessage(request: ParishDeliveryRequest): Prom
         failed.push({ clerkUserId: recipient.clerkUserId, error: "Recipient has no email on file." });
         continue;
       }
-      sent.push(recipient.clerkUserId);
+      sent.push({ clerkUserId: recipient.clerkUserId, providerMessageId: null });
     }
 
     return { sent, failed };

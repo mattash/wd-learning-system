@@ -16,19 +16,39 @@ function getBearerToken(value: string | null) {
   return token;
 }
 
-export async function POST(req: Request) {
-  const expectedToken = process.env.PARISH_COMMUNICATIONS_WORKER_TOKEN;
-  if (!expectedToken) {
+function authorizeWorker(req: Request) {
+  const expectedTokens = [
+    process.env.CRON_SECRET,
+    process.env.PARISH_COMMUNICATIONS_WORKER_TOKEN,
+  ].filter((token): token is string => Boolean(token));
+
+  if (expectedTokens.length === 0) {
     return NextResponse.json(
-      { error: "PARISH_COMMUNICATIONS_WORKER_TOKEN is not configured." },
+      { error: "Delivery worker authentication is not configured." },
       { status: 500 },
     );
   }
 
-  const suppliedToken = req.headers.get("x-parish-worker-token") ?? getBearerToken(req.headers.get("authorization"));
-  if (suppliedToken !== expectedToken) {
+  const suppliedToken =
+    req.headers.get("x-parish-worker-token") ??
+    getBearerToken(req.headers.get("authorization"));
+  if (!suppliedToken || !expectedTokens.includes(suppliedToken)) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
+
+  return null;
+}
+
+export async function GET(req: Request) {
+  const authError = authorizeWorker(req);
+  if (authError) return authError;
+
+  return NextResponse.json(await processPendingParishMessageDeliveryJobs());
+}
+
+export async function POST(req: Request) {
+  const authError = authorizeWorker(req);
+  if (authError) return authError;
 
   let parsedBody: z.infer<typeof requestSchema>;
   try {

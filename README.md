@@ -49,6 +49,13 @@ NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
 NEXT_PUBLIC_SUPABASE_URL=
 SUPABASE_SERVICE_ROLE_KEY=
 
+# Production email delivery
+PARISH_COMMUNICATIONS_DELIVERY_MODE=resend
+RESEND_API_KEY=
+RESEND_FROM_EMAIL="St. John Learning <noreply@stjohnarmenianchurch.com>"
+CRON_SECRET=
+NEXT_PUBLIC_APP_URL=https://learn.stjohnarmenianchurch.com
+
 R2_ACCOUNT_ID=
 R2_ACCESS_KEY_ID=
 R2_SECRET_ACCESS_KEY=
