@@ -1,3 +1,4 @@
+import { buildTransactionalEmail } from "@/lib/email/build-transactional-email";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import {
   deliverParishMessage,
@@ -60,10 +61,12 @@ export async function notifyJoinRequestApproved({
   const data = await resolveNotificationData({ clerkUserId, parishId, courseId });
   if (!data) return;
 
+  const message = await buildTransactionalEmail("approved", data);
   await deliverTransactionalNotification({
     provider: config.provider,
-    subject: `Your enrollment in ${data.courseTitle} is confirmed`,
-    body: `Your request to join ${data.courseTitle} at ${data.parishName} has been approved. You can now access the course in your dashboard.`,
+    subject: message.subject,
+    body: message.text,
+    html: message.html,
     recipients: [{ clerkUserId, email: data.email }],
   });
 }
@@ -83,10 +86,12 @@ export async function notifyJoinRequestRejected({
   const data = await resolveNotificationData({ clerkUserId, parishId, courseId });
   if (!data) return;
 
+  const message = await buildTransactionalEmail("rejected", data);
   await deliverTransactionalNotification({
     provider: config.provider,
-    subject: `Update on your ${data.courseTitle} enrollment request`,
-    body: `Your request to join ${data.courseTitle} was not approved. Please contact your parish admin if you have questions.`,
+    subject: message.subject,
+    body: message.text,
+    html: message.html,
     recipients: [{ clerkUserId, email: data.email }],
   });
 }
@@ -110,10 +115,12 @@ export async function notifyEnrollmentConfirmed({
   const data = await resolveNotificationData({ clerkUserId, parishId, courseId });
   if (!data) return;
 
+  const message = await buildTransactionalEmail("enrolled", data);
   await deliverTransactionalNotification({
     provider: config.provider,
-    subject: `You've been enrolled in ${data.courseTitle}`,
-    body: `A parish administrator has enrolled you in ${data.courseTitle} at ${data.parishName}. Head to your dashboard to start learning.`,
+    subject: message.subject,
+    body: message.text,
+    html: message.html,
     recipients: [{ clerkUserId, email: data.email }],
   });
 }
@@ -137,10 +144,12 @@ export async function notifyCourseCompletion({
   const data = await resolveNotificationData({ clerkUserId, parishId, courseId });
   if (!data) return;
 
+  const message = await buildTransactionalEmail("completed", data);
   await deliverTransactionalNotification({
     provider: config.provider,
-    subject: `You've completed ${data.courseTitle}!`,
-    body: `Congratulations! You've finished all lessons in ${data.courseTitle}. Great work on your learning journey.`,
+    subject: message.subject,
+    body: message.text,
+    html: message.html,
     recipients: [{ clerkUserId, email: data.email }],
   });
 }

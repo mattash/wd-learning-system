@@ -1,3 +1,4 @@
+import { buildTransactionalEmail } from "@/lib/email/build-transactional-email";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ok } from "@/test/supabase-route-mocks";
 
@@ -90,6 +91,7 @@ describe("notifyCourseCompletion", () => {
       expect.objectContaining({
         provider: "mock",
         subject: "You've completed Armenian Basics!",
+        html: expect.stringContaining("St. John Learning"),
         body: expect.stringContaining("Armenian Basics"),
         recipients: [{ clerkUserId: "user-1", email: "user@test.com" }],
       }),
@@ -164,6 +166,7 @@ describe("notifyJoinRequestApproved", () => {
     expect(deliverParishMessage).toHaveBeenCalledWith(
       expect.objectContaining({
         subject: "Your enrollment in Advanced Armenian is confirmed",
+        html: expect.stringContaining("St. John Learning"),
         body: expect.stringContaining("Advanced Armenian"),
         recipients: [{ clerkUserId: "user-1", email: "user@test.com" }],
       }),
@@ -238,6 +241,7 @@ describe("notifyJoinRequestRejected", () => {
     expect(deliverParishMessage).toHaveBeenCalledWith(
       expect.objectContaining({
         subject: "Update on your Advanced Armenian enrollment request",
+        html: expect.stringContaining("St. John Learning"),
         body: expect.stringContaining("not approved"),
         recipients: [{ clerkUserId: "user-1", email: "user@test.com" }],
       }),
@@ -312,9 +316,46 @@ describe("notifyEnrollmentConfirmed", () => {
     expect(deliverParishMessage).toHaveBeenCalledWith(
       expect.objectContaining({
         subject: "You've been enrolled in Liturgy 101",
+        html: expect.stringContaining("St. John Learning"),
         body: expect.stringContaining("Liturgy 101"),
         recipients: [{ clerkUserId: "user-1", email: "user@test.com" }],
       }),
     );
   });
+});
+const notificationCases = [
+  [notifyJoinRequestApproved, "approved"],
+  [notifyJoinRequestRejected, "rejected"],
+  [notifyEnrollmentConfirmed, "enrolled"],
+  [notifyCourseCompletion, "completed"],
+] as const;
+
+
+it.each(notificationCases)("delivers shared HTML/text for %s", async (notify, type) => {
+  vi.clearAllMocks();
+  vi.mocked(getParishDeliveryConfig).mockReturnValue({ enabled: true, provider: "mock" });
+  vi.mocked(deliverParishMessage).mockResolvedValue({ sent: [], failed: [] });
+  const data: Record<string, unknown> = {
+    user_profiles: { email: "ani@example.com" }, courses: { title: "Armenian & <Basics>" }, parishes: { name: "St. John" },
+  };
+  vi.mocked(getSupabaseAdminClient).mockReturnValue({
+    from: vi.fn((table: string) => ({ select: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle: vi.fn(async () => ok(data[table])) })) })) })),
+  } as never);
+  await notify({ clerkUserId: "u-1", courseId: "c-1", parishId: "p-1" });
+  const message = await buildTransactionalEmail(type, { courseTitle: "Armenian & <Basics>", parishName: "St. John" });
+  expect(deliverParishMessage).toHaveBeenCalledExactlyOnceWith({
+    provider: "mock", subject: message.subject, body: message.text, html: message.html,
+    recipients: [{ clerkUserId: "u-1", email: "ani@example.com" }],
+  });
+});
+
+it("preserves fallback data and propagates deduplicated delivery failures", async () => {
+  vi.clearAllMocks();
+  vi.mocked(getParishDeliveryConfig).mockReturnValue({ enabled: true, provider: "mock" });
+  vi.mocked(getSupabaseAdminClient).mockReturnValue({
+    from: vi.fn((table: string) => ({ select: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle: vi.fn(async () => ok(table === "user_profiles" ? { email: "ani@example.com" } : null)) })) })) })),
+  } as never);
+  vi.mocked(deliverParishMessage).mockResolvedValue({ sent: [], failed: [{ clerkUserId: "u-1", error: "failed" }, { clerkUserId: "u-1", error: "failed" }] });
+  await expect(notifyJoinRequestApproved({ clerkUserId: "u-1", courseId: "c-1", parishId: "p-1" })).rejects.toThrow(/^failed$/);
+  expect(deliverParishMessage).toHaveBeenCalledWith(expect.objectContaining({ body: expect.stringContaining("this course at your parish") }));
 });

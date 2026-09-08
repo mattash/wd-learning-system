@@ -43,6 +43,7 @@ export async function sendEmailViaResend(
       to: [r.email],
       subject: request.subject,
       text: request.body,
+      ...(request.html !== undefined ? { html: request.html } : {}),
     }));
     const recipientSetHash = createHash("sha256")
       .update(recipientsWithEmail.map((recipient) => recipient.clerkUserId).sort().join(","))

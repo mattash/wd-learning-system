@@ -8,6 +8,10 @@ vi.mock("@/lib/audit-log", () => ({
   recordAdminAuditLog: vi.fn(),
 }));
 
+vi.mock("@/lib/parish-communications/notify-join-request-created", () => ({
+  notifyJoinRequestCreated: vi.fn(),
+}));
+import { notifyJoinRequestCreated } from "@/lib/parish-communications/notify-join-request-created";
 import { recordAdminAuditLog } from "@/lib/audit-log";
 import {
   approveJoinRequest,
@@ -259,7 +263,10 @@ describe("course join request repository", () => {
     vi.clearAllMocks();
   });
 
-  it("creates a join request when no enrollment or pending request exists", async () => {
+  it.each([false, true])("notifies exactly once after insertion and isolates failure=%s", async (fails) => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.mocked(notifyJoinRequestCreated).mockReset();
+    if (fails) vi.mocked(notifyJoinRequestCreated).mockRejectedValue(new Error("secret admin@example.com"));
     const enrollmentMaybeSingle = vi.fn(async () => ({ data: null, error: null }));
     const enrollmentCourseEq = vi.fn(() => ({ maybeSingle: enrollmentMaybeSingle }));
     const enrollmentUserEq = vi.fn(() => ({ eq: enrollmentCourseEq }));
@@ -311,6 +318,9 @@ describe("course join request repository", () => {
       createdAt: "2026-01-01",
       updatedAt: "2026-01-02",
     });
+    expect(notifyJoinRequestCreated).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ id: "request-1", parishId: request.parish_id }));
+    if (fails) expect(log).toHaveBeenCalledExactlyOnceWith("[admin-request] Notification failed; enrollment request saved");
+    log.mockRestore();
   });
 
   it("rejects duplicate join requests for already-enrolled learners", async () => {
@@ -329,6 +339,23 @@ describe("course join request repository", () => {
       clerkUserId: request.clerk_user_id,
       courseId: request.course_id,
     })).rejects.toThrow("Already enrolled in this course");
+    expect(notifyJoinRequestCreated).not.toHaveBeenCalled();
+  });
+
+  it.each(["pending", "insert"])("does not notify when %s prevents creation", async (failure) => {
+    let reads = 0;
+    const query = {
+      select: vi.fn(() => query),
+      eq: vi.fn(() => query),
+      maybeSingle: vi.fn(async () => ({ data: ++reads === 2 && failure === "pending" ? { id: "existing" } : null })),
+      insert: vi.fn(() => query),
+      single: vi.fn(async () => ({ data: null, error: new Error("unique constraint") })),
+    };
+    vi.mocked(getSupabaseAdminClient).mockReturnValue({ from: vi.fn(() => query) } as never);
+    await expect(createJoinRequest({ parishId: "p1", clerkUserId: "u1", courseId: "c1" })).rejects.toThrow(
+      failure === "pending" ? "A pending request already exists" : "unique constraint",
+    );
+    expect(notifyJoinRequestCreated).not.toHaveBeenCalled();
   });
 
   it("lists parish join requests with course titles", async () => {

@@ -18,6 +18,8 @@ export interface ParishDeliveryRequest {
   provider: ParishDeliveryProvider;
   subject: string;
   body: string;
+  /** Trusted rendered HTML only; user-authored bulk body remains plain text. */
+  html?: string;
   recipients: ParishDeliveryRecipient[];
   idempotencyKey?: string;
 }
