@@ -1,10 +1,4 @@
-import JoinRequestConfirmationEmail, {
-  type JoinRequestConfirmationEmailProps,
-} from "./templates/join-request-confirmation";
-
-const appUrl =
-  process.env.NEXT_PUBLIC_APP_URL ??
-  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+import { buildTransactionalEmail } from "./build-transactional-email";
 
 export interface SendJoinRequestConfirmationParams {
   toEmail: string;
@@ -32,22 +26,15 @@ export async function sendJoinRequestConfirmation(
     return;
   }
 
-  const props: JoinRequestConfirmationEmailProps = {
-    displayName,
-    courseTitle,
-    parishName,
-    appUrl,
-  };
-
   try {
+    const message = await buildTransactionalEmail("submitted", { displayName, courseTitle, parishName });
     const { Resend } = await import("resend");
     const resend = new Resend(apiKey);
 
     const { error } = await resend.emails.send({
       from: fromEmail,
       to: toEmail,
-      subject: `Your enrollment request for ${courseTitle} has been submitted`,
-      react: JoinRequestConfirmationEmail(props),
+      ...message,
     });
 
     if (error) {

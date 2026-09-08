@@ -6,7 +6,7 @@
 - Build primitives that scale with new screens.
 
 ## Brand identity
-The design system is derived from the **Western Diocese of the Armenian Church** brand. Armenian crimson (`oklch(38% 0.175 14)`) anchors the palette. Warm-neutral surfaces and a gold accent provide depth. All tokens adapt between light and dark modes.
+The design system represents **St. John Armenian Apostolic Church** and its learning platform, **St. John Learning**. Armenian crimson (`oklch(38% 0.175 14)`) anchors the palette, with quiet neutral surfaces and decorative gold accents. App tokens adapt between light and dark modes.
 
 ## Source of truth
 - Tokens and theme mappings live in `src/app/globals.css`.
@@ -102,3 +102,36 @@ Tokens like `--ds-color-bg-app`, `--ds-color-bg-surface`, `--ds-color-text-defau
 ## Next phase
 - Add visual regression checks.
 - `Popover`, `Command` primitives.
+
+## Transactional email
+
+The shared source of truth is `src/lib/email/transactional-email.tsx` (layout, frozen tokens and plaintext structure), `transactional-content.ts` (message copy, subjects, preheaders and CTA destinations), and `build-transactional-email.tsx` (HTML/text rendering). The legacy join-request component delegates to this system.
+
+| Email token | Frozen hex | App token / purpose |
+|---|---|---|
+| Crimson | `#870024` | Brand primary; links and CTA |
+| Gold | `#be7c1c` | Gold; decorative rules only |
+| Background | `#f3f6fa` | App background |
+| Surface | `#ffffff` | Surface; CTA text |
+| Primary text | `#0d151b` | Text default |
+| Secondary text | `#474e54` | Text secondary; footer |
+| Border | `#dbe0e5` | Border default |
+| Pending / success / neutral | `#f7efe2` / `#e2f2e8` / `#f3f6fa` | Safe subtle status backgrounds with primary text |
+
+Use Georgia / Times New Roman / Times / serif for display headings; -apple-system / BlinkMacSystemFont / Segoe UI / Roboto / Helvetica / Arial / sans-serif for body. Body copy is 16px with 26px line height; secondary/footer copy is at least 14px. Email uses inline styles and hex colors, never Tailwind, CSS variables, OKLCH, gradients or external webfonts.
+
+Classic Outlook/Word ignores table `max-width`: the static MSO conditional style in the shared template head sets `#email-card` to `width: 600px !important`. Other clients ignore that comment and retain the responsive `width="100%"` / inline `max-width:600px` card. This conditional style is the sole exception to inline-only email styling and contains no dynamic content. MSO targeting follows the [Outlook conditional CSS pattern](https://www.cerberusemail.com/outlook).
+
+Use a flexible, approximately 600px-wide, table-based white surface with mobile gutters, robust text/URL wrapping, a text-first St. John Learning masthead and church attribution. Reuse the navigation product mark from `app-header-client.tsx` and `public-learning-header.tsx`: a 26px crimson square with 5px rounded corners containing the centered 14px white cross/starburst. The dedicated `public/branding/st-john-learning-mark.png` is a lightweight 104×104 (4× density, under 5 KB) raster of that exact geometry, reproducible with `node scripts/generate-email-mark.mjs`. Email uses this PNG at 26×26 to the left of the product name in a presentation table, never inline SVG. Its absolute HTTPS URL is derived from the validated app origin (discarding paths, queries and fragments; upgrading HTTP for the image only). It has `alt=""` because adjacent live text names the product; the masthead remains understandable with remote images blocked. This is the shared navigation/email product mark, not a church seal; do not repurpose course art or generic icons. Use one descriptive crimson CTA with white text, plus a visible copyable URL. Gold is decorative only, never a background for white text. Status must be expressed in words, not color alone. Preserve native link focus behavior, use underlined links, `html lang="en"`, one logical h1, a hidden preheader, and presentation roles on every layout table. Text/CTA contrast must meet WCAG AA (4.5:1); do not use light muted text for the footer.
+
+Every transactional send includes meaningful plaintext and semantic HTML generated from the same content; React escapes dynamic names/titles and CTA URLs accept only HTTP(S) without credentials. Keep subjects stable and business triggers unchanged.
+
+| Actual transactional type | Entry point | CTA |
+|---|---|---|
+| Enrollment request submitted | `sendJoinRequestConfirmation` (onboarding) | `/app/catalog` |
+| Enrollment request approved | `notifyJoinRequestApproved` | `/app/dashboard` |
+| Enrollment request rejected | `notifyJoinRequestRejected` | `/app/catalog` |
+| Manual enrollment confirmed | `notifyEnrollmentConfirmed` | `/app/dashboard` |
+| Course completion | `notifyCourseCompletion` | `/app/dashboard` |
+
+Parish-admin bulk communications are user-authored operational messages, outside this template inventory. The shared delivery provider requires text and accepts optional trusted HTML; it must never interpret the bulk body as HTML. Recipient ordering, idempotency keys, provider IDs and failure handling are independent of branding.

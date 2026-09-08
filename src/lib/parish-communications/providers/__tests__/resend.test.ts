@@ -202,3 +202,36 @@ describe("sendEmailViaResend", () => {
     expect(result.failed[0].error).toBe("Network error");
   });
 });
+it("preserves text-only user-authored bulk content literally", async () => {
+  vi.clearAllMocks();
+  mockFetch({ data: [{ id: "bulk-id" }] });
+  const body = '<h1>Admin text</h1><script>alert("x")</script> & welcome';
+  await sendEmailViaResend({ apiKey: "test", fromEmail: "from@example.com" }, {
+    provider: "resend", subject: "Bulk", body,
+    recipients: [{ clerkUserId: "u-1", email: "one@example.com" }],
+  });
+  const payload = JSON.parse(String(vi.mocked(fetch).mock.calls[0][1]?.body));
+  expect(payload[0].text).toBe(body);
+  expect(payload[0]).not.toHaveProperty("html");
+});
+
+it("includes explicit HTML with text and keeps retry ordering, keys and IDs stable", async () => {
+  vi.clearAllMocks();
+  const recipients = [{ clerkUserId: "u-2", email: "two@example.com" }, { clerkUserId: "u-1", email: "one@example.com" }];
+  for (const ordered of [recipients, [...recipients].reverse()]) {
+    mockFetch({ data: [{ id: "one-id" }, { id: "two-id" }] });
+    const result = await sendEmailViaResend({ apiKey: "test", fromEmail: "from@example.com" }, {
+      provider: "resend", subject: "Transactional", body: "Meaningful text", html: "<html lang=\"en\"><body><h1>Welcome</h1></body></html>",
+      idempotencyKey: "delivery/123", recipients: ordered,
+    });
+    expect(result.sent).toEqual([{ clerkUserId: "u-1", providerMessageId: "one-id" }, { clerkUserId: "u-2", providerMessageId: "two-id" }]);
+  }
+  const first = vi.mocked(fetch).mock.calls[0][1];
+  expect(first).toEqual(vi.mocked(fetch).mock.calls[1][1]);
+  const payload = JSON.parse(String(first?.body));
+  expect(payload.map((entry: { to: string[] }) => entry.to)).toEqual([["one@example.com"], ["two@example.com"]]);
+  payload.forEach((entry: { text: string; html: string }) => {
+    expect(entry.text).toBe("Meaningful text");
+    expect(entry.html).toContain('<html lang="en">');
+  });
+});
