@@ -1,4 +1,5 @@
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
+import { buildParishMessageEmail } from "@/lib/email/build-transactional-email";
 import { deliverParishMessage, type ParishDeliveryProvider } from "@/lib/parish-communications/delivery-provider";
 
 interface DeliveryJobRow {
@@ -16,6 +17,7 @@ interface SendRow {
   id: string;
   subject: string;
   body: string;
+  created_by_clerk_user_id: string;
 }
 
 interface RecipientRow {
@@ -263,7 +265,7 @@ async function processOneJob(job: DeliveryJobRow): Promise<"sent" | "failed" | "
   try {
     const sendResult = await supabase
       .from("parish_message_sends")
-      .select("id,subject,body")
+      .select("id,subject,body,created_by_clerk_user_id")
       .eq("id", claimed.send_id)
       .maybeSingle();
     if (sendResult.error) throw sendResult.error;
@@ -290,17 +292,26 @@ async function processOneJob(job: DeliveryJobRow): Promise<"sent" | "failed" | "
     const profilesResult = await supabase
       .from("user_profiles")
       .select("clerk_user_id,email")
-      .in("clerk_user_id", recipientIds);
+      .in("clerk_user_id", Array.from(new Set([
+        ...recipientIds,
+        send.created_by_clerk_user_id,
+      ].filter(Boolean))));
     if (profilesResult.error) throw profilesResult.error;
     const profiles = (profilesResult.data ?? []) as ProfileRow[];
     const profileByClerkId = new Map(profiles.map((profile) => [profile.clerk_user_id, profile]));
+    // The send route records the authenticated admin, never a client-supplied sender.
+    // If their profile/email is no longer available, retain the no-reply fallback.
+    const replyTo = profileByClerkId.get(send.created_by_clerk_user_id)?.email;
+    const message = await buildParishMessageEmail(send);
 
     const provider = claimed.provider as ParishDeliveryProvider;
     dispatchStarted = true;
     const result = await deliverParishMessage({
       provider,
-      subject: send.subject,
-      body: send.body,
+      subject: message.subject,
+      body: message.text,
+      html: message.html,
+      ...(replyTo ? { replyTo } : {}),
       recipients: recipientIds.map((clerkUserId) => ({
         clerkUserId,
         email: profileByClerkId.get(clerkUserId)?.email ?? null,

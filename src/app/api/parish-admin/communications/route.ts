@@ -10,7 +10,7 @@ import {
 } from "@/lib/parish-communications/delivery-jobs";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 
-const audienceTypeSchema = z.enum(["all_members", "stalled_learners", "cohort", "course"]);
+const audienceTypeSchema = z.enum(["all_members", "stalled_learners", "cohort", "course", "specific_recipients"]);
 const MAX_PARISH_MESSAGE_RECIPIENTS = 100;
 
 const sendMessageSchema = z.object({
@@ -18,19 +18,38 @@ const sendMessageSchema = z.object({
   body: z.string().trim().min(1).max(5000),
   audienceType: audienceTypeSchema,
   audienceValue: z.string().uuid().optional(),
-});
+  recipientIds: z.array(z.string().trim().min(1).max(255)).min(1).max(MAX_PARISH_MESSAGE_RECIPIENTS).optional(),
+}).refine((payload) => payload.audienceType !== "specific_recipients" ||
+  (Boolean(payload.recipientIds?.length) && !payload.audienceValue));
 
 async function resolveRecipients({
   parishId,
   audienceType,
   audienceValue,
+  recipientIds,
 }: {
   parishId: string;
   audienceType: z.infer<typeof audienceTypeSchema>;
   audienceValue?: string;
+  recipientIds?: string[];
 }) {
   const supabase = getSupabaseAdminClient();
   const stalledCutoff = new Date(Date.now() - 1000 * 60 * 60 * 24 * 31).toISOString();
+
+  if (audienceType === "specific_recipients") {
+    const requestedIds = Array.from(new Set(recipientIds ?? []));
+    const { data, error } = await supabase
+      .from("enrollments")
+      .select("clerk_user_id")
+      .eq("parish_id", parishId)
+      .in("clerk_user_id", requestedIds);
+    if (error) return { error: error.message, recipients: [] as string[] };
+    const enrolledIds = new Set(((data ?? []) as Array<{ clerk_user_id: string }>).map((row) => row.clerk_user_id));
+    if (requestedIds.some((id) => !enrolledIds.has(id))) {
+      return { error: "Selected recipients must be enrolled in this parish. Reopen the picker and update your selection.", recipients: [] as string[] };
+    }
+    return { error: null, recipients: requestedIds };
+  }
 
   if (audienceType === "all_members") {
     const { data, error } = await supabase
@@ -159,6 +178,7 @@ export async function POST(req: Request) {
     parishId,
     audienceType: payload.audienceType,
     audienceValue: payload.audienceValue,
+    recipientIds: payload.recipientIds,
   });
 
   if (recipientResolution.error) {

@@ -202,7 +202,7 @@ describe("sendEmailViaResend", () => {
     expect(result.failed[0].error).toBe("Network error");
   });
 });
-it("preserves text-only user-authored bulk content literally", async () => {
+it("preserves explicit plaintext when no HTML is supplied", async () => {
   vi.clearAllMocks();
   mockFetch({ data: [{ id: "bulk-id" }] });
   const body = '<h1>Admin text</h1><script>alert("x")</script> & welcome';
@@ -234,4 +234,31 @@ it("includes explicit HTML with text and keeps retry ordering, keys and IDs stab
     expect(entry.text).toBe("Meaningful text");
     expect(entry.html).toContain('<html lang="en">');
   });
+});
+
+it.each(["admin@example.com", undefined])("sets Reply-To only when requested: %s", async (replyTo) => {
+  vi.clearAllMocks();
+  mockFetch({ data: [{ id: "one" }, { id: "two" }] });
+  await sendEmailViaResend({ apiKey: "test", fromEmail: "no-reply@example.com" }, {
+    provider: "resend",
+    subject: "Message",
+    body: "Plaintext alternative",
+    html: "<html><body>Branded message</body></html>",
+    ...(replyTo ? { replyTo } : {}),
+    recipients: [
+      { clerkUserId: "u-1", email: "one@example.com" },
+      { clerkUserId: "u-2", email: "two@example.com" },
+    ],
+  });
+  const payload = JSON.parse(String(vi.mocked(fetch).mock.calls[0][1]?.body));
+  for (const email of payload) {
+    expect(email.from).toBe("no-reply@example.com");
+    expect(email.text).toBe("Plaintext alternative");
+    expect(email.html).toContain("Branded message");
+    if (replyTo) {
+      expect(email.reply_to).toBe(replyTo);
+    } else {
+      expect(email).not.toHaveProperty("reply_to");
+    }
+  }
 });

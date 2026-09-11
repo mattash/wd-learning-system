@@ -87,6 +87,7 @@ describe("notifyCourseCompletion", () => {
     });
 
     expect(deliverParishMessage).toHaveBeenCalledOnce();
+    expect(vi.mocked(deliverParishMessage).mock.calls[0][0]).not.toHaveProperty("replyTo");
     expect(deliverParishMessage).toHaveBeenCalledWith(
       expect.objectContaining({
         provider: "mock",

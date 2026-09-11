@@ -45,7 +45,7 @@ describe("/api/parish-admin/communications", () => {
     await expect(response.json()).resolves.toEqual({ sends: [{ id: "send-1" }] });
   });
 
-  it("logs a message for all members", async () => {
+  it("records the authenticated sender and ignores client-supplied reply identity", async () => {
     const membershipEq = vi.fn(async () => ({
       data: [{ clerk_user_id: "user-1" }, { clerk_user_id: "user-2" }],
       error: null,
@@ -74,11 +74,19 @@ describe("/api/parish-admin/communications", () => {
           subject: "Reminder",
           body: "Please continue your course this week.",
           audienceType: "all_members",
+          created_by_clerk_user_id: "other-admin",
+          replyTo: "spoof@example.com",
         }),
       }),
     );
 
     expect(response.status).toBe(200);
+    expect(sendInsert).toHaveBeenCalledWith(expect.objectContaining({
+      created_by_clerk_user_id: "admin-1",
+    }));
+    expect(sendInsert).not.toHaveBeenCalledWith(expect.objectContaining({
+      replyTo: expect.anything(),
+    }));
     const json = await response.json();
     expect(json.send.id).toBe("send-1");
     expect(String(json.deliveryNote)).toContain("not configured");
