@@ -96,14 +96,54 @@ describe("CatalogPage enrollment confirmation", () => {
     render(await CatalogPage({ searchParams: Promise.resolve({}) }));
 
     expect(screen.getByRole("link", { name: "Open" })).toHaveAttribute("href", "/app/courses/course-1");
-    expect(document.getElementById("course-course-2")).toBeInTheDocument();
     expect(
-      screen.getAllByRole("link", { name: "Pending Course" }).some(
-        (link) => link.getAttribute("href") === "#course-course-2",
+      screen.getAllByRole("link", { name: "Pending Course" }).every(
+        (link) => link.getAttribute("href") === "/app/courses/course-2/preview",
       ),
     ).toBe(true);
     expect(screen.getByText("Request sent")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Request course-3" })).toBeInTheDocument();
+  });
+
+  it("navigates unjoined cards to their preview route and keeps enrolled cards on the course", async () => {
+    vi.mocked(getCatalogCourses).mockResolvedValue([
+      {
+        id: "course-1",
+        title: "Enrolled Course",
+        description: null,
+        thumbnailUrl: null,
+        scope: "DIOCESE",
+        instructor: null,
+        durationHours: 1,
+        category: null,
+        lessonCount: 1,
+        enrolled: true,
+      },
+      {
+        id: "course-3",
+        title: "Available Course",
+        description: null,
+        thumbnailUrl: null,
+        scope: "DIOCESE",
+        instructor: null,
+        durationHours: null,
+        category: null,
+        lessonCount: 0,
+        enrolled: false,
+      },
+    ]);
+
+    render(await CatalogPage({ searchParams: Promise.resolve({}) }));
+
+    // Enrolled card keeps its course-detail links (thumbnail + title + Open button).
+    const enrolledLinks = screen.getAllByRole("link", { name: /Enrolled Course|Open/ });
+    expect(enrolledLinks.length).toBeGreaterThan(0);
+    expect(enrolledLinks.every((link) => link.getAttribute("href") === "/app/courses/course-1")).toBe(true);
+
+    // Unjoined card's thumbnail and title both navigate to the preview route.
+    const availableLinks = screen.getAllByRole("link", { name: "Available Course" });
+    expect(availableLinks).toHaveLength(2);
+    expect(availableLinks.every((link) => link.getAttribute("href") === "/app/courses/course-3/preview")).toBe(true);
   });
 
   it("shows a search empty state when no visible course matches", async () => {

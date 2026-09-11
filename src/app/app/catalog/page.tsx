@@ -25,13 +25,12 @@ function CourseCard({
 
   return (
     <Card
-      id={`course-${course.id}`}
-      className="group flex h-full scroll-mt-24 flex-col overflow-hidden rounded-2xl transition-all duration-200 hover:-translate-y-0.5 hover:border-border-strong hover:shadow-md"
+      className="group flex h-full flex-col overflow-hidden rounded-2xl transition-all duration-200 hover:-translate-y-0.5 hover:border-border-strong hover:shadow-md"
     >
       <Link
         aria-label={course.title}
         className="relative block aspect-video w-full"
-        href={course.enrolled ? `/app/courses/${course.id}` : `#course-${course.id}`}
+        href={course.enrolled ? `/app/courses/${course.id}` : `/app/courses/${course.id}/preview`}
       >
         <div className="absolute inset-0">
           <CourseThumbnail alt={course.title} seed={course.id} thumbnailUrl={course.thumbnailUrl} />
@@ -48,7 +47,7 @@ function CourseCard({
         ) : null}
         <Link
           className="line-clamp-2 font-display text-[17px] font-bold leading-snug tracking-tight hover:text-primary"
-          href={course.enrolled ? `/app/courses/${course.id}` : `#course-${course.id}`}
+          href={course.enrolled ? `/app/courses/${course.id}` : `/app/courses/${course.id}/preview`}
         >
           {course.title}
         </Link>
