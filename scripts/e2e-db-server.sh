@@ -12,8 +12,10 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 # Bring the local stack up if it isn't already running (idempotent).
+# Only the database + REST API are needed; skip Studio/storage/edge/etc.
 if ! supabase status >/dev/null 2>&1; then
-  supabase start --yes
+  supabase start --yes \
+    --exclude studio,storage,edge-runtime,imgproxy,realtime,vector,analytics,inbucket,meta,functions,mailpit,pooler
 fi
 
 # Reset to the current migrations and seed both the base fixtures and the

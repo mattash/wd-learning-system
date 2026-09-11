@@ -5,6 +5,15 @@
 -- exercising the real schema, RLS policies, and RPC functions instead of
 -- the fixture smoke mode.
 
+-- The app accesses the database exclusively through the service-role key
+-- ("deny all" RLS; see 0001_init.sql). Recent local Supabase stacks grant
+-- the service role only limited default table privileges, so grant it the
+-- access production has.
+grant all on all tables in schema public to service_role;
+grant all on all sequences in schema public to service_role;
+grant all on all functions in schema public to service_role;
+grant all on all routines in schema public to service_role;
+
 insert into parishes (id, name, slug)
 values
   ('11111111-1111-4111-8111-111111111111', 'Saint Mark Parish', 'saint-mark'),
