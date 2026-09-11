@@ -2,6 +2,9 @@ import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./e2e",
+  // The DB-backed suite lives under e2e/db and is driven by
+  // playwright.db.config.ts; keep it out of the fixture smoke run.
+  testIgnore: ["**/db/**"],
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
