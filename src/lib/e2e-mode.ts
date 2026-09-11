@@ -38,5 +38,8 @@ export function isE2EAuthBypass(
     NODE_ENV: process.env.NODE_ENV,
   },
 ) {
-  return env.E2E_AUTH_BYPASS === "1" || isE2ESmokeMode(env);
+  return (
+    env.NODE_ENV !== "production" &&
+    (env.E2E_AUTH_BYPASS === "1" || isE2ESmokeMode(env))
+  );
 }

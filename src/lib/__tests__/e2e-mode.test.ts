@@ -76,4 +76,10 @@ describe("isE2EAuthBypass", () => {
       isE2EAuthBypass({ E2E_AUTH_BYPASS: "0", NODE_ENV: "development" }),
     ).toBe(false);
   });
+
+  it("returns false in production even when the auth bypass flag is set", () => {
+    expect(
+      isE2EAuthBypass({ E2E_AUTH_BYPASS: "1", NODE_ENV: "production" }),
+    ).toBe(false);
+  });
 });

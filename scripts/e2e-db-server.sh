@@ -4,7 +4,7 @@
 # DB-backed Playwright suite (`npm run test:e2e:db`).
 #
 # Unlike the fixture smoke suite, this does NOT set E2E_SMOKE_MODE, so all
-# repository code hits the real database, RLS policies, and RPC functions.
+# repository code hits the real database schema and RPC functions.
 # Only Clerk sign-in is bypassed via E2E_AUTH_BYPASS.
 set -euo pipefail
 
@@ -20,15 +20,20 @@ fi
 
 # Reset to the current migrations and seed both the base fixtures and the
 # E2E entities that mirror src/lib/e2e-fixtures.ts.
+#
+# WARNING: this wipes the local Supabase database. Point it at a stack you
+# don't mind resetting (it is the same `supabase start` project a dev uses
+# day-to-day).
 supabase db reset --yes \
   --sql-paths seed.sql \
   --sql-paths e2e-db-seed.sql
 
-# Point the app at the local stack. `supabase status -o env` emits
-# SERVICE_ROLE_KEY and the API URL; the REST endpoint is the default kong
-# port when running locally.
-export NEXT_PUBLIC_SUPABASE_URL="${NEXT_PUBLIC_SUPABASE_URL:-http://127.0.0.1:54321}"
+# Point the app at the local stack, reading the URL/key from `supabase status`
+# so a non-default port still works. Fail loudly if parsing misses.
+export NEXT_PUBLIC_SUPABASE_URL="$(supabase status -o env | sed -n 's/^API_URL="\(.*\)"$/\1/p')"
 export SUPABASE_SERVICE_ROLE_KEY="$(supabase status -o env | sed -n 's/^SERVICE_ROLE_KEY="\(.*\)"$/\1/p')"
+: "${NEXT_PUBLIC_SUPABASE_URL:?failed to read API_URL from supabase status}"
+: "${SUPABASE_SERVICE_ROLE_KEY:?failed to read SERVICE_ROLE_KEY from supabase status}"
 export E2E_AUTH_BYPASS=1
 unset E2E_SMOKE_MODE
 unset E2E_SMOKE_MODE_ACK

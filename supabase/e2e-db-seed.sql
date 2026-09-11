@@ -2,8 +2,8 @@
 --
 -- Mirrors src/lib/e2e-fixtures.ts so the DB-backed Playwright suite
 -- (npm run test:e2e:db) can reuse the same IDs, URLs, and journeys while
--- exercising the real schema, RLS policies, and RPC functions instead of
--- the fixture smoke mode.
+-- exercising the real schema and RPC functions instead of the fixture
+-- smoke mode.
 
 -- The app accesses the database exclusively through the service-role key
 -- ("deny all" RLS; see 0001_init.sql). Recent local Supabase stacks grant
