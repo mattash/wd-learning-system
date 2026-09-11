@@ -71,7 +71,7 @@ export interface ParishAdminDashboardData {
 
 export interface ParishAdminCommunicationSendRow {
   id: string;
-  audience_type: "all_members" | "stalled_learners" | "cohort" | "course";
+  audience_type: "all_members" | "stalled_learners" | "cohort" | "course" | "specific_recipients";
   audience_value: string | null;
   subject: string;
   body: string;

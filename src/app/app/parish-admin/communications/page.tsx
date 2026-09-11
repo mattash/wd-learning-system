@@ -25,6 +25,8 @@ export default async function CommunicationsPage() {
       </CardHeader>
       <CardContent className="overflow-auto">
         <ParishCommunicationsManager
+          enrollments={data.enrollments}
+          members={data.members}
           cohorts={data.cohorts}
           courses={data.visibleCourses}
           prefill={prefill}

@@ -1,19 +1,22 @@
 "use client";
 
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import type {
   ParishAdminCohortRow,
+  ParishAdminEnrollmentRow,
+  ParishAdminMemberRow,
   ParishAdminCommunicationSendRow,
   ParishAdminCourseRow,
 } from "@/lib/repositories/parish-admin";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 
-type AudienceType = "all_members" | "stalled_learners" | "cohort" | "course";
+type AudienceType = ParishAdminCommunicationSendRow["audience_type"];
 type RecipientDeliveryStatus = "not_configured" | "pending" | "sent" | "failed";
 type SendDeliveryStatus = ParishAdminCommunicationSendRow["delivery_status"];
 
@@ -63,6 +66,7 @@ function formatAudienceLabel(
   cohortNameById: Map<string, string>,
   courseTitleById: Map<string, string>,
 ) {
+  if (send.audience_type === "specific_recipients") return "Specific recipients";
   if (send.audience_type === "all_members") return "All members";
   if (send.audience_type === "stalled_learners") return "Stalled learners";
   if (send.audience_type === "cohort") {
@@ -89,11 +93,15 @@ export function ParishCommunicationsManager({
   cohorts,
   courses,
   sends,
+  enrollments = [],
+  members = [],
   prefill,
 }: {
   cohorts: ParishAdminCohortRow[];
   courses: ParishAdminCourseRow[];
   sends: ParishAdminCommunicationSendRow[];
+  enrollments?: ParishAdminEnrollmentRow[];
+  members?: ParishAdminMemberRow[];
   prefill?: {
     audienceType?: string | null;
     audienceValue?: string | null;
@@ -127,6 +135,33 @@ export function ParishCommunicationsManager({
   const [detailsBySendId, setDetailsBySendId] = useState<Record<string, SendDetailsResponse | undefined>>({});
   const [historyStatusFilter, setHistoryStatusFilter] = useState<SendDeliveryStatus | "all">("all");
   const [historySearch, setHistorySearch] = useState("");
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [draftIds, setDraftIds] = useState<string[]>([]);
+  const [recipientSearch, setRecipientSearch] = useState("");
+  const [courseFilter, setCourseFilter] = useState("");
+  const audienceSelectRef = useRef<HTMLSelectElement>(null);
+  const editRecipientsRef = useRef<HTMLButtonElement>(null);
+  const students = useMemo(() => {
+    const memberById = new Map(members.map((member) => [member.clerk_user_id, member]));
+    return Array.from(new Set(enrollments.map((row) => row.clerk_user_id))).map((id) => ({
+      id,
+      name: memberById.get(id)?.display_name ?? memberById.get(id)?.email ?? id,
+      email: memberById.get(id)?.email ?? "",
+      courseIds: enrollments.filter((row) => row.clerk_user_id === id).map((row) => row.course_id),
+    })).sort((a, b) => a.name.localeCompare(b.name));
+  }, [enrollments, members]);
+  const filteredStudents = students.filter((student) =>
+    (!courseFilter || student.courseIds.includes(courseFilter)) &&
+    `${student.name} ${student.email}`.toLowerCase().includes(recipientSearch.trim().toLowerCase()),
+  );
+
+  function openRecipientPicker() {
+    setDraftIds(selectedIds);
+    setRecipientSearch("");
+    setCourseFilter(audienceType === "course" ? selectedAudienceValue : "");
+    setPickerOpen(true);
+  }
 
   const cohortNameById = useMemo(
     () => new Map(cohorts.map((cohort) => [cohort.id, cohort.name])),
@@ -178,12 +213,13 @@ export function ParishCommunicationsManager({
   const hasHistoryFilters = historyStatusFilter !== "all" || Boolean(historySearch.trim());
 
   function updateAudienceType(nextAudienceType: AudienceType) {
+    if (nextAudienceType === "specific_recipients") openRecipientPicker();
     setAudienceType(nextAudienceType);
     setAudienceValue(getDefaultAudienceValue(nextAudienceType, cohorts, courses));
   }
 
   async function logMessage() {
-    if (submitting) return;
+    if (submitting || (audienceType === "specific_recipients" && selectedIds.length === 0)) return;
     setSubmitting(true);
     try {
       const response = await fetch("/api/parish-admin/communications", {
@@ -192,6 +228,7 @@ export function ParishCommunicationsManager({
         body: JSON.stringify({
           audienceType,
           audienceValue: needsAudienceValue ? selectedAudienceValue : undefined,
+          recipientIds: audienceType === "specific_recipients" ? selectedIds : undefined,
           subject,
           body,
         }),
@@ -255,15 +292,20 @@ export function ParishCommunicationsManager({
       </p>
 
       <div className="grid gap-2 rounded-md border border-border p-3 md:grid-cols-[220px_220px_1fr_auto]">
-        <Select onChange={(e) => updateAudienceType(e.target.value as AudienceType)} value={audienceType}>
+        <Select aria-label="Recipients" ref={audienceSelectRef} onChange={(e) => updateAudienceType(e.target.value as AudienceType)} value={audienceType}>
           <option value="all_members">All members</option>
           <option value="stalled_learners">Stalled learners</option>
           <option value="cohort">Specific cohort</option>
           <option value="course">Specific course</option>
+          <option value="specific_recipients">Specific recipients</option>
         </Select>
 
-        {audienceType === "cohort" ? (
-          <Select onChange={(e) => setAudienceValue(e.target.value)} value={selectedAudienceValue}>
+        {audienceType === "specific_recipients" ? (
+          <Button className="h-auto whitespace-normal" ref={editRecipientsRef} onClick={openRecipientPicker} type="button" variant="outline">
+            {selectedIds.length} selected · Edit recipients
+          </Button>
+        ) : audienceType === "cohort" ? (
+          <Select aria-label="Cohort" onChange={(e) => setAudienceValue(e.target.value)} value={selectedAudienceValue}>
             {cohorts.map((cohort) => (
               <option key={cohort.id} value={cohort.id}>
                 {cohort.name}
@@ -271,7 +313,7 @@ export function ParishCommunicationsManager({
             ))}
           </Select>
         ) : audienceType === "course" ? (
-          <Select onChange={(e) => setAudienceValue(e.target.value)} value={selectedAudienceValue}>
+          <Select aria-label="Course" onChange={(e) => setAudienceValue(e.target.value)} value={selectedAudienceValue}>
             {courses.map((course) => (
               <option key={course.id} value={course.id}>
                 {course.title}
@@ -284,13 +326,14 @@ export function ParishCommunicationsManager({
           </div>
         )}
 
-        <Input maxLength={160} onChange={(e) => setSubject(e.target.value)} placeholder="Subject" value={subject} />
+        <Input aria-label="Subject" maxLength={160} onChange={(e) => setSubject(e.target.value)} placeholder="Subject" value={subject} />
 
         <Button
           disabled={
             !subject.trim() ||
             !body.trim() ||
             (needsAudienceValue && !selectedAudienceValue) ||
+            (audienceType === "specific_recipients" && selectedIds.length === 0) ||
             submitting
           }
           onClick={logMessage}
@@ -300,7 +343,59 @@ export function ParishCommunicationsManager({
         </Button>
       </div>
 
+      <Dialog open={pickerOpen} onOpenChange={setPickerOpen}>
+        <DialogContent
+          className="max-h-[90dvh] overflow-y-auto"
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            (editRecipientsRef.current ?? audienceSelectRef.current)?.focus();
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>Choose specific recipients</DialogTitle>
+            <DialogDescription>Select enrolled students in this parish. Choose up to 100 recipients.</DialogDescription>
+          </DialogHeader>
+          <label className="space-y-1 text-sm">
+            <span>Search students</span>
+            <Input value={recipientSearch} onChange={(event) => setRecipientSearch(event.target.value)} placeholder="Name or email" />
+          </label>
+          <label className="space-y-1 text-sm">
+            <span>Filter by course</span>
+            <Select value={courseFilter} onChange={(event) => setCourseFilter(event.target.value)}>
+              <option value="">All courses</option>
+              {courses.map((course) => <option key={course.id} value={course.id}>{course.title}</option>)}
+            </Select>
+          </label>
+          <p role="status" className="text-sm text-muted-foreground">{draftIds.length} selected · {filteredStudents.length} shown</p>
+          <fieldset className="max-h-64 space-y-2 overflow-y-auto">
+            <legend className="sr-only">Enrolled students</legend>
+            {filteredStudents.map((student) => (
+              <label key={student.id} className="flex items-center gap-3 rounded-md border border-border p-3 text-sm">
+                <input
+                  type="checkbox"
+                  checked={draftIds.includes(student.id)}
+                  disabled={draftIds.length >= 100 && !draftIds.includes(student.id)}
+                  onChange={(event) => setDraftIds((previous) => event.target.checked
+                    ? [...previous, student.id]
+                    : previous.filter((id) => id !== student.id))}
+                />
+                <span>{student.name}{student.email && student.email !== student.name ? <span className="block text-muted-foreground">{student.email}</span> : null}</span>
+              </label>
+            ))}
+            {filteredStudents.length === 0 ? <p className="text-sm text-muted-foreground">No enrolled students match these filters.</p> : null}
+          </fieldset>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setPickerOpen(false)}>Cancel</Button>
+            <Button type="button" disabled={draftIds.length === 0} onClick={() => {
+              setSelectedIds(draftIds);
+              setPickerOpen(false);
+            }}>Confirm recipients</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <textarea
+        aria-label="Message body"
         className="min-h-32 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
         maxLength={5000}
         onChange={(e) => setBody(e.target.value)}
