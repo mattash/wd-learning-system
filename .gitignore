@@ -47,6 +47,7 @@ next-env.d.ts
 /.clerk/
 
 .temp/
+.branches/
 parish-leaders-course-videos/
 
 # Agent/validation config: keep stable instructions, ignore generated state.

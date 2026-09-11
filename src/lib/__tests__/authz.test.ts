@@ -15,6 +15,7 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@/lib/e2e-mode", () => ({
   isE2ESmokeMode: vi.fn(() => false),
+  isE2EAuthBypass: vi.fn(() => false),
 }));
 
 vi.mock("@/lib/supabase/server", () => ({

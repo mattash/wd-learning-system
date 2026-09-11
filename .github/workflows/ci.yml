@@ -92,3 +92,11 @@ jobs:
 
       - name: End-to-end smoke test
         run: npm run test:e2e
+
+      - name: Upload Playwright traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: output/playwright/test-results
+          retention-days: 7
