@@ -215,7 +215,12 @@ export function TransactionalEmail({
                               lineHeight: "26px",
                             }}
                           >
-                            {paragraph}
+                            {paragraph.split(/\r\n|\r|\n/).map((line, lineIndex) => (
+                              <React.Fragment key={lineIndex}>
+                                {lineIndex > 0 && <br />}
+                                {line}
+                              </React.Fragment>
+                            ))}
                           </p>
                         ))}
                         <table

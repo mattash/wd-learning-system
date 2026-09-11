@@ -251,39 +251,58 @@ describe("processParishMessageDeliveryJobBySendId", () => {
     ).resolves.toBe("not_found");
   });
 
-  it("processes the matching pending job immediately", async () => {
-    const supabase = new InMemorySupabase({
-      parish_message_delivery_jobs: [
-        {
-          id: "job-direct",
-          send_id: "send-direct",
-          parish_id: "parish-1",
-          provider: "mock",
-          status: "pending",
-          attempts: 0,
-          max_attempts: 5,
-          next_attempt_at: "2000-01-01T00:00:00.000Z",
-        },
-      ],
-      parish_message_sends: [
-        { id: "send-direct", subject: "Subject", body: "Body", delivery_status: "queued" },
-      ],
-      parish_message_recipients: [
-        { send_id: "send-direct", clerk_user_id: "u-1", delivery_status: "pending" },
-      ],
-      user_profiles: [{ clerk_user_id: "u-1", email: "u1@example.com" }],
-    });
-    vi.mocked(getSupabaseAdminClient).mockReturnValue(supabase as never);
-    vi.mocked(deliverParishMessage).mockResolvedValue({
-      sent: [{ clerkUserId: "u-1", providerMessageId: null }],
-      failed: [],
-    });
+  it.each(["admin@example.com", null, undefined])(
+    "renders immediate sends with the saved admin's reply address: %s",
+    async (adminEmail) => {
+      const supabase = new InMemorySupabase({
+        parish_message_delivery_jobs: [
+          {
+            id: "job-direct",
+            send_id: "send-direct",
+            parish_id: "parish-1",
+            provider: "mock",
+            status: "pending",
+            attempts: 0,
+            max_attempts: 5,
+            next_attempt_at: "2000-01-01T00:00:00.000Z",
+          },
+        ],
+        parish_message_sends: [
+          { id: "send-direct", subject: "Subject", body: "Body", delivery_status: "queued", created_by_clerk_user_id: "admin-1" },
+        ],
+        parish_message_recipients: [
+          { send_id: "send-direct", clerk_user_id: "u-1", delivery_status: "pending" },
+        ],
+        user_profiles: [
+          { clerk_user_id: "u-1", email: "u1@example.com" },
+          ...(adminEmail === undefined ? [] : [{ clerk_user_id: "admin-1", email: adminEmail }]),
+        ],
+      });
+      vi.mocked(getSupabaseAdminClient).mockReturnValue(supabase as never);
+      vi.mocked(deliverParishMessage).mockResolvedValue({
+        sent: [{ clerkUserId: "u-1", providerMessageId: null }],
+        failed: [],
+      });
 
-    await expect(
-      processParishMessageDeliveryJobBySendId({ sendId: "send-direct" }),
-    ).resolves.toBe("sent");
-    expect(supabase.tables.parish_message_delivery_jobs[0].status).toBe("sent");
-  });
+      await expect(
+        processParishMessageDeliveryJobBySendId({ sendId: "send-direct" }),
+      ).resolves.toBe("sent");
+      expect(supabase.tables.parish_message_delivery_jobs[0].status).toBe("sent");
+      const request = vi.mocked(deliverParishMessage).mock.calls[0][0];
+      expect(request).toMatchObject({
+        subject: "Subject",
+        body: expect.stringContaining("St. John Learning"),
+        html: expect.stringContaining('id="email-card"'),
+        recipients: [{ clerkUserId: "u-1", email: "u1@example.com" }],
+      });
+      expect(request.body).toContain("Body");
+      if (adminEmail) {
+        expect(request.replyTo).toBe(adminEmail);
+      } else {
+        expect(request).not.toHaveProperty("replyTo");
+      }
+    },
+  );
 });
 
 describe("processPendingParishMessageDeliveryJobs", () => {
@@ -422,6 +441,7 @@ describe("processPendingParishMessageDeliveryJobs", () => {
           id: "send-1",
           subject: "Subject",
           body: "Body",
+          created_by_clerk_user_id: "admin-1",
           delivery_status: "queued",
         },
       ],
@@ -438,6 +458,7 @@ describe("processPendingParishMessageDeliveryJobs", () => {
         },
       ],
       user_profiles: [
+        { clerk_user_id: "admin-1", email: "admin@example.com" },
         { clerk_user_id: "u-1", email: "u1@example.com" },
         { clerk_user_id: "u-2", email: "u2@example.com" },
       ],
@@ -460,8 +481,10 @@ describe("processPendingParishMessageDeliveryJobs", () => {
 
     expect(vi.mocked(deliverParishMessage)).toHaveBeenCalledWith({
       provider: "mock",
+      replyTo: "admin@example.com",
       subject: "Subject",
-      body: "Body",
+      body: expect.stringContaining("Body"),
+      html: expect.stringContaining("St. John Learning"),
       recipients: [
         { clerkUserId: "u-1", email: "u1@example.com" },
         { clerkUserId: "u-2", email: "u2@example.com" },

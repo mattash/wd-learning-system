@@ -10,7 +10,7 @@ export interface TransactionalEmailParams {
   appUrl?: string;
 }
 
-function applicationOrigin(appUrl?: string): URL {
+export function applicationOrigin(appUrl?: string): URL {
   const base = new URL(
     appUrl ??
       process.env.NEXT_PUBLIC_APP_URL ??
