@@ -21,10 +21,10 @@ alter table certificates enable row level security;
 -- Students and parish admins can see certificates for their own enrollments
 create policy "students_can_view_own_certificates" on certificates
   for select using (
-    auth.uid() = clerk_user_id
+    auth.uid()::text = clerk_user_id
     or exists (
       select 1 from parish_memberships
-      where parish_memberships.clerk_user_id = auth.uid()
+      where parish_memberships.clerk_user_id = auth.uid()::text
         and parish_memberships.parish_id = certificates.parish_id
         and parish_memberships.role in ('parish_admin', 'diocesan_admin')
     )
@@ -34,7 +34,7 @@ create policy "parish_admins_can_manage_own_certificates" on certificates
   for all using (
     exists (
       select 1 from parish_memberships
-      where parish_memberships.clerk_user_id = auth.uid()
+      where parish_memberships.clerk_user_id = auth.uid()::text
         and parish_memberships.parish_id = certificates.parish_id
         and parish_memberships.role in ('parish_admin', 'diocesan_admin')
     )

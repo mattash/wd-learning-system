@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { E2E_DEFAULT_ROLE, E2E_USER_ID } from "@/lib/e2e-fixtures";
-import { isE2ESmokeMode } from "@/lib/e2e-mode";
+import { isE2EAuthBypass, isE2ESmokeMode } from "@/lib/e2e-mode";
 import { getSupabaseAdminClient } from "@/lib/supabase/server";
 import { ParishRole } from "@/lib/types";
 
@@ -25,7 +25,7 @@ function hasRoleAtLeast(role: ParishRole, minRole: ParishRole) {
 }
 
 export async function requireAuth() {
-  if (isE2ESmokeMode()) {
+  if (isE2EAuthBypass()) {
     return E2E_USER_ID;
   }
 
@@ -189,7 +189,7 @@ export async function isDioceseAdmin(clerkUserId?: string) {
 }
 
 export async function getUserLabel(clerkUserId: string) {
-  if (isE2ESmokeMode()) {
+  if (isE2EAuthBypass()) {
     return "E2E User";
   }
 

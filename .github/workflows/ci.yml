@@ -92,3 +92,53 @@ jobs:
 
       - name: End-to-end smoke test
         run: npm run test:e2e
+
+      - name: Upload Playwright traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: output/playwright/test-results
+          retention-days: 7
+
+  db-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_c3VwZXJiLXN3YW4tMjUuY2xlcmsuYWNjb3VudHMuZGV2JA
+      CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Start Supabase
+        run: supabase start --yes
+
+      - name: DB-backed end-to-end test
+        run: npm run test:e2e:db
+
+      - name: Upload Playwright traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-db-traces
+          path: output/playwright/db-test-results
+          retention-days: 7

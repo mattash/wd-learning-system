@@ -1,7 +1,7 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
-import { isE2ESmokeMode } from "@/lib/e2e-mode";
+import { isE2EAuthBypass } from "@/lib/e2e-mode";
 
 const isProtectedRoute = createRouteMatcher(["/app(.*)", "/api(.*)"]);
 const isDeliveryWorkerRoute = createRouteMatcher([
@@ -9,7 +9,7 @@ const isDeliveryWorkerRoute = createRouteMatcher([
 ]);
 
 export default clerkMiddleware(async (auth, req) => {
-  if (isE2ESmokeMode()) {
+  if (isE2EAuthBypass()) {
     return NextResponse.next();
   }
 
