@@ -31,6 +31,12 @@ export interface ParishAdminEnrollmentRow {
   course_id: string;
   cohort_id: string | null;
   created_at: string;
+  /** Snapshot of the learner's name at page-load time (may differ from current parish members list). */
+  display_name: string | null;
+  /** Snapshot of the learner's email at page-load time. */
+  email: string | null;
+  /** Snapshot of the course title at page-load time (may differ from current visible courses). */
+  course_title: string | null;
 }
 
 export interface ParishAdminMemberRow {
@@ -141,6 +147,9 @@ export async function getParishAdminDashboardDataForUser({
           course_id: E2E_COURSE.id,
           cohort_id: "e2e-cohort",
           created_at: new Date().toISOString(),
+          display_name: "E2E User",
+          email: "e2e@example.test",
+          course_title: E2E_COURSE.title,
         },
       ],
       members: [
@@ -236,6 +245,47 @@ export async function getParishAdminDashboardDataForUser({
     enrollments = ((enrollmentsResult.data ?? []) as ParishAdminEnrollmentRow[]) ?? [];
   }
 
+  // Enrich enrollment rows with snapshots of learner/course names. Enrollments
+  // can outlive parish membership or course visibility, so the table must not
+  // depend on the current members/courses lists for its labels.
+  const enrolledUserIds = Array.from(new Set(enrollments.map((enrollment) => enrollment.clerk_user_id)));
+  const enrolledCourseIds = Array.from(new Set(enrollments.map((enrollment) => enrollment.course_id)));
+
+  const [enrolledProfilesResult, enrolledCoursesResult] = await Promise.all([
+    enrolledUserIds.length > 0
+      ? supabase.from("user_profiles").select("clerk_user_id,email,display_name").in("clerk_user_id", enrolledUserIds)
+      : Promise.resolve({ data: [], error: null }),
+    enrolledCourseIds.length > 0
+      ? supabase.from("courses").select("id,title").in("id", enrolledCourseIds)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+
+  if (enrolledProfilesResult.error) throw enrolledProfilesResult.error;
+  if (enrolledCoursesResult.error) throw enrolledCoursesResult.error;
+
+  const enrolledProfileByUserId = new Map(
+    ((enrolledProfilesResult.data ?? []) as Array<{ clerk_user_id: string; email: string | null; display_name: string | null }>).map(
+      (profile) => [profile.clerk_user_id, profile],
+    ),
+  );
+  const enrolledCourseById = new Map(
+    ((enrolledCoursesResult.data ?? []) as Array<{ id: string; title: string }>).map((course) => [
+      course.id,
+      course,
+    ]),
+  );
+
+  const enrollmentsWithDisplay: ParishAdminEnrollmentRow[] = enrollments.map((enrollment) => {
+    const profile = enrolledProfileByUserId.get(enrollment.clerk_user_id);
+    const course = enrolledCourseById.get(enrollment.course_id);
+    return {
+      ...enrollment,
+      display_name: profile?.display_name ?? null,
+      email: profile?.email ?? null,
+      course_title: course?.title ?? null,
+    };
+  });
+
   const scopedUserIds = Array.from(new Set(enrollments.map((enrollment) => enrollment.clerk_user_id)));
   const cohortFacilitatorIds = cohorts
     .map((cohort) => cohort.facilitator_clerk_user_id)
@@ -252,12 +302,20 @@ export async function getParishAdminDashboardDataForUser({
 
   const membershipRows = ((membershipsResult.data ?? []) as Array<{ clerk_user_id: string; role: ParishRole }>) ?? [];
 
+  // Parish admins see every parish member in the "Add enrollment" dropdown, so
+  // fetch profiles for all of them. Instructors only see members tied to their
+  // cohorts or enrollments.
+  const profileUserIds =
+    role === "parish_admin"
+      ? Array.from(new Set(membershipRows.map((row) => row.clerk_user_id)))
+      : memberIds;
+
   let profileRows: Array<{ clerk_user_id: string; email: string | null; display_name: string | null }> = [];
-  if (memberIds.length > 0) {
+  if (profileUserIds.length > 0) {
     const profilesResult = await supabase
       .from("user_profiles")
       .select("clerk_user_id,email,display_name")
-      .in("clerk_user_id", memberIds);
+      .in("clerk_user_id", profileUserIds);
     if (profilesResult.error) throw profilesResult.error;
     profileRows = (profilesResult.data ?? []) as Array<{
       clerk_user_id: string;
@@ -511,7 +569,7 @@ export async function getParishAdminDashboardDataForUser({
     dioceseCourses,
     adoptedParishCourses,
     availableParishCourses,
-    enrollments,
+    enrollments: enrollmentsWithDisplay,
     members,
     cohorts,
     communicationSends,

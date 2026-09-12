@@ -16,9 +16,9 @@ const members = [
   { clerk_user_id: "unenrolled", display_name: "Unenrolled member", email: null },
 ] as ParishAdminMemberRow[];
 const enrollments = [
-  { clerk_user_id: "alice", course_id: "course-1" },
-  { clerk_user_id: "alice", course_id: "course-2" },
-  { clerk_user_id: "bob", course_id: "course-2" },
+  { clerk_user_id: "alice", course_id: "course-1", display_name: "Alice Adams", email: "alice@example.com", course_title: "Course One" },
+  { clerk_user_id: "alice", course_id: "course-2", display_name: "Alice Adams", email: "alice@example.com", course_title: "Course Two" },
+  { clerk_user_id: "bob", course_id: "course-2", display_name: "Bob Brown", email: "bob@example.com", course_title: "Course Two" },
 ] as ParishAdminEnrollmentRow[];
 
 function setup(rows = enrollments) {

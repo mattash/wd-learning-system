@@ -43,6 +43,9 @@ const enrollments: ParishAdminEnrollmentRow[] = [
     course_id: "course-1",
     cohort_id: "cohort-1",
     created_at: "2026-01-02T00:00:00.000Z",
+    display_name: "Student User",
+    email: "student@example.com",
+    course_title: "Foundations",
   },
 ];
 
