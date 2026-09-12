@@ -27,6 +27,9 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Check migration history is append-only
+        run: npm run check:migrations origin/main
+
   typecheck:
     runs-on: ubuntu-latest
     timeout-minutes: 15

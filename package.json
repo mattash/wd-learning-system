@@ -11,6 +11,7 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "test:e2e:db": "playwright test --config playwright.db.config.ts",
+    "check:migrations": "bash scripts/check-migrations.sh",
     "test:watch": "vitest",
     "content:import": "tsx scripts/content-builder.ts",
     "typecheck": "tsc --noEmit",
