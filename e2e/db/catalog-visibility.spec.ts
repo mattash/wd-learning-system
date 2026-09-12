@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 const PARISH_ID = "11111111-1111-4111-8111-111111111111";
+const PENDING_COURSE_ID = "88888888-8888-4888-8888-888888888888";
 const COURSE_ID = "22222222-2222-4222-8222-222222222222";
 const PRIVATE_COURSE_ID = "99999999-9999-4999-8999-999999999999";
 
@@ -39,4 +40,27 @@ test("unjoined course card navigates to the preview route", async ({ page }) => 
 test("preview of a course outside the parish returns 404", async ({ page }) => {
   const response = await page.goto(`/app/courses/${PRIVATE_COURSE_ID}/preview`);
   expect(response?.status()).toBe(404);
+});
+
+test("preview shows Request sent for a course with a pending join request", async ({ page }) => {
+  await page.goto(`/app/courses/${PENDING_COURSE_ID}/preview`);
+
+  await expect(
+    page.getByRole("heading", { name: "Parish Leadership in Practice" }),
+  ).toBeVisible();
+  await expect(page.getByText("Request sent", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Request to Join" }),
+  ).toHaveCount(0);
+});
+
+test("preview still offers to join when the pending request is for another course", async ({ page }) => {
+  await page.goto(`/app/courses/${COURSE_ID}/preview`);
+
+  await expect(
+    page.getByRole("heading", { name: "Foundations of Parish Leadership" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Request to Join" }),
+  ).toBeVisible();
 });

@@ -8,6 +8,7 @@ import { ScopeBadge } from "@/components/learning/scope-badge";
 import { Card } from "@/components/ui/card";
 import { requireParishRole } from "@/lib/authz";
 import { formatCourseDuration } from "@/lib/course-metadata";
+import { getStudentPendingRequests } from "@/lib/repositories/course-join-requests";
 import {
   getCourseTree,
   isUserEnrolledInCourse,
@@ -25,12 +26,13 @@ export default async function CoursePreviewPage({
   if (enrolled) {
     redirect(`/app/courses/${courseId}`);
   }
-
   const tree = await getCourseTree(courseId, parishId);
   if (!tree) notFound();
 
-  const allLessons = tree.modules.flatMap((m) => m.lessons);
+  const pendingRequests = await getStudentPendingRequests({ parishId, clerkUserId });
+  const hasPendingRequest = pendingRequests.some((r) => r.courseId === courseId);
   const duration = formatCourseDuration(tree.course.durationHours);
+  const allLessons = tree.modules.flatMap((m) => m.lessons);
 
   const lessonNumbers: Record<string, number> = {};
   let n = 0;
@@ -78,7 +80,7 @@ export default async function CoursePreviewPage({
             instructor={tree.course.instructor}
           />
           <div className="mt-auto max-w-[260px] pt-1">
-            <RequestJoinButton courseId={courseId} />
+            <RequestJoinButton courseId={courseId} initiallyRequested={hasPendingRequest} />
           </div>
         </div>
       </Card>
