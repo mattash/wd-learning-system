@@ -358,7 +358,7 @@ describe("course join request repository", () => {
     expect(notifyJoinRequestCreated).not.toHaveBeenCalled();
   });
 
-  it("lists parish join requests with course titles", async () => {
+  it("lists parish join requests with course titles and student details", async () => {
     const data = [
       {
         id: "request-1",
@@ -376,14 +376,36 @@ describe("course join request repository", () => {
     const parishEq = vi.fn(() => ({ order }));
     const select = vi.fn(() => ({ eq: parishEq }));
 
+    const profileData = [
+      {
+        clerk_user_id: request.clerk_user_id,
+        display_name: "Ani Student",
+        email: "ani@example.com",
+      },
+    ];
+    const profileIn = vi.fn(() => ({ data: profileData, error: null }));
+    const profileSelect = vi.fn(() => ({ in: profileIn }));
+
     vi.mocked(getSupabaseAdminClient).mockReturnValue({
-      from: vi.fn(() => ({ select })),
+      from: vi.fn((table: string) => {
+        if (table === "user_profiles") {
+          return { select: profileSelect };
+        }
+        return { select };
+      }),
     } as never);
 
     await expect(getParishJoinRequests(request.parish_id, "PENDING")).resolves.toEqual([
-      expect.objectContaining({ id: "request-1", courseTitle: "Intro Course", status: "PENDING" }),
+      expect.objectContaining({
+        id: "request-1",
+        courseTitle: "Intro Course",
+        status: "PENDING",
+        studentName: "Ani Student",
+        studentEmail: "ani@example.com",
+      }),
     ]);
     expect(statusEq).toHaveBeenCalledWith("status", "PENDING");
+    expect(profileIn).toHaveBeenCalledWith("clerk_user_id", [request.clerk_user_id]);
   });
 
   it("lists a student's pending join requests", async () => {

@@ -91,8 +91,8 @@ export function ParishJoinRequestsManager({ initialRequests }: ParishJoinRequest
       <tr className="border-t border-border">
         <td className="py-3 pr-4">
           <div className="flex flex-col">
-            <span className="text-sm font-medium">{request.clerkUserId}</span>
-            <span className="font-mono text-xs text-muted-foreground">{request.clerkUserId}</span>
+            <span className="text-sm font-medium">{request.studentName ?? request.clerkUserId}</span>
+            <span className="font-mono text-xs text-muted-foreground">{request.studentEmail ?? request.clerkUserId}</span>
           </div>
         </td>
         <td className="py-3 pr-4">
