@@ -5,8 +5,11 @@
 - `src/components`: reusable UI and feature components; shared primitives live in `src/components/ui`.
 - `src/lib`: core business logic, authz guards, repositories, validation, and helpers.
 - Tests are colocated in `__tests__` folders; browser smoke tests are in `e2e/*.spec.ts`.
-- `supabase/migrations` stores schema changes and `supabase/seed.sql` contains seed data.
-- `docs/` captures design/testing decisions; `public/` holds static assets.
+
+## Database Migrations (append-only)
+- `supabase/migrations` files are **immutable once applied to any environment** (local, staging, or prod). Never rename, renumber, delete, or edit an applied migration.
+- Schema changes always go in a NEW migration file (`supabase/migrations/<timestamp>_<name>.sql`). Supabase tracks applied migrations by version + name + statements; rewrites break remote `schema_migrations` tracking and can silently un-apply or double-apply work (see issue #75 for the incident this caused).
+- `npm run check:migrations [base-ref]` (default `origin/main`) fails if any migration file was modified, renamed, or deleted instead of added. CI runs it on every PR. Deliberate, reviewed history repairs may override once with `ALLOW_MIGRATION_REWRITE=1` and must explain the repair in the PR description.
 
 ## Build, Test, and Development Commands
 - `npm run dev`: run the local Next.js dev server.

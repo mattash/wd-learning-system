@@ -40,6 +40,9 @@ const enrollments: ParishAdminEnrollmentRow[] = [
     course_id: "course-1",
     cohort_id: null,
     created_at: "2026-01-01T00:00:00.000Z",
+    display_name: "Learner One",
+    email: "learner@example.com",
+    course_title: "Foundations",
   },
 ];
 
@@ -114,5 +117,29 @@ describe("ParishEnrollmentManager", () => {
 
     expect(await screen.findByText("Failed to remove enrollment.")).toBeInTheDocument();
     expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it("shows embedded learner and course labels even when the member/course are no longer visible", () => {
+    render(
+      <ParishEnrollmentManager
+        courses={courses}
+        members={members}
+        enrollments={[
+          {
+            id: "enrollment-orphan",
+            clerk_user_id: "user_not_in_members_list",
+            course_id: "course_not_in_courses_list",
+            cohort_id: null,
+            created_at: "2026-01-01T00:00:00.000Z",
+            display_name: "Former Learner",
+            email: "former@example.com",
+            course_title: "Former Course",
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.getByText("Former Learner")).toBeInTheDocument();
+    expect(screen.getByText("Former Course")).toBeInTheDocument();
   });
 });
