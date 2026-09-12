@@ -24,12 +24,19 @@ vi.mock("@/lib/repositories/courses", () => ({
   isUserEnrolledInCourse: vi.fn(),
 }));
 
+vi.mock("@/lib/repositories/course-join-requests", () => ({
+  getStudentPendingRequests: vi.fn(),
+}));
+
 vi.mock("@/components/course-join/request-join-button", () => ({
-  RequestJoinButton: ({ courseId }: { courseId: string }) => <button>Request {courseId}</button>,
+  RequestJoinButton: ({ courseId, initiallyRequested }: { courseId: string; initiallyRequested?: boolean }) => (
+    <button>{initiallyRequested ? `Request sent ${courseId}` : `Request ${courseId}`}</button>
+  ),
 }));
 
 import CoursePreviewPage from "@/app/app/courses/[courseId]/preview/page";
 import { requireParishRole } from "@/lib/authz";
+import { getStudentPendingRequests } from "@/lib/repositories/course-join-requests";
 import { getCourseTree, isUserEnrolledInCourse } from "@/lib/repositories/courses";
 
 const courseId = "11111111-1111-4111-8111-111111111111";
@@ -43,6 +50,7 @@ describe("CoursePreviewPage", () => {
       role: "student",
     });
     vi.mocked(isUserEnrolledInCourse).mockResolvedValue(false);
+    vi.mocked(getStudentPendingRequests).mockResolvedValue([]);
     vi.mocked(getCourseTree).mockResolvedValue({
       course: {
         id: courseId,
@@ -125,5 +133,42 @@ describe("CoursePreviewPage", () => {
       "NEXT_NOT_FOUND",
     );
     expect(navigationMocks.notFound).toHaveBeenCalled();
+  });
+
+  it("shows the request as already sent when a pending request exists", async () => {
+    vi.mocked(getStudentPendingRequests).mockResolvedValue([
+      {
+        id: "request-1",
+        parishId: "parish-1",
+        clerkUserId: "user-1",
+        courseId,
+        status: "PENDING",
+        createdAt: "2026-01-01",
+        updatedAt: "2026-01-01",
+      },
+    ]);
+
+    render(await CoursePreviewPage({ params: Promise.resolve({ courseId }) }));
+
+    expect(screen.getByRole("button", { name: `Request sent ${courseId}` })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: `Request ${courseId}` })).not.toBeInTheDocument();
+  });
+
+  it("ignores pending requests for other courses", async () => {
+    vi.mocked(getStudentPendingRequests).mockResolvedValue([
+      {
+        id: "request-1",
+        parishId: "parish-1",
+        clerkUserId: "user-1",
+        courseId: "another-course",
+        status: "PENDING",
+        createdAt: "2026-01-01",
+        updatedAt: "2026-01-01",
+      },
+    ]);
+
+    render(await CoursePreviewPage({ params: Promise.resolve({ courseId }) }));
+
+    expect(screen.getByRole("button", { name: `Request ${courseId}` })).toBeInTheDocument();
   });
 });

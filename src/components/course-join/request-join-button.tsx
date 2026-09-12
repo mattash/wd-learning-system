@@ -7,11 +7,16 @@ import { useRouter } from "next/navigation";
 
 interface RequestJoinButtonProps {
   courseId: string;
+  /** True when this student already has a PENDING request for the course. */
+  initiallyRequested?: boolean;
 }
 
-export function RequestJoinButton({ courseId }: RequestJoinButtonProps) {
+export function RequestJoinButton({
+  courseId,
+  initiallyRequested = false,
+}: RequestJoinButtonProps) {
   const [isPending, startTransition] = useTransition();
-  const [requested, setRequested] = useState(false);
+  const [requested, setRequested] = useState(initiallyRequested);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 

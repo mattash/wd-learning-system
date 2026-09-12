@@ -43,13 +43,24 @@ values
     true,
     'PARISH',
     false
+  ),
+  (
+    '88888888-8888-4888-8888-888888888888',
+    'Parish Leadership in Practice',
+    'A second Saint Mark course used to test per-course pending state.',
+    'Formation Team',
+    1,
+    'Leadership',
+    true,
+    'PARISH',
+    false
   )
 on conflict (id) do nothing;
-
 insert into course_parishes (course_id, parish_id)
 values
   ('22222222-2222-4222-8222-222222222222', '11111111-1111-4111-8111-111111111111'),
-  ('99999999-9999-4999-8999-999999999999', 'aaaaaaa1-aaaa-4aaa-8aaa-aaaaaaaaaaa1')
+  ('99999999-9999-4999-8999-999999999999', 'aaaaaaa1-aaaa-4aaa-8aaa-aaaaaaaaaaa1'),
+  ('88888888-8888-4888-8888-888888888888', '11111111-1111-4111-8111-111111111111')
 on conflict do nothing;
 
 insert into modules (id, course_id, title, sort_order)
@@ -81,3 +92,9 @@ on conflict (clerk_user_id) do update set onboarding_completed_at = now();
 insert into parish_memberships (parish_id, clerk_user_id, role)
 values ('11111111-1111-4111-8111-111111111111', 'e2e-user', 'student')
 on conflict (parish_id, clerk_user_id) do nothing;
+
+-- A pending join request for the second course so the DB e2e suite can
+-- verify the preview reflects per-course pending state.
+insert into course_join_requests (parish_id, clerk_user_id, course_id, status)
+values ('11111111-1111-4111-8111-111111111111', 'e2e-user', '88888888-8888-4888-8888-888888888888', 'PENDING')
+on conflict (parish_id, clerk_user_id, course_id, status) do nothing;
