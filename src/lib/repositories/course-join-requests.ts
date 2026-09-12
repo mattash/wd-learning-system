@@ -115,7 +115,7 @@ export async function getParishJoinRequests(
   const { data, error } = await query;
   if (error) throw error;
 
-  return ((data ?? []) as Array<{
+  const rows = (data ?? []) as Array<{
     id: string;
     parish_id: string;
     clerk_user_id: string;
@@ -124,16 +124,45 @@ export async function getParishJoinRequests(
     created_at: string;
     updated_at: string;
     courses: { title: string } | null;
-  }>).map((row) => ({
-    id: row.id,
-    parishId: row.parish_id,
-    clerkUserId: row.clerk_user_id,
-    courseId: row.course_id,
-    status: row.status,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-    courseTitle: row.courses?.title,
-  }));
+  }>;
+
+  const clerkUserIds = Array.from(new Set(rows.map((row) => row.clerk_user_id)));
+  let profileById = new Map<string, { display_name: string | null; email: string | null }>();
+
+  if (clerkUserIds.length > 0) {
+    const { data: profiles, error: profilesError } = await supabase
+      .from("user_profiles")
+      .select("clerk_user_id,display_name,email")
+      .in("clerk_user_id", clerkUserIds);
+
+    if (profilesError) throw profilesError;
+
+    profileById = new Map(
+      (profiles ?? []).map((profile) => [
+        profile.clerk_user_id as string,
+        {
+          display_name: profile.display_name as string | null,
+          email: profile.email as string | null,
+        },
+      ])
+    );
+  }
+
+  return rows.map((row) => {
+    const profile = profileById.get(row.clerk_user_id);
+    return {
+      id: row.id,
+      parishId: row.parish_id,
+      clerkUserId: row.clerk_user_id,
+      courseId: row.course_id,
+      status: row.status,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      courseTitle: row.courses?.title,
+      studentName: profile?.display_name ?? undefined,
+      studentEmail: profile?.email ?? undefined,
+    };
+  });
 }
 
 /**
